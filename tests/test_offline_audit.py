@@ -43,9 +43,21 @@ def sample(i, text, sample_idx=0, group="drug-para", finish="stop", split="val",
     f"</think>\r\n{PARA}\r\n",
     f"</think>\n{PARA}<|im_end|>",
     f"</think>\nCCO\nHello there\n{PARA}\n\n",
+    f"</think>\n{PARA}.",                              # a closing full stop, as chem.extract_answer strips it
+    f"</think>\n{PARA},",
+    f"</think>\n{PARA};",
+    f"</think>\n{PARA}:",
+    f"</think>\n`{PARA}`.",
+    f"</think>\n**{PARA}.**",
 ])
 def test_last_line_answer_reads_the_smiles_only_line(oa, text):
     assert oa.last_line_answer(text) == PARA
+
+
+def test_reader_b_strips_exactly_what_reader_a_strips_so_a_closing_full_stop_is_no_disagreement(oa):
+    assert oa.STRIP == chem._STRIP == "`*.,;:"
+    for end in ".,;:":
+        assert kinds(oa, f"</think>\n{PARA}{end}") == ("agree",)
 
 
 def test_last_line_answer_takes_the_last_such_line_and_applies_no_length_guard(oa):
@@ -102,6 +114,13 @@ def test_audit_extractor_counts(oa):
     assert (c["a_only_small"], c["b_only_small"]) == (0, 1)
     assert c["rate"] == pytest.approx(4 / 6, abs=1e-6) and c["rate_finished"] == pytest.approx(3 / 5, abs=1e-6)
     assert oa.audit_extractor([], 8)["rate"] == 0.0
+
+
+def test_finished_is_metrics_finished_stop_or_unrecorded_but_not_length_or_abort(oa):
+    rows = [sample("a", f"</think>\n{PARA}", 0, finish="stop"), sample("b", f"</think>\n{PARA}", 1, finish="length"), sample("c", f"</think>\n{PARA}", 2, finish="abort"),
+            {k: v for k, v in sample("d", f"</think>\n{PARA}", 3).items() if k != "finish_reason"}]
+    c = oa.audit_extractor(rows, 8)
+    assert c["samples"] == 4 and c["finished"] == 2 and c["agree_finished"] == 2
 
 
 def test_small_counts_depend_on_the_smallest_reference(oa):
@@ -167,6 +186,17 @@ def test_t5_run_length_cut_samples_are_failures(oa):
     assert t["rows_ge2_valid"] == 1 and t["rows_spread"] == 1             # a different valid answer next to the aspirin does spread
 
 
+def test_t5_k_is_the_most_common_row_size_not_the_longest_row(oa):
+    rows = [sample(f"row-p{i}", f"</think>\n{text}", j) for i in range(5) for j, text in enumerate([PARA, ASPIRIN, CAFFEINE, "garbage"])]
+    rows += [sample("row-long", f"</think>\n{PARA}", j) for j in range(9)]            # one over-long row (a resumed or duplicated prompt)
+    rows += [sample("row-short", f"</think>\n{PARA}", j) for j in range(3)]
+    t = oa.t5_run(rows, REFS)
+    assert t["k"] == 4 and t["rows"] == 5 and t["rows_incomplete"] == 2               # the five normal rows survive; the long and the short one are counted out
+    assert t["rows_ge2_valid"] == 5 and t["rows_spread"] == 5
+    tie = [sample("a", f"</think>\n{PARA}", j) for j in range(4)] + [sample("b", f"</think>\n{PARA}", j) for j in range(8)]
+    assert oa.t5_run(tie, REFS)["k"] == 8                                             # equal counts: the larger k
+
+
 def test_t5_run_is_empty_safe(oa):
     t = oa.t5_run([], REFS)
     assert t["rows"] == 0 and t["share"] == 0.0 and t["meets_bar"] is False
@@ -208,6 +238,27 @@ def test_collect_skips_names_controls_other_splits_and_partial_copies(oa, tmp_pa
     assert "model-a" in notes["model-a-partial"] and notes["ident-x"].startswith("the answer is a drug name")
     assert notes["val-control_c"].startswith("CPU control") and notes["train-only"] == "no val samples"
     assert notes["empty-run"] == "no samples.jsonl"
+
+
+KEEP = ["a-direct", "a1-val", "a2-t0.3", "a2-val", "a4-icl", "b27-direct", "b4-t0.6", "g-9b-name", "name-4b", "nothink-val", "rlfull-s40-t0.6", "think-val", "rl-s40",
+        "rlfull-s20-t0.6", "rlfull-s30-t1.0", "rlfull-s40-t1.0", "rlfull-s100-t0.6", "a2-t1.0", "b9-t0.3", "x-seedy", "seed7"]      # near misses of the patterns below stay audited
+SKIPPED = {"ident-4b": "the answer is a drug name", "val-control_constant": "CPU control", "val8-control_constant_pool": "CPU control",
+           "control_copy_nearest": "CPU control", "x-control_y": "CPU control", "strict-a2-val": "a strict-reader rescoring",
+           "a2-shuffle-t1.0": "Val diagnostic family", "r1s40-shuffle-t0.6": "Val diagnostic family", "a2-blank-t1.0": "Val diagnostic family",
+           "r1s40-blank-t0.6": "Val diagnostic family", "r1s40": "Val diagnostic family", "r3s20-t0.6": "Val diagnostic family", "a4-t0.6": "Val diagnostic family",
+           "a2-t1.0-seed1": "Val run made after", "a2-t1.0-seed2": "Val run made after", "rlfull-s40-t0.6-seed1": "Val run made after",
+           "rlfull-s40-t0.6-seed12": "Val run made after", "rlfull-s10-t0.6": "Val run made after", "rlfull-s10-t1.0": "Val run made after",
+           "rlfull-s10-t0.3": "Val run made after", "rlfull-s20-t0.3": "Val run made after", "rlfull-s30-t0.3": "Val run made after",
+           "rlfull-s40-t0.3": "Val run made after", "rlfull-s100-t0.3": "Val run made after"}
+
+
+def test_collect_skips_controls_anywhere_strict_rescorings_the_later_families_and_seed_repeats_but_keeps_the_rest(oa, tmp_path):
+    for name in [*KEEP, *SKIPPED]:
+        write_run(tmp_path, name, [sample(f"row-{name}", f"</think>\n{PARA}  {name}")])           # distinct samples: none is a partial copy of another
+    runs, hashes, notes = oa.collect(tmp_path)
+    assert sorted(runs) == sorted(KEEP) and set(hashes) == set(runs)
+    for name, why in SKIPPED.items():
+        assert name not in runs and notes[name].startswith(why), name
 
 
 def test_collect_drops_the_partial_copy_whatever_the_name_order(oa, tmp_path):
@@ -259,3 +310,29 @@ def test_main_refuses_test_splits_and_unknown_drugs(oa, tmp_path):
     with pytest.raises(SystemExit) as e:
         oa.main(["--runs", str(tmp_path / "runs2"), "--refs", str(tmp_path / "refs.jsonl")])
     assert "no included reference" in str(e.value)
+
+
+# ------------------------------------------------------------------------------------------------ the committed audit
+COMMITTED, RUNS = ROOT / "results" / "extractor_audit.json", ROOT / "runs" / "colab-s1"
+
+
+def test_the_committed_artefacts_pin_29_runs_and_10304_samples():
+    """docs/prereg-v1.md section 8 quotes this audit: its population is part of the registered decision."""
+    audit = json.loads(COMMITTED.read_text(encoding="utf-8"))
+    t5 = json.loads((ROOT / "results" / "t5.json").read_text(encoding="utf-8"))
+    assert len(audit["runs"]) == 29 and audit["overall"]["samples"] == 10304 == sum(r["samples"] for r in audit["runs"].values())
+    assert set(t5["runs"]) | {n for n in t5["notes"] if n in audit["runs"]} == set(audit["runs"])        # T5 covers the same 29 runs (the k<4 ones as notes)
+    assert {n.removesuffix("/samples.jsonl") for n in audit["provenance"]["inputs"] if n.endswith("/samples.jsonl")} == set(audit["runs"])
+
+
+def test_the_runs_folder_reproduces_the_committed_population_exactly(oa):
+    """No later run folder may join (or leave) the audit silently: a folder that SKIP does not name fails here, and then SKIP is extended, or the artefacts are
+    regenerated and the numbers quoted in docs/prereg-v1.md section 8 restated."""
+    if not RUNS.is_dir():
+        pytest.skip("needs the (untracked) runs/colab-s1")
+    audit = json.loads(COMMITTED.read_text(encoding="utf-8"))
+    runs, hashes, _ = oa.collect(RUNS)
+    assert sorted(runs) == sorted(audit["runs"]), (sorted(set(runs) - set(audit["runs"])), sorted(set(audit["runs"]) - set(runs)))
+    assert sum(len(rows) for rows in runs.values()) == audit["overall"]["samples"] == 10304
+    recorded = {n.removesuffix("/samples.jsonl"): v["sha256"] for n, v in audit["provenance"]["inputs"].items() if n.endswith("/samples.jsonl")}
+    assert hashes == recorded

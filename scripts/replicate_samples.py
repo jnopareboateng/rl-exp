@@ -11,11 +11,18 @@ from pathlib import Path
 
 
 def replicate(rows, k):
-    """Each row k times with sample_idx 0..k-1 (the rest of the row unchanged); raises if a row already has sample_idx other than 0."""
-    out = []
-    for row in rows:
-        if row.get("sample_idx", 0) != 0:
+    """Each row k times with sample_idx 0..k-1 (the rest of the row unchanged). ValueError for a row without an integer sample_idx, one whose sample_idx is not 0
+    (several samples per row already), and a repeated (id, sample_idx) pair (the same id twice at index 0, which the metrics would reject as duplicate samples)."""
+    out, seen = [], set()
+    for n, row in enumerate(rows, 1):
+        idx = row.get("sample_idx")
+        if not isinstance(idx, int) or isinstance(idx, bool):
+            raise ValueError(f"row {n} has no integer sample_idx")
+        if idx != 0:
             raise ValueError("input already has several samples per row")
+        if row.get("id") in seen:
+            raise ValueError(f"row {n} repeats the (id, sample_idx) pair of an earlier row: one answer per id is expected")
+        seen.add(row.get("id"))
         out += [{**row, "sample_idx": i} for i in range(k)]
     return out
 

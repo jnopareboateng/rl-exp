@@ -25,6 +25,21 @@ def test_every_row_is_repeated_k_times_with_indices_and_nothing_else_changes(rs)
 def test_input_with_several_samples_per_row_is_refused(rs):
     with pytest.raises(ValueError, match="several samples"):
         rs.replicate([{"id": "a", "sample_idx": 1}], 2)
+    with pytest.raises(ValueError, match="several samples"):
+        rs.replicate([{"id": "a", "sample_idx": 0}, {"id": "a", "sample_idx": 1}], 2)
+
+
+def test_a_repeated_id_at_index_zero_is_a_duplicate_pair_not_several_samples(rs):
+    rows = [{"id": "a", "sample_idx": 0, "text": "t1"}, {"id": "b", "sample_idx": 0, "text": "t2"}, {"id": "a", "sample_idx": 0, "text": "t3"}]
+    with pytest.raises(ValueError, match=r"row 3 repeats the \(id, sample_idx\) pair"):
+        rs.replicate(rows, 8)
+
+
+@pytest.mark.parametrize("row", [{"id": "a", "text": "t"}, {"id": "a", "sample_idx": None}, {"id": "a", "sample_idx": "0"}, {"id": "a", "sample_idx": 0.0},
+                                 {"id": "a", "sample_idx": False}])
+def test_a_row_without_an_integer_sample_idx_is_refused(rs, row):
+    with pytest.raises(ValueError, match="row 2 has no integer sample_idx"):
+        rs.replicate([{"id": "z", "sample_idx": 0}, row], 8)
 
 
 def test_cli_roundtrip(rs, tmp_path, capsys):
@@ -34,3 +49,7 @@ def test_cli_roundtrip(rs, tmp_path, capsys):
     assert len((tmp_path / "o" / "s.jsonl").read_text().splitlines()) == 8 and "8 per row" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         rs.main(["--samples", str(src), "--k", "0", "--out", str(tmp_path / "x.jsonl")])
+    src.write_text(json.dumps({"id": "a", "sample_idx": 0}) + "\n" + json.dumps({"id": "a", "sample_idx": 0}) + "\n")
+    with pytest.raises(SystemExit, match="repeats the"):
+        rs.main(["--samples", str(src), "--k", "8", "--out", str(tmp_path / "dup.jsonl")])
+    assert not (tmp_path / "dup.jsonl").exists()

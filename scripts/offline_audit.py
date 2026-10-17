@@ -6,8 +6,8 @@
 
 Extractor audit. For every Val sample of a model run: `rlexp.chem.extract_answer` (the scorer's reader, A: the last whitespace-
 separated token after the last </think> that looks like a SMILES) against the stricter reader the plan names (B: the last LINE
-after the last </think> that is a SMILES by itself, one token, markdown backticks and asterisks stripped, standardised like
-references). They disagree when the connectivity keys of what they read differ, or one reads a molecule and the other none.
+after the last </think> that is a SMILES by itself, one token, with the characters chem.extract_answer strips from a token (` * . , ; :) stripped
+from both ends, standardised like references). They disagree when the connectivity keys of what they read differ, or one reads a molecule and the other none.
 Plan rule: more than 1% of outputs differ -> switch to B before prereg-v1. The verdict uses the stricter of two rates: over all
 samples and over finished samples (a sample cut by the length cap scores 0 whatever is read from it). To judge WHICH reader is
 right in a disagreement, a_only_small and b_only_small count the molecules read that have fewer heavy atoms than the smallest
@@ -20,9 +20,13 @@ Rewards come from rlexp.reward.score on the samples and the references of refs.j
 share_all_samples is the same threshold over all k samples with invalid ones at reward 0: the spread an RL update sees.
 Only Val is audited (--split refuses the Test splits, which belong to the locked evaluation).
 
-Skipped: runs whose name starts with ident- (the answer is a drug name) or val-control_ (CPU controls, not model output), and a
-run whose every sample (same model, mode, temperature, top-p, token cap, seed, id, sample index and text) is also in another run:
-a partial copy adds nothing.
+Skipped (SKIP, matched on the run folder's name): ident- at the start (the answer is a drug name); control_ anywhere (CPU controls, val-control_ and
+val8-control_, not model output); strict- at the start (a rescoring of another run, same samples); and the Val diagnostic families made after the committed
+audit, so that the audited run list stays the 29 runs of results/extractor_audit.json: -shuffle- and -blank- anywhere, r1s and r3s at the start (RL
+checkpoint families), a4-t at the start (extra A4 temperatures), -seed<n> at the end (seed repeats), rlfull-s10- at the start and rlfull-s<n>-t0.3 (the RL
+step-10 and T=0.3 sweeps). The population is pinned by tests/test_offline_audit.py: a run folder that none of these names must be added to SKIP, or the audit
+artefacts regenerated and the numbers quoted in docs/prereg-v1.md section 8 restated. Also skipped: a run whose every sample (same model, mode, temperature, top-p, token cap,
+seed, id, sample index and text) is also in another run: a partial copy adds nothing.
 """
 import argparse
 import hashlib
@@ -32,6 +36,7 @@ import re
 import shlex
 import subprocess
 import sys
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
@@ -43,9 +48,13 @@ from offline_reward_checks import group_spread                # noqa: E402  the 
 from rlexp import chem, metrics, reward                       # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_PREFIXES = {"ident-": "the answer is a drug name, not a structure", "val-control_": "CPU control, not model output"}
+SKIP = ((r"^ident-", "the answer is a drug name, not a structure"),
+        (r"control_", "CPU control, not model output"),
+        (r"^strict-", "a strict-reader rescoring of another run, not new samples"),
+        (r"-shuffle-|-blank-|^r1s|^r3s|^a4-t", "Val diagnostic family made after the committed audit"),
+        (r"-seed\d+$|^rlfull-s10-|^rlfull-s\d+-t0\.3$", "Val run made after the committed audit: a seed repeat, or the RL step-10 and T=0.3 sweeps"))   # (regex on the run folder's name, why)
 SWITCH_RATE, MIN_STD, T5_BAR, T5_MIN_K = 0.01, 0.05, 0.30, 4
-MARKDOWN = "`*"                                                # code fences, inline code, bold and italic
+STRIP = chem._STRIP                                            # ` * . , ; : : what chem.extract_answer strips from a token (code fences, bold, a closing full stop)
 SAMPLING = ("model", "mode", "temperature", "top_p", "max_tokens", "seed")     # runs that differ in any of these are not copies
 
 
@@ -70,7 +79,7 @@ def last_line_answer(text):
         return None
     tail = text.rsplit("</think>", 1)[1].replace("<|im_end|>", "\n")
     for line in reversed(re.split(r"\r?\n", tail)):             # not str.splitlines: it also cuts at U+2028 and U+0085
-        tok = line.strip().strip(MARKDOWN).strip()
+        tok = line.strip().strip(STRIP).strip()
         if tok and len(tok.split()) == 1 and len(tok) <= chem.MAX_LEN and _key(tok) is not None:
             return tok
     return None
@@ -102,9 +111,9 @@ def _heavy(smiles):
 
 
 def audit_extractor(samples, min_heavy=0):
-    """Counts for one run's samples: samples, finished, how many each reader reads, the KINDS over all samples and over finished
-    ones (finish_reason is not "length"), and how many a_only / b_only molecules have fewer than min_heavy heavy atoms (the
-    smallest reference's size: too small to be the answer). disagree = a_only + b_only + differ."""
+    """Counts for one run's samples: samples, finished (metrics.finished: finish_reason "stop" or none recorded; "length" and "abort" are
+    not finished), how many each reader reads, the KINDS over all samples and over finished ones, and how many a_only / b_only molecules
+    have fewer than min_heavy heavy atoms (the smallest reference's size: too small to be the answer). disagree = a_only + b_only + differ."""
     out = dict.fromkeys(COUNTS, 0)
     for s in samples:
         text, fin = s.get("text") or "", metrics.finished(s)
@@ -142,19 +151,21 @@ def extractor_verdict(overall):
 
 # ---------------------------------------------------------------------------------------------------- T5
 def t5_run(samples, refs):
-    """T5 counts for one run's samples (all from one split): k (samples per prompt row, the maximum), rows with all k samples,
-    rows with at least two valid finished samples, rows whose reward std over those is >= MIN_STD, and the shares. share is the
-    plan's T5 (valid samples only); share_all_samples is the same threshold over all k samples with invalid ones at reward 0,
-    which is the spread RL updates see. A row with fewer than k samples is left out and counted.
+    """T5 counts for one run's samples (all from one split): k (samples per prompt row: the most common count, so one over-long or
+    short row cannot change it; the larger count on a tie), rows with exactly k samples, rows with at least two valid finished
+    samples, rows whose reward std over those is >= MIN_STD, and the shares. share is the plan's T5 (valid samples only);
+    share_all_samples is the same threshold over all k samples with invalid ones at reward 0, which is the spread RL updates see.
+    A row with another count than k is left out and counted in rows_incomplete.
     refs: {group: {"ref_smiles": ..., "ref_alt_smiles": [...]}}."""
     by_id, group = {}, {}
     for s in samples:
         by_id.setdefault(s["id"], []).append(s)
         group[s["id"]] = s["group"]
-    k = max((len(v) for v in by_id.values()), default=0)
+    counts = Counter(len(v) for v in by_id.values())
+    k = max(counts, key=lambda n: (counts[n], n), default=0)
     rewards, flags = {}, {}
     for i, rs in by_id.items():
-        if len(rs) < k:
+        if len(rs) != k:
             continue
         res = [reward.score(s.get("text") or "", refs[group[i]], finished=metrics.finished(s)) for s in rs]
         rewards[i], flags[i] = [r["reward"] for r in res], [bool(r["valid"]) for r in res]
@@ -202,7 +213,7 @@ def collect(runs_dir, split="val"):
     whose every sample is also in another kept run (a partial copy) is left out, larger runs first."""
     loaded, notes = {}, {}
     for d in sorted(p for p in Path(runs_dir).iterdir() if p.is_dir()):
-        why = next((w for pre, w in SKIP_PREFIXES.items() if d.name.startswith(pre)), None)
+        why = next((w for pattern, w in SKIP if re.search(pattern, d.name)), None)
         f = d / "samples.jsonl"
         if why or not f.is_file():
             notes[d.name] = why or "no samples.jsonl"
