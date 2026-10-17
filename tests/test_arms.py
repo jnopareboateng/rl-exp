@@ -1,6 +1,11 @@
 """arms.py on synthetic rows: A1 trace cut, A2 answer-only, A3 rejection sampling, A4 neighbours + in-context prompt, CLI."""
+import importlib.util
 import json
 import random
+import subprocess
+import sys
+import types
+from pathlib import Path
 
 import pytest
 
@@ -11,6 +16,7 @@ PARACETAMOL, CAFFEINE = "CC(=O)Nc1ccc(O)cc1", "Cn1cnc2c1c(=O)n(C)c(=O)n2C"
 NAPROXEN, NICOTINE = "COc1ccc2cc(ccc2c1)C(C)C(=O)O", "CN1CCCC1c1cccnc1"
 SMILES = [ASPIRIN, IBUPROFEN, PARACETAMOL, CAFFEINE, NAPROXEN, NICOTINE]
 SYSTEM = "You are a pharmacology assistant."
+GPU = Path(__file__).resolve().parents[1] / "gpu"
 REASON = "Step by step reasoning about the profile."
 
 
@@ -149,12 +155,61 @@ def test_trace_requires_exactly_one_think_close():
 def test_answer_only_format_and_extractability():
     r = row("d/0", smiles=IBUPROFEN, completion=comp(IBUPROFEN))
     out = arms.answer_only_sft(r)
-    assert out == {"id": "d/0", "prompt": r["prompt"], "completion": f"\n</think>\n\n{IBUPROFEN}<|im_end|>"}
+    assert arms.DIRECT_SYSTEM == "Reply with only the SMILES string of the drug described. No explanation."
+    assert out == {"id": "d/0", "prompt": arms.with_system(r["prompt"], arms.DIRECT_SYSTEM),
+                   "completion": f"\n</think>\n\n{IBUPROFEN}<|im_end|>"}
     assert chem.extract_answer(out["completion"]) == IBUPROFEN
     assert chem.extract_answer("</think>\n\n" + IBUPROFEN) == IBUPROFEN                    # the nothink-mode text form
     assert chem.extract_answer("reasoning </think>\n\n" + IBUPROFEN) == IBUPROFEN
-    assert out["prompt"] + out["completion"] == r["prompt"] + f"\n</think>\n\n{IBUPROFEN}<|im_end|>"
     assert "<think>\n\n</think>\n\n" + IBUPROFEN in out["prompt"] + out["completion"]       # the native thinking-off layout
+
+
+def test_answer_only_system_text_options():
+    r = row("d/0", smiles=IBUPROFEN, completion=comp(IBUPROFEN))
+    kept, custom = arms.answer_only_sft(r, system=None), arms.answer_only_sft(r, system="Answer with a SMILES.")
+    assert kept["prompt"] == r["prompt"]                                                   # the dataset's own text
+    assert arms.system_text(custom["prompt"]) == "Answer with a SMILES."
+    assert arms.split_prompt(custom["prompt"])[1:] == arms.split_prompt(r["prompt"])[1:]   # user turn and opener untouched
+    assert kept["completion"] == custom["completion"] == arms.answer_only_sft(r)["completion"]
+
+
+def test_with_system_replaces_the_text_of_the_first_system_turn_only():
+    p = prompt("the user text", system="old system\nover two lines")
+    assert arms.system_text(p) == "old system\nover two lines"
+    assert arms.with_system(p, "NEW \\1 \\g<0> text") == prompt("the user text", system="NEW \\1 \\g<0> text")   # no regex escapes
+    assert arms.with_system(p, "") == prompt("the user text", system="")
+    out = arms.with_system(p + "<|im_start|>system\nsecond<|im_end|>\n", "X")
+    assert out.startswith("<|im_start|>system\nX<|im_end|>") and out.endswith("second<|im_end|>\n")
+    for bad in ("<|im_start|>user\nhi<|im_end|>\n", "<|im_start|>system without a newline<|im_end|>"):
+        with pytest.raises(ValueError):
+            arms.with_system(bad, "X")
+        with pytest.raises(ValueError):
+            arms.system_text(bad)
+
+
+def load_sampler(monkeypatch):
+    monkeypatch.syspath_prepend(str(GPU))
+    spec = importlib.util.spec_from_file_location("sample_vllm_under_arms_test", GPU / "sample_vllm.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_with_system_equals_the_samplers_system_text_flag(tmp_path, monkeypatch):
+    pack = load_sampler(monkeypatch)
+    double = "<|im_start|>system\nfirst<|im_end|>\n" + prompt("u4", "second")       # two system turns: only the first is replaced
+    prompts = [prompt("u1", "old"), prompt("u2", "multi\nline system"), prompt("u3", ""), double]
+    rows = [{"id": f"v{i}", "group": f"g{i}", "split": "val", "prompt": p} for i, p in enumerate(prompts)]
+    (tmp_path / "val.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    for text in (arms.DIRECT_SYSTEM, "X \\1 \\g<0>\nmore", ""):
+        args = types.SimpleNamespace(splits="val", data=tmp_path, system_text=text, limit_drugs=None, prompt_subset_seed=0)
+        assert [r["prompt"] for r in pack.load_rows(args)] == [arms.with_system(p, text) for p in prompts]
+    rows[0]["prompt"] = "<|im_start|>user\nno system turn<|im_end|>\n<|im_start|>assistant\n<think>\n"
+    (tmp_path / "val.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    with pytest.raises(SystemExit):                                                        # the sampler refuses it, as with_system does
+        pack.load_rows(types.SimpleNamespace(splits="val", data=tmp_path, system_text="X", limit_drugs=None, prompt_subset_seed=0))
+    with pytest.raises(ValueError):
+        arms.with_system(rows[0]["prompt"], "X")
 
 
 # ---------------------------------------------------------------- A4
@@ -395,10 +450,34 @@ def test_rft_rows_and_completion_end_token():
     scored = [sample("d0/a", 0, 10, text=f"why</think>\n\n{IBUPROFEN}"), sample("d1/a", 0, 10, text=f"why</think>\n\n{ASPIRIN}<|im_end|>")]
     out = arms.rft_dataset(scored, rows)
     assert [o["completion"] for o in out] == [f"why</think>\n\n{IBUPROFEN}<|im_end|>", f"why</think>\n\n{ASPIRIN}<|im_end|>"]
-    assert [(o["id"], o["prompt"]) for o in out] == [("d0/a", rows[0]["prompt"]), ("d1/a", rows[2]["prompt"])]
+    assert [(o["id"], o["prompt"]) for o in out] == [("d0/a#0", rows[0]["prompt"]), ("d1/a#0", rows[2]["prompt"])]   # row id # sample_idx
     assert all(set(o) == {"id", "prompt", "completion"} for o in out)
     nothink = arms.rft_dataset([sample("d0/a", 0, 10, text=f"</think>\n\n{IBUPROFEN}", mode="nothink")], rows)[0]
     assert nothink["completion"] == f"\n</think>\n\n{IBUPROFEN}<|im_end|>"        # same layout as the A2 completion
+
+
+def test_rft_rows_of_one_prompt_row_get_unique_ids_that_the_sft_reader_accepts(tmp_path):
+    rows = data_rows()
+    scored = [sample("d0/a", 1, 10), sample("d0/a", 2, 12)]                    # two successes of one Train prompt, both kept at max_per_drug=2
+    out = arms.rft_dataset(scored, rows, max_per_drug=2)
+    assert [o["id"] for o in out] == ["d0/a#1", "d0/a#2"]                       # the source row and the sample index stay in the id
+    assert [o["prompt"] for o in out] == [rows[0]["prompt"]] * 2 and picked(out) == ["d0/a-1", "d0/a-2"]
+    path = tmp_path / "a3_rft_train.jsonl"
+    path.write_text("".join(json.dumps(o) + "\n" for o in out))
+    spec = importlib.util.spec_from_file_location("sft_lora_under_arms_test", GPU / "sft_lora.py")
+    sft_lora = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sft_lora)
+    assert sft_lora.read_rows(path, "train") == out                             # a duplicate id makes the reader raise
+    assert arms.rft_report(out, rows)["drugs_covered"] == 1                     # the ids still map back to their drug
+    with pytest.raises(ValueError, match="repeat"):
+        arms.rft_dataset(scored + scored, rows, max_per_drug=9)                 # a repeated (id, sample_idx) pair is refused
+
+
+def test_rft_prompt_carries_the_system_text_the_rollouts_were_sampled_with():
+    rows, scored = data_rows(), [sample("d0/a", 0, 10)]
+    assert arms.rft_dataset(scored, rows)[0]["prompt"] == rows[0]["prompt"]
+    out = arms.rft_dataset(scored, rows, system=arms.DIRECT_SYSTEM)[0]
+    assert out["prompt"] == arms.with_system(rows[0]["prompt"], arms.DIRECT_SYSTEM) and out["prompt"] != rows[0]["prompt"]
 
 
 def test_rft_ignores_samples_of_rows_outside_the_data_and_reports_coverage():
@@ -440,18 +519,103 @@ def test_cli_build_writes_the_arm_files_and_prints_only_counts(tmp_path, capsys)
     printed = capsys.readouterr().out
     assert sorted(p.name for p in out.iterdir()) == sorted(
         ["a1_trace_train.jsonl", "a1_trace_val.jsonl", "a2_answer_train.jsonl", "a2_answer_val.jsonl",
+         "a1_trace_train.meta.json", "a1_trace_val.meta.json", "a2_answer_train.meta.json", "a2_answer_val.meta.json",
          "a4_neighbours_val.json", "a4_neighbours_test_r.json", "a4_neighbours_test_t.json"])
     a1, a2 = jsonl(out / "a1_trace_train.jsonl"), jsonl(out / "a2_answer_train.jsonl")
     assert [a["id"] for a in a1] == [r["id"] for r in data["train"]] == [a["id"] for a in a2]
+    assert all(a["prompt"] == r["prompt"] for a, r in zip(a1, data["train"]))                   # A1 keeps the dataset's system text
+    assert all(arms.system_text(a["prompt"]) == arms.DIRECT_SYSTEM for a in a2)                 # A2 uses the direct-answer text
+    assert json.loads((out / "a2_answer_train.meta.json").read_text()) == {
+        "file": "a2_answer_train.jsonl", "rows": 6, "system_source": "direct", "system_text": arms.DIRECT_SYSTEM}
+    assert json.loads((out / "a1_trace_val.meta.json").read_text()) == {
+        "file": "a1_trace_val.jsonl", "rows": 3, "system_source": "dataset", "system_text": SYSTEM}
     assert [a["cut"] for a in a1] == [True, True, False] * 2                       # k%3==2 rows are inline
     assert a1[0]["completion"].endswith(f"Proposed structure: {data['train'][0]['ref_smiles']}<|im_end|>")
     assert all(a["completion"].startswith("\n</think>\n\n") for a in a2)
     near = json.loads((out / "a4_neighbours_val.json").read_text())
     assert list(near) == [r["id"] for r in data["val"]] and all(len(v) == 3 and set(v) <= {r["id"] for r in data["train"]} for v in near.values())
     assert "a1_trace_train.jsonl: 6 rows | cut 4 (66.7%, text dropped on 2) | uncut 2 (33.3%) | unextractable 0" in printed
-    assert "a2_answer_val.jsonl: 3 rows | extract_answer recovers ref_smiles on 3" in printed
-    assert "a4_neighbours_test_t.json: 2 queries, 6 neighbours" in printed and "p50" in printed and "p90" in printed
+    assert "a2_answer_val.jsonl: 3 rows | system text direct | extract_answer recovers ref_smiles on 3" in printed
+    assert "a4_neighbours_test_t.json: 2 queries, 6 neighbours" in printed and "p50" in printed and "p90" in printed and " max " in printed
     assert "SECRETWORD" not in printed and "Trailing prose" not in printed       # no prompt or completion text
+
+
+def test_cli_build_system_text_flags(tmp_path):
+    data = write_data(tmp_path / "data")
+    for name, flags, source, text in (("keep", ["--keep-system"], "dataset", SYSTEM),
+                                      ("custom", ["--system-text", "Custom text."], "custom", "Custom text.")):
+        out = tmp_path / name
+        arms.main(["build", "--data", str(tmp_path / "data"), "--out", str(out), *flags])
+        assert all(arms.system_text(a["prompt"]) == text for s in ("train", "val") for a in jsonl(out / f"a2_answer_{s}.jsonl"))
+        assert json.loads((out / "a2_answer_val.meta.json").read_text())["system_source"] == source
+        assert json.loads((out / "a2_answer_val.meta.json").read_text())["system_text"] == text
+        assert [a["prompt"] for a in jsonl(out / "a1_trace_train.jsonl")] == [r["prompt"] for r in data["train"]]   # A1 never changes it
+    with pytest.raises(SystemExit) as e:                                                   # the two flags exclude each other
+        arms.main(["build", "--data", str(tmp_path / "data"), "--out", str(tmp_path / "x"), "--keep-system", "--system-text", "T"])
+    assert e.value.code == 2 and not (tmp_path / "x").exists()
+
+
+def a4_data(path):
+    """Train: 6 drugs x 2 views with markers. v0 shares cluster 0 with Train drug 0 (its best textual match) and must not see it.
+    The val rows (and the two test_t rows) are near-duplicates of each other, so retrieving from the own split would show."""
+    extra = {"approval_year": 2020, "n_prompt_tokens": 17, "ref_conn": "CONN", "ref_inchikey": "KEY"}
+    data = {"train": [row(f"t{k}/{i}", f"{TOPICS[k]} TRAINMARK{k}{i} plasma", SMILES[k], split="train", cluster_id=k, completion=comp(SMILES[k]), **extra)
+                      for k in range(6) for i in range(2)],
+            "val": [row("v0/0", "tyrosine kinase oncology phosphorylation inhibitor VALMARK0", NAPROXEN, split="val", cluster_id=0, completion=comp(NAPROXEN), **extra),
+                    row("v1/0", "tyrosine kinase oncology phosphorylation inhibitor VALMARK1", NICOTINE, split="val", cluster_id=11, completion=comp(NICOTINE), **extra)],
+            "test_r": [row("r0/0", "bacterial ribosome antibiotic TESTRMARK0", NAPROXEN, split="test_r", cluster_id=12, **extra)],
+            "test_t": [row("x0/0", "xanthine adenosine caffeine stimulant TESTTMARK0", NICOTINE, split="test_t", cluster_id=13, **extra),
+                       row("x1/0", "xanthine adenosine caffeine stimulant TESTTMARK1", NAPROXEN, split="test_t", cluster_id=14, **extra)]}
+    path.mkdir(parents=True, exist_ok=True)
+    for name, rows in data.items():
+        (path / f"{name}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    return data
+
+
+def test_cli_a4_writes_processed_row_files_with_icl_prompts(tmp_path, capsys):
+    src = a4_data(tmp_path / "data")
+    out = tmp_path / "a4"
+    arms.main(["a4", "--data", str(tmp_path / "data"), "--out", str(out)])
+    printed = capsys.readouterr().out
+    assert sorted(p.name for p in out.iterdir()) == sorted(f"{s}.{ext}" for s in ("val", "test_r", "test_t") for ext in ("jsonl", "meta.json"))
+    by_id = {r["id"]: r for r in src["train"]}
+    for split in ("val", "test_r", "test_t"):
+        got = jsonl(out / f"{split}.jsonl")
+        near = arms.nearest_train(src[split], src["train"])
+        assert len(got) == len(src[split])
+        for g, r in zip(got, src[split]):
+            assert list(g) == list(r)                                                      # every field, in the same order
+            assert {k: v for k, v in g.items() if k != "prompt"} == {k: v for k, v in r.items() if k != "prompt"}
+            expect = arms.with_system(arms.icl_prompt(r, arms.neighbour_set(by_id, near[r["id"]])), arms.DIRECT_SYSTEM)
+            assert g["prompt"] == expect and g["prompt"].endswith("<|im_start|>assistant\n<think>\n")
+            assert arms.system_text(g["prompt"]) == arms.DIRECT_SYSTEM
+            examples, task = arms.user_text(g["prompt"]).split("Now the task:\n\n")
+            assert task == arms.user_text(r["prompt"]) and examples.startswith(arms.ICL_HEADER)
+            assert examples.count("Answer SMILES:") == 3 and examples.count("TRAINMARK") == 3        # Train rows only
+            assert not any(m in examples for m in ("VALMARK", "TESTRMARK", "TESTTMARK"))
+    v0 = arms.user_text(jsonl(out / "val.jsonl")[0]["prompt"])
+    assert "TRAINMARK0" not in v0                                                          # v0's cluster holds Train drug 0: excluded
+    assert arms.nearest_train([{**src["val"][0], "cluster_id": 99}], src["train"])["v0/0"][0].startswith("t0/")   # ...its best match
+    assert json.loads((out / "val.meta.json").read_text()) == {
+        "file": "val.jsonl", "rows": 2, "system_source": "direct", "system_text": arms.DIRECT_SYSTEM, "neighbours": 3}
+    assert "val.jsonl: 2 rows, 3 neighbours each | prompt chars p50" in printed and " p90 " in printed and " max " in printed
+    assert "longest ICL prompt over all splits:" in printed and "tokens at 4 chars/token" in printed
+    assert not any(m in printed for m in ("TRAINMARK", "VALMARK", "TESTRMARK", "TESTTMARK"))         # counts only
+
+
+def test_cli_a4_system_text_override_and_sampler_consumes_the_output(tmp_path):
+    src = a4_data(tmp_path / "data")
+    out = tmp_path / "a4"
+    arms.main(["a4", "--data", str(tmp_path / "data"), "--out", str(out), "--system-text", "Custom text."])
+    assert all(arms.system_text(r["prompt"]) == "Custom text." for s in ("val", "test_r", "test_t") for r in jsonl(out / f"{s}.jsonl"))
+    assert json.loads((out / "test_r.meta.json").read_text())["system_source"] == "custom"
+    arms.main(["a4", "--data", str(tmp_path / "data"), "--out", str(out)])                 # back to the default text
+    run = subprocess.run([sys.executable, "-S", str(GPU / "sample_vllm.py"), "--model", "fake", "--data", str(out),
+                          "--splits", "val,test_r,test_t", "--k", "2", "--max-tokens", "7", "--out", str(tmp_path / "run"), "--dry-run"],
+                         capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
+    plan = json.loads(run.stdout)
+    assert plan["prompts"] == 5 and plan["drugs"] == len({r["group"] for s in ("val", "test_r", "test_t") for r in src[s]})
 
 
 def test_cli_rft_writes_the_file_and_reports_coverage(tmp_path, capsys):
@@ -463,10 +627,16 @@ def test_cli_rft_writes_the_file_and_reports_coverage(tmp_path, capsys):
     (tmp_path / "scored.jsonl").write_text("".join(json.dumps(s) + "\n" for s in scored))
     out = tmp_path / "a3.jsonl"
     arms.main(["rft", "--scored", str(tmp_path / "scored.jsonl"), "--data", str(tmp_path / "data"), "--out", str(out)])
-    assert [o["id"] for o in jsonl(out)] == ["t0/0", "t2/0"]
+    assert [o["id"] for o in jsonl(out)] == ["t0/0#0", "t2/0#0"]
     printed = capsys.readouterr().out
     assert "2 examples | drugs covered 2 of 6, 4 Train drugs without a successful sample" in printed
     assert "rescored 4 samples, 2 succeed now; the stored flags would have wrongly kept 1 and wrongly dropped 0" in printed
+    assert [o["prompt"] for o in jsonl(out)] == [r["prompt"] for r in data["train"] if r["id"] in ("t0/0", "t2/0")]
+    assert json.loads((tmp_path / "a3.meta.json").read_text()) == {
+        "file": "a3.jsonl", "rows": 2, "system_source": "dataset", "system_text": SYSTEM}
+    arms.main(["rft", "--scored", str(tmp_path / "scored.jsonl"), "--data", str(tmp_path / "data"), "--out", str(out), "--system-text", "Custom."])
+    assert all(arms.system_text(o["prompt"]) == "Custom." for o in jsonl(out))
+    assert json.loads((tmp_path / "a3.meta.json").read_text())["system_source"] == "custom"
 
 
 def test_cli_fails_cleanly_on_bad_input(tmp_path):
@@ -478,3 +648,54 @@ def test_cli_fails_cleanly_on_bad_input(tmp_path):
     (tmp_path / "data" / "train.jsonl").write_text("".join(json.dumps(r) + "\n" for r in bad))
     with pytest.raises(SystemExit, match="t0/0.*exactly one"):
         arms.main(["build", "--data", str(tmp_path / "data"), "--out", str(tmp_path / "out")])
+
+
+def test_name_prompt_is_the_name_only_under_the_direct_system_text():
+    r = row("v0/0", "SECRETPROFILE kinase inhibitor", NAPROXEN, group="naproxen")
+    p = arms.name_prompt(r)
+    assert arms.user_text(p) == "Drug: naproxen" and "SECRETPROFILE" not in p
+    assert arms.system_text(p) == arms.DIRECT_SYSTEM and p.endswith("<|im_start|>assistant\n<think>\n")
+    assert arms.system_text(arms.name_prompt(r, "Custom.")) == "Custom."
+
+
+def test_cli_name_writes_processed_row_files_and_prints_only_counts(tmp_path, capsys):
+    src = a4_data(tmp_path / "data")
+    out = tmp_path / "name"
+    arms.main(["name", "--data", str(tmp_path / "data"), "--out", str(out)])
+    printed = capsys.readouterr().out
+    assert sorted(p.name for p in out.iterdir()) == sorted(f"{s}.{ext}" for s in ("val", "test_r", "test_t") for ext in ("jsonl", "meta.json"))
+    for split in ("val", "test_r", "test_t"):
+        got = jsonl(out / f"{split}.jsonl")
+        assert len(got) == len(src[split])
+        for g, r in zip(got, src[split]):
+            assert list(g) == list(r) and {k: v for k, v in g.items() if k != "prompt"} == {k: v for k, v in r.items() if k != "prompt"}
+            assert g["prompt"] == arms.name_prompt(r)
+    assert json.loads((out / "val.meta.json").read_text())["control"] == "name_oracle"
+    assert "val.jsonl: 2 rows | prompt chars p50" in printed and not any(m in printed for m in ("VALMARK", "TESTRMARK", "TESTTMARK"))
+
+
+def test_rft_dense_mode_keeps_valid_closed_samples_above_the_reward_bar_best_first():
+    ref = REFS["d1"]
+    near = ref + "C"                      # a valid molecule that is not the reference: partial reward only
+    rows = data_rows()
+    s_hit, s_near, s_junk = (sample("d1/a", 0, 30, answer=ref), sample("d1/a", 1, 10, answer=near),
+                             sample("d1/a", 2, 5, answer="not a molecule"))
+    scored = [s_junk, s_near, s_hit]
+    fresh = {s["sample_idx"]: arms.reward.score(s["text"], rows[2]) for s in scored}
+    assert fresh[0]["reward"] == 1.0 and 0.05 < fresh[1]["reward"] < 1.0 and not fresh[2]["valid"]
+    stats = {}
+    out = arms.rft_dataset(scored, rows, max_per_drug=2, stats=stats, min_reward=0.05)
+    assert [o["id"] for o in out] == ["d1/a#0", "d1/a#1"]                     # the identity hit first (reward 1.0), then the partial one
+    assert stats["rescored"] == 3 and stats["kept"] == 2
+    above = arms.rft_dataset(scored, rows, max_per_drug=2, min_reward=fresh[1]["reward"] + 1e-6)
+    assert [o["id"] for o in above] == ["d1/a#0"]                             # the bar drops the partial answer
+    assert arms.rft_dataset(scored, rows, max_per_drug=2) == arms.rft_dataset([s_hit], rows, max_per_drug=2)    # identity mode unchanged
+
+
+def test_rft_dense_mode_ignores_length_terminated_samples_and_stale_flags():
+    rows = data_rows()
+    cut = sample("d1/a", 0, 256, answer=REFS["d1"], finish_reason="length")
+    stale = sample("d1/a", 1, 20, answer="not a molecule", valid=True, closed=True, reward=0.9)      # stored flags say success, text says no
+    stats = {}
+    assert arms.rft_dataset([cut, stale], rows, stats=stats, min_reward=0.05) == []
+    assert stats["rescored"] == 1 and stats["stale_kept"] == 1 and stats["kept"] == 0

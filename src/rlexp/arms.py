@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """Training-arm data (docs/plan.md section 2; row schema in docs/contracts.md). Pure functions plus a small CLI.
 
-  python -m rlexp.arms build --data data/processed --out data/processed/arms
+  python -m rlexp.arms build --data data/processed --out data/processed/arms [--system-text TEXT | --keep-system]
+  python -m rlexp.arms a4 --data data/processed --out data/processed/arms/a4 [--system-text TEXT]
+  python -m rlexp.arms name --data data/processed --out data/processed/arms/name [--system-text TEXT]
   python -m rlexp.arms rft --scored runs/X/scored.jsonl --data data/processed --out data/processed/arms/a3_rft_train.jsonl
 
   A1  trace_sft        the reference trace cut right after the final answer (a description after it on its line goes too)
-  A2  answer_only_sft  an empty think block, then the canonical reference SMILES
+  A2  answer_only_sft  an empty think block, then the canonical reference SMILES; system turn = DIRECT_SYSTEM unless overridden
   A3  rft_dataset      Train rollouts that reach conn_match when re-scored now; rft_report counts drugs covered and not
-  A4  nearest_train + icl_prompt   the 3 nearest Train prompts as worked examples inside the user turn
+  A4  nearest_train + icl_prompt   the 3 nearest Train prompts as worked examples inside the user turn; `a4` writes val, test_r
+                       and test_t in the processed-row schema (prompt replaced, system turn = DIRECT_SYSTEM) for sample_vllm.py
+  N0  name_prompt      diagnostic control, not an arm: the user turn is only "Drug: <name>". Its score is the recall ceiling for a
+                       model that is told which drug it is; `name` writes val, test_r and test_t like `a4`
+Answer-only prompts use a short direct-answer system text: under the dataset's long 'reasoning effort' system text the base
+model rambles instead of answering. Every written file gets a <name>.meta.json sidecar recording the system text.
 Prompts end with '<think>\\n' and completions end with '<|im_end|>' (contracts.md); SFT rows are {id, prompt, completion}.
 """
 import argparse
@@ -23,8 +30,11 @@ from rlexp import chem, reward
 
 END, THINK, USER = "<|im_end|>", "</think>", "<|im_start|>user\n"
 ICL_HEADER = "Worked examples from similar profiles (each followed by its known answer):"
+DIRECT_SYSTEM = "Reply with only the SMILES string of the drug described. No explanation."
+K = 3                                                      # neighbours per A4 prompt
 SPLITS = ("train", "val", "test_r", "test_t")
 _TOKEN = re.compile(r"[a-z0-9]+")
+_SYSTEM = re.compile(r"(<\|im_start\|>system\n)(.*?)(<\|im_end\|>)", re.S)    # the match gpu/sample_vllm.py --system-text uses
 _DECOR = " \t\r\n`*_#>-•.,;:"   # markdown and punctuation that may surround an answer token
 _LABEL_WORDS = 4               # 'Proposed structure:', 'I propose', 'SMILES:' are labels; a longer lead-in is prose
 _GLOSS = re.compile(r"\s+[—–-]\s|\s+\(|:")   # a description may follow the SMILES after ' — ', ' – ', ' - ', ' (' or ':'
@@ -43,6 +53,30 @@ def split_prompt(prompt):
 
 def user_text(prompt):
     return split_prompt(prompt)[1]
+
+
+def with_system(prompt, text):
+    """The prompt with the text of its system turn replaced: the first '<|im_start|>system\\n' ... '<|im_end|>', matched
+    exactly like gpu/sample_vllm.py --system-text. ValueError if the prompt has no system turn."""
+    out, n = _SYSTEM.subn(lambda m: m.group(1) + text + m.group(3), prompt, count=1)
+    if n != 1:
+        raise ValueError("prompt has no system turn to replace")
+    return out
+
+
+def name_prompt(row, system=DIRECT_SYSTEM):
+    """N0: the row's prompt with the profile replaced by the drug name, so a model that knows the structure of a named drug
+    can answer. The system turn is `system`; the generation prefix is kept."""
+    head, _, tail = split_prompt(row["prompt"])
+    return with_system(head + f"Drug: {row['group']}" + tail, system)
+
+
+def system_text(prompt):
+    """The text of the prompt's system turn (the match with_system replaces)."""
+    m = _SYSTEM.search(prompt)
+    if m is None:
+        raise ValueError("prompt has no system turn")
+    return m.group(2)
 
 
 # ---------------------------------------------------------------- A1 and A2
@@ -94,9 +128,12 @@ def trace_sft(row):
     return {"id": row["id"], "prompt": row["prompt"], "completion": completion, "cut": status == "cut"}
 
 
-def answer_only_sft(row):
-    """A2 row. prompt + completion ends in '<think>\\n\\n</think>\\n\\n<smiles>', the native thinking-off layout."""
-    return {"id": row["id"], "prompt": row["prompt"], "completion": f"\n{THINK}\n\n{row['ref_smiles']}{END}"}
+def answer_only_sft(row, system=DIRECT_SYSTEM):
+    """A2 row. prompt + completion ends in '<think>\\n\\n</think>\\n\\n<smiles>', the native thinking-off layout. The text of
+    the prompt's system turn becomes `system` (DIRECT_SYSTEM by default: under the dataset's long 'reasoning effort' text
+    the base model rambles instead of answering); None keeps the dataset's text."""
+    prompt = row["prompt"] if system is None else with_system(row["prompt"], system)
+    return {"id": row["id"], "prompt": prompt, "completion": f"\n{THINK}\n\n{row['ref_smiles']}{END}"}
 
 
 # ---------------------------------------------------------------- A4
@@ -113,7 +150,7 @@ def neighbour_set(train_by_id, ids):
     return [(user_text(train_by_id[i]["prompt"]), train_by_id[i]["ref_smiles"]) for i in ids]
 
 
-def nearest_train(query_rows, train_rows, k=3):
+def nearest_train(query_rows, train_rows, k=K):
     """{query id: [ids of the k nearest Train rows]}, best first. TF-IDF cosine over the user part of the prompt:
     lowercase alphanumeric tokens, sublinear tf (1 + ln count), idf = ln((1 + N) / (1 + df)) + 1 with N and the
     vocabulary from Train only, L2-normalised. A Train row is never a neighbour of itself or of a query with the same
@@ -164,7 +201,7 @@ def nearest_train(query_rows, train_rows, k=3):
 
 
 # ---------------------------------------------------------------- A3
-def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, stats=None):
+def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, stats=None, system=None, min_reward=None):
     """A3 rows {id, prompt, completion} from scored samples (contracts.md "Sampling and scoring products").
     Success is decided here, never by the stored conn_match/closed (they go stale when a reference or the scorer
     changes): each sample with finish_reason == 'stop' whose prompt row is in data_rows is re-scored with
@@ -173,10 +210,17 @@ def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, sta
     Per drug at most max_per_drug: preference is fewer n_tokens, then lower sample_idx, then id; the best sample of
     each prompt row comes first, the rest fill. completion = text + '<|im_end|>' unless it ends with it. A nothink
     sample's text starts '</think>', so the sequence the model saw ('<think>\\n\\n</think>\\n\\n') is restored with a
-    leading newline. A reference that does not standardize raises ValueError. If stats is a dict it receives
+    leading newline. The row id is '<prompt row id>#<sample_idx>': two samples of one prompt row must not share an id,
+    or the SFT reader rejects the file. system, if given, replaces the system-turn text of every prompt (pass the text
+    the rollouts were sampled with, so the training prompt is the one the model saw). A reference that does not
+    standardize raises ValueError, and so do scored rows that repeat an (id, sample_idx) pair. If stats is a dict it receives
     rescored, kept (fresh successes before the per-drug cap), stale_kept (the stored flags said success, the fresh
-    score says no) and stale_dropped (the reverse)."""
+    score says no) and stale_dropped (the reverse).
+    min_reward (dense mode, the reward-ranked A3): success is instead a fresh valid, closed sample whose reward is at least
+    min_reward (identity hits are rare, so the identity-only rule starves); the preference is then higher reward, then the
+    order above."""
     rows = {r["id"]: r for r in data_rows}
+    reward_of = {}
     by_drug = defaultdict(list)
     n = dict.fromkeys(("rescored", "kept", "stale_kept", "stale_dropped"), 0)
     for s in scored_rows:
@@ -187,33 +231,43 @@ def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, sta
             fresh = reward.score(s["text"], row)
         except ValueError as e:
             raise ValueError(f"row {s['id'][:60]}: {e}") from None
-        ok = bool(fresh["conn_match"] and (fresh["closed"] or not require_closed))
-        was = bool(s["conn_match"] and (s["closed"] or not require_closed))
+        if min_reward is None:
+            ok = bool(fresh["conn_match"] and (fresh["closed"] or not require_closed))
+            was = bool(s["conn_match"] and (s["closed"] or not require_closed))
+        else:
+            ok = bool(fresh["valid"] and fresh["closed"] and fresh["reward"] >= min_reward)
+            was = bool(s.get("valid") and s.get("closed") and s.get("reward", 0.0) >= min_reward)
         n["rescored"] += 1
         n["kept"] += ok
         n["stale_kept"] += was and not ok
         n["stale_dropped"] += ok and not was
         if ok:
             by_drug[row["group"]].append(s)
+            reward_of[id(s)] = fresh.get("reward", 0.0)
     if stats is not None:
         stats.update(n)
     out = []
     for group in sorted(by_drug):
-        ranked = sorted(by_drug[group], key=lambda s: (s["n_tokens"], s["sample_idx"], s["id"]))
+        ranked = sorted(by_drug[group], key=lambda s: (-reward_of[id(s)] if min_reward is not None else 0,
+                                                       s["n_tokens"], s["sample_idx"], s["id"]))
         best = {}                                        # each prompt row's best sample, in rank order
         for s in ranked:
             best.setdefault(s["id"], s)
         taken = {id(s) for s in best.values()}
         for s in [*best.values(), *(s for s in ranked if id(s) not in taken)][:max_per_drug]:
             text = ("\n" if s.get("mode") == "nothink" else "") + s["text"]
-            out.append({"id": s["id"], "prompt": rows[s["id"]]["prompt"], "completion": text if text.endswith(END) else text + END})
+            prompt = rows[s["id"]]["prompt"]
+            out.append({"id": f"{s['id']}#{s['sample_idx']}", "prompt": prompt if system is None else with_system(prompt, system),
+                        "completion": text if text.endswith(END) else text + END})
+    if len({o["id"] for o in out}) != len(out):
+        raise ValueError("scored rows repeat an (id, sample_idx) pair")
     return out
 
 
 def rft_report(selected, data_rows):
     """Counts for an rft_dataset result against the data rows it was built for (the Train rows)."""
     group = {r["id"]: r["group"] for r in data_rows}
-    drugs, covered = set(group.values()), {group[s["id"]] for s in selected}
+    drugs, covered = set(group.values()), {group[s["id"].rpartition("#")[0]] for s in selected}     # id = row id # sample_idx
     return {"examples": len(selected), "drugs_covered": len(covered), "drugs_total": len(drugs),
             "drugs_without_success": len(drugs - covered)}
 
@@ -234,47 +288,100 @@ def _write(path, obj, lines=False):
 
 
 def _chars(texts):
-    """'p50 N p90 M' over character counts (tokens are not available here)."""
+    """'p50 N p90 M max K' over character counts (tokens are not available here)."""
     xs = [len(t) for t in texts]
-    return f"p50 {np.percentile(xs, 50):.0f} p90 {np.percentile(xs, 90):.0f}" if xs else "n/a"
+    return f"p50 {np.percentile(xs, 50):.0f} p90 {np.percentile(xs, 90):.0f} max {max(xs)}" if xs else "n/a"
 
 
-def build(data_dir, out_dir):
-    """Write the A1, A2 and A4 files under out_dir and print counts and character-length statistics (no text)."""
+def _system_info(rows, system):
+    """(system_source, system_text) of files whose prompts had their system turn set to `system`. None means the dataset's
+    own text: the text is returned when every row has the same one, else None."""
+    if system is None:
+        texts = {system_text(r["prompt"]) for r in rows}
+        return "dataset", texts.pop() if len(texts) == 1 else None
+    return ("direct" if system == DIRECT_SYSTEM else "custom"), system
+
+
+def _sidecar(path, rows, system, **extra):
+    """<name>.meta.json next to a written file: the row count and the system text its prompts carry, so a training run
+    can record it. `system` as for _system_info."""
+    source, text = _system_info(rows, system)
+    meta = {"file": Path(path).name, "rows": len(rows), "system_source": source, "system_text": text, **extra}
+    _write(Path(path).with_suffix(".meta.json"), meta)
+
+
+def build(data_dir, out_dir, system=DIRECT_SYSTEM):
+    """Write the A1, A2 and A4-neighbour files under out_dir, a .meta.json beside each A1 and A2 file, and print counts
+    and character-length statistics (no text). system is the system-turn text of the A2 prompts (None keeps the
+    dataset's); A1 always keeps the dataset's."""
     data = {s: _read(Path(data_dir) / f"{s}.jsonl") for s in SPLITS}
     out = Path(out_dir)
     for s in ("train", "val"):
         rows, n = data[s], len(data[s])
         a1 = [trace_sft(r) for r in rows]
         _write(out / f"a1_trace_{s}.jsonl", a1, lines=True)
+        _sidecar(out / f"a1_trace_{s}.jsonl", a1, None)
         cut = sum(a["cut"] for a in a1)
         trimmed = sum(a["cut"] and a["completion"] != r["completion"] for a, r in zip(a1, rows))
         unx = sum(not a["cut"] and chem.extract_answer(r["completion"]) is None for a, r in zip(a1, rows))
         print(f"a1_trace_{s}.jsonl: {n} rows | cut {cut} ({cut / n:.1%}, text dropped on {trimmed}) | "
               f"uncut {n - cut - unx} ({(n - cut - unx) / n:.1%}) | unextractable {unx} ({unx / n:.1%}) | "
               f"completion chars {_chars([a['completion'] for a in a1])}, before the cut {_chars([r['completion'] for r in rows])}")
-        a2 = [answer_only_sft(r) for r in rows]
+        a2 = [answer_only_sft(r, system) for r in rows]
         _write(out / f"a2_answer_{s}.jsonl", a2, lines=True)
+        _sidecar(out / f"a2_answer_{s}.jsonl", a2, system)
         ok = sum(chem.extract_answer(a["completion"]) == r["ref_smiles"] for a, r in zip(a2, rows))
-        print(f"a2_answer_{s}.jsonl: {n} rows | extract_answer recovers ref_smiles on {ok} | "
-              f"completion chars {_chars([a['completion'] for a in a2])}")
+        print(f"a2_answer_{s}.jsonl: {n} rows | system text {_system_info(a2, system)[0]} | "
+              f"extract_answer recovers ref_smiles on {ok} | completion chars {_chars([a['completion'] for a in a2])}")
     train = data["train"]
     by_id = {r["id"]: r for r in train}
     for s in ("val", "test_r", "test_t"):
         near = nearest_train(data[s], train)
         _write(out / f"a4_neighbours_{s}.json", near)
-        prompts = [icl_prompt(r, neighbour_set(by_id, near[r["id"]])) for r in data[s]]
         distinct = sum(len({by_id[i]["group"] for i in ids}) == len(ids) for ids in near.values())
         print(f"a4_neighbours_{s}.json: {len(near)} queries, {sum(map(len, near.values()))} neighbours, "
-              f"{distinct} queries with all-distinct drugs | icl prompt chars {_chars(prompts)}")
+              f"{distinct} queries with all-distinct drugs")
 
 
-def rft(scored_path, data_dir, out_path, max_per_drug=2):
-    """Write the A3 file from a scored.jsonl of Train rollouts and print the coverage report."""
+def a4(data_dir, out_dir, system=DIRECT_SYSTEM):
+    """Write val.jsonl, test_r.jsonl and test_t.jsonl under out_dir (plus a .meta.json each): the processed rows with every
+    field kept and `prompt` replaced by the in-context-retrieval prompt (the K nearest Train prompts, cluster-excluded,
+    then the task) whose system-turn text is `system`, so gpu/sample_vllm.py --data out_dir reads them unchanged.
+    n_prompt_tokens is left as in the source row (it counts the original prompt). Prints counts and character lengths."""
+    data = {s: _read(Path(data_dir) / f"{s}.jsonl") for s in SPLITS}
+    train = data["train"]
+    by_id = {r["id"]: r for r in train}
+    out, longest = Path(out_dir), 0
+    for s in ("val", "test_r", "test_t"):
+        near = nearest_train(data[s], train)
+        rows = [{**r, "prompt": with_system(icl_prompt(r, neighbour_set(by_id, near[r["id"]])), system)} for r in data[s]]
+        _write(out / f"{s}.jsonl", rows, lines=True)
+        _sidecar(out / f"{s}.jsonl", rows, system, neighbours=K)
+        prompts = [r["prompt"] for r in rows]
+        longest = max([longest, *map(len, prompts)])
+        print(f"{s}.jsonl: {len(rows)} rows, {K} neighbours each | prompt chars {_chars(prompts)}")
+    print(f"longest ICL prompt over all splits: {longest} chars, about {longest // 4} tokens at 4 chars/token (8k = 8192)")
+
+
+def name_oracle(data_dir, out_dir, system=DIRECT_SYSTEM):
+    """Write val.jsonl, test_r.jsonl and test_t.jsonl under out_dir (plus a .meta.json each): the processed rows with
+    `prompt` replaced by name_prompt, for gpu/sample_vllm.py --data out_dir. Prints counts and character lengths."""
+    out = Path(out_dir)
+    for s in ("val", "test_r", "test_t"):
+        rows = [{**r, "prompt": name_prompt(r, system)} for r in _read(Path(data_dir) / f"{s}.jsonl")]
+        _write(out / f"{s}.jsonl", rows, lines=True)
+        _sidecar(out / f"{s}.jsonl", rows, system, control="name_oracle")
+        print(f"{s}.jsonl: {len(rows)} rows | prompt chars {_chars([r['prompt'] for r in rows])}")
+
+
+def rft(scored_path, data_dir, out_path, max_per_drug=2, system=None, min_reward=None):
+    """Write the A3 file from a scored.jsonl of Train rollouts and print the coverage report. system: the system text the
+    rollouts were sampled with, if it replaced the dataset's (sample_vllm.py --system-text)."""
     train = _read(Path(data_dir) / "train.jsonl")
     stats = {}
-    selected = rft_dataset(_read(scored_path), train, max_per_drug=max_per_drug, stats=stats)
+    selected = rft_dataset(_read(scored_path), train, max_per_drug=max_per_drug, stats=stats, system=system, min_reward=min_reward)
     _write(out_path, selected, lines=True)
+    _sidecar(out_path, selected, system)
     rep = rft_report(selected, train)
     print(f"{Path(out_path).name}: {rep['examples']} examples | drugs covered {rep['drugs_covered']} of {rep['drugs_total']}, "
           f"{rep['drugs_without_success']} Train drugs without a successful sample | rescored {stats['rescored']} samples, "
@@ -285,20 +392,38 @@ def rft(scored_path, data_dir, out_path, max_per_drug=2):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    b = sub.add_parser("build", help="write the A1, A2 and A4 files")
+    b = sub.add_parser("build", help="write the A1, A2 and A4-neighbour files")
     b.add_argument("--data", default="data/processed")
     b.add_argument("--out", default="data/processed/arms")
+    g = b.add_mutually_exclusive_group()
+    g.add_argument("--system-text", help="system-turn text of the A2 prompts (default: the direct-answer text)")
+    g.add_argument("--keep-system", action="store_true", help="keep the dataset's system text in the A2 prompts")
+    c = sub.add_parser("a4", help="write the in-context-retrieval prompt files (processed-row schema) for sample_vllm.py")
+    c.add_argument("--data", default="data/processed")
+    c.add_argument("--out", default="data/processed/arms/a4")
+    c.add_argument("--system-text", default=DIRECT_SYSTEM, help="system-turn text of the prompts (default: the direct-answer text)")
+    n = sub.add_parser("name", help="write the name-only diagnostic prompt files (processed-row schema) for sample_vllm.py")
+    n.add_argument("--data", default="data/processed")
+    n.add_argument("--out", default="data/processed/arms/name")
+    n.add_argument("--system-text", default=DIRECT_SYSTEM, help="system-turn text of the prompts (default: the direct-answer text)")
     r = sub.add_parser("rft", help="write the A3 file from scored Train rollouts")
     r.add_argument("--scored", required=True)
     r.add_argument("--data", default="data/processed")
     r.add_argument("--out", default="data/processed/arms/a3_rft_train.jsonl")
     r.add_argument("--max-per-drug", type=int, default=2)
+    r.add_argument("--min-reward", type=float, help="dense mode: keep fresh valid closed samples with at least this reward instead of identity hits")
+    r.add_argument("--system-text", help="system text the rollouts were sampled with, if it replaced the dataset's")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "build":
-            build(a.data, a.out)
+            system = DIRECT_SYSTEM if a.system_text is None else a.system_text
+            build(a.data, a.out, None if a.keep_system else system)
+        elif a.cmd == "a4":
+            a4(a.data, a.out, a.system_text)
+        elif a.cmd == "name":
+            name_oracle(a.data, a.out, a.system_text)
         else:
-            rft(a.scored, a.data, a.out, a.max_per_drug)
+            rft(a.scored, a.data, a.out, a.max_per_drug, a.system_text, a.min_reward)
     except (ValueError, KeyError, OSError) as e:
         sys.exit(f"error: {type(e).__name__}: {e}")
 
