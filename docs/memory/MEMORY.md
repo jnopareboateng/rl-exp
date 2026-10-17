@@ -18,7 +18,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [status-main](status-main.md) — In flight: repo restructured; workers finishing reward v2 and curated data; no GPU run or result yet
 
 ## Decisions
-- [decision-connectivity-key](decision-connectivity-key.md) — conn = formula + heavy-atom skeleton hash (tautomer-tolerant); stereo_match uses the full InChIKey
+- [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers
 - [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint (core@1), one confirmatory contrast, sign-flip test, prereg tag
 - [decision-reward-v2](decision-reward-v2.md) — Reward: 1.0 on connectivity match, else 0.05+0.6*Tanimoto+0.3*scaffold match; no similarity floor
 - [decision-split-design](decision-split-design.md) — Splits by components (Tanimoto>=0.4 or same scaffold); Test-T = approved 2025-26, a temporal cohort
@@ -27,6 +27,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 ## Gotchas
 - [gotcha-agent-restarts](gotcha-agent-restarts.md) — A session restart kills background agents and wipes scratch; workers must save after every item
 - [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures and cannot read SMILES under 8 characters
+- [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
 
 ## Environment
 - [env-compute-supply](env-compute-supply.md) — Kaggle gives 6 GPU-hours/week (resets 2026-10-24); no local GPU; Colab needs a browser accept

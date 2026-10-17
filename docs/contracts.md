@@ -25,13 +25,13 @@ Change a contract only through the orchestrator, and update this file in the sam
 
 ## Chemistry definitions (one implementation, `rlexp.chem`, imported everywhere)
 
-- standardize(smiles) -> Mol | None: parse, keep the largest fragment (`LargestFragmentChooser`), neutralise (`Uncharger`). None if unparseable.
-- canonical = `Chem.MolToSmiles(mol)` (isomeric). conn = tautomer-tolerant identity: formula plus heavy-atom skeleton (the InChI layers before hydrogens, charge, stereo and isotopes), sha1-hashed to 14 hex characters;
-  five reference drugs differ from their ChEMBL entry only in hydrogen placement, which the standard InChIKey first block would score as a miss.
-  Known limit: the key also equates non-tautomer isomers that differ only in where a double bond sits (1-butene and 2-butene; no two drugs in the data collide). Sensitivity: recompute a strict key (standard InChIKey first block) from the stored answers after the fact. inchikey = the full standard InChIKey (stereo and hydrogen-placement sensitive), used for stereo_match only.
+- standardize(smiles) -> Mol | None: parse, keep the largest fragment (`LargestFragmentChooser`), neutralise (`Uncharger`). None if unparseable, if the molecule has more than `chem.MAX_ATOMS` (400) atoms in total, or if it has a dummy atom; both checks run right after parsing so a runaway answer stays cheap.
+- canonical = `Chem.MolToSmiles(mol)` (isomeric). conn = identity key: first block of the standard InChIKey (formula, connectivity, hydrogen placement; no stereo). inchikey = the full standard InChIKey, used for stereo_match only.
+  A tautomer written differently is a different conn. Five reference drugs differ from their ChEMBL entry only in hydrogen placement, so references may carry `ref_alt_smiles`: other human-curated registry SMILES of the same compound with an equal `chem.skeleton`
+  (formula plus heavy-atom skeleton hash, never used to match answers: a looser key equated delta-8 and delta-9 THC and norethindrone and norethynodrel). An answer matches when its conn equals the conn of the reference or of any alternate.
 - scaffold = canonical non-isomeric SMILES of the Murcko scaffold (stereo is scored separately); empty string for acyclic molecules. A scaffold match requires both non-empty and equal.
-- Cost guards for generated text: answers over 1,500 characters or 400 heavy atoms are invalid (`chem.MAX_LEN`, `chem.MAX_ATOMS`; longest reference 715 characters, 295 atoms).
-- tanimoto = Morgan radius 2, 2048 bits, `rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)`.
+- Cost guards for generated text: answers over `chem.MAX_LEN` (1,500) characters are never extracted; the atom and dummy-atom limits above apply (longest reference 715 characters, 295 heavy atoms).
+- tanimoto = Morgan radius 2 count-vector Tanimoto (repeated units change the score; the bit version scored a 16- and a 108-heavy-atom phenyl fatty acid as 1.0). The reward uses it. tanimoto_bits = the 2048-bit version, used for the leakage graph (threshold 0.4) and the controls.
 - extract_answer(text) -> str | None: text after the last `</think>`; scan whitespace tokens from the end, stripping `` ` * . , ; : `` from each token, after replacing the literal `<|im_end|>` with a space;
   first token with length >= 8 containing one of `=()[]@` or a digit that RDKit parses. None if the text has no `</think>`.
   Known limits: (a) tests/fixtures/answer_formats.json lists 11 cases that return a wrong molecule instead of None (for example a SMILES-like token in a closing sentence);
@@ -42,7 +42,7 @@ Change a contract only through the orchestrator, and update this file in the sam
 
     score(solution_str: str, ref: dict) -> dict
     compute_score(data_source: str, solution_str: str, ground_truth, extra_info=None) -> float    # verl-style; ground_truth is a dict or JSON string
-    ref keys: ref_smiles only is used; ref_conn, ref_scaffold and ref_inchikey are re-derived from it in the scoring process (stored copies are informational)
+    ref keys: ref_smiles (required) and ref_alt_smiles (optional list); ref_conn, ref_scaffold and ref_inchikey are re-derived in the scoring process (stored copies are informational)
     score keys: closed, answer, valid, tanimoto (0..1, 0 if invalid), scaffold_match, conn_match, stereo_match (full InChIKey equal; reporting only, never rewarded), reward
 
     reward = 0                                              if not closed, or answer is None, or answer does not standardize
@@ -57,13 +57,13 @@ Change a contract only through the orchestrator, and update this file in the sam
 
     group, components[list], ref_smiles, ref_inchikey, ref_conn, ref_scaffold, ref_source ("chembl"|"sft_answer"|"manual"),
     chembl_id|null, approval_year|null, approval_source ("chembl"|"openfda"|"audit"|"manual"|null), sft_agrees (bool|null),
-    cluster_id (int; component of the graph on included drugs with an edge when Tanimoto >= 0.4 OR the two drugs share an identical non-empty Murcko scaffold),
+    ref_alt_smiles (list, usually empty), cluster_id (int; component of the graph on included drugs with an edge when bit Tanimoto >= 0.4 OR the two drugs share an identical non-empty Murcko scaffold),
     split ("train"|"val"|"test_r"|"test_t"|"buffer"|"excluded"), exclude_reason (str|null), n_rows, n_heavy (heavy atoms of ref_smiles), convention ("ligand_only"|null), pubchem_create_year|null, pubmed_count|null   (last two from exposure.json when present)
 
 `data/processed/{train,val,test_r,test_t}.jsonl`, one row per prompt row:
 
     id, group, task_type, split, cluster_id, prompt (= original prompt + "<think>\n"), completion (original minus leading "<think>\n"; train and val only),
-    ref_smiles, ref_conn, ref_scaffold, ref_inchikey, n_heavy, approval_year, n_prompt_tokens, n_completion_tokens
+    ref_smiles, ref_alt_smiles, ref_conn, ref_scaffold, ref_inchikey, n_heavy, approval_year, n_prompt_tokens, n_completion_tokens
 
 `data/processed/split_report.json`: counts per split (drugs, rows, task type, approval year), dropped sets with reasons (PD, combinations, each exclude_reason with group names), leakage numbers, component sizes, scaffold overlap between splits, seed, input hashes.
 Hand files in `data/curated/` (read by `data_prep`, never written by it):
@@ -94,14 +94,16 @@ a null manual entry (`manual_unresolvable`), or a reference the extractor cannot
 Unit of analysis is the drug (`group`); within a drug average over prompt rows and samples; across drugs equal weight. Intervals: percentile bootstrap resampling clusters (`cluster_id` components), 95%, descriptive.
 Metrics per split: exact@1 (conn_match), core@1 (conn_match or scaffold_match), stereo_exact@1, mean_tanimoto, mean_reward, valid_closed rate, truncation rate, n_tokens mean and p90,
 exact@8 and core@8 (pass@8, an oracle-coverage upper bound that needs the answer to select, never a deployable result), maj@8 (the plurality connectivity among the samples equals the reference; ties earn nothing).
-`--vs B`: paired per-drug differences A minus B with wins, losses and ties, a bootstrap interval, and an exact two-sided sign-flip permutation p-value on the drug-level differences
-(exact enumeration when there are at most 20 non-tied drugs, otherwise 100,000 seeded Monte Carlo flips). The p-value, not the bootstrap interval, is the decision statistic for the confirmatory contrast.
+`--vs B`: paired per-drug differences A minus B with wins, losses and ties (per drug), a bootstrap interval, and an exact two-sided sign-flip permutation p-value that flips whole `cluster_id` components
+(the drug differences are summed within a cluster and the cluster totals are flipped; drugs when rows carry no cluster_id): exact enumeration when there are at most 20 non-tied units, otherwise 100,000 seeded Monte Carlo flips,
+with the number of clusters reported. The p-value, not the bootstrap interval, is the decision statistic for the confirmatory contrast.
+maj@8 counts the plurality answer as correct when its conn equals that of the reference or of any `ref_alt_smiles` alternate.
 Also report the constant-answer bar when `--data` is given.
 
 ## controls.py (CPU baselines, same scorer)
 
     python -m rlexp.controls --data data/processed --out runs
-Writes `runs/control_copy_nearest/` and `runs/control_constant/` for val, test_r, test_t, then scores them.
+Writes `runs/control_copy_nearest/`, `runs/control_constant/` and `runs/control_constant_scaffold/` (the shortest Train reference among those with the most common non-empty scaffold: a do-nothing bar for core@1) for val, test_r, test_t, then scores them.
 Copy-nearest: TF-IDF cosine over the user part of the prompt, nearest Train prompt, answer = that row's `ref_smiles` (an answer-copying control, not retrieval-augmented prompting). Constant: the Train reference with the highest mean Tanimoto to the other Train references.
 
 ## GPU pack (`gpu/`)
