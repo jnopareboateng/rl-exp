@@ -1,6 +1,7 @@
 """Tests for rlexp.reward (contracts.md "reward.py (v2)"): formula, gating, edge cases, invariances, the answer-format
 fixture and the offline-check helpers."""
 import importlib.util
+import inspect
 import json
 import random
 import string
@@ -242,6 +243,61 @@ def test_literal_im_end_glued_to_the_answer_is_removed(tail):
 ])
 def test_unicode_and_non_breaking_spaces_around_the_answer(text):
     assert reward.score(text, {"ref_smiles": ASPIRIN})["reward"] == 1.0
+
+
+# ---------------------------------------------------------------- the finished rule (v3, 2026-10-17)
+FAILED = {"valid": False, "tanimoto": 0.0, "scaffold_match": False, "conn_match": False, "stereo_match": False,
+          "reward": 0.0}
+
+
+@pytest.mark.parametrize("answer, ref", [
+    (ASPIRIN, ASPIRIN), (CAFFEINE, ASPIRIN), ("CC(C)Cc1ccc(cc1)C(C)C(=O)N", IBUPROFEN), (D_ALA, L_ALA), (ENOL, KETO),
+], ids=["exact", "wrong-drug", "same-scaffold", "stereo-only", "tautomer"])
+def test_a_sample_cut_by_the_length_cap_is_a_failure_that_still_reports_its_answer(answer, ref):
+    text = closed(answer)
+    full = reward.score(text, {"ref_smiles": ref})
+    cut = reward.score(text, {"ref_smiles": ref}, finished=False)
+    assert full["valid"] and full["answer"] is not None and full["reward"] > 0        # premise: finished, it would have scored
+    assert cut == {**FAILED, "closed": True, "answer": full["answer"]}
+
+
+def test_a_cut_sample_without_a_closed_think_or_an_answer_reports_what_it_has():
+    ref = {"ref_smiles": ASPIRIN}
+    assert reward.score(ASPIRIN, ref, finished=False) == {**FAILED, "closed": False, "answer": None}
+    for text in ("", None, " \n"):
+        assert reward.score(text, ref, finished=False) == {**FAILED, "closed": False, "answer": None}
+    assert reward.score(closed("no idea"), ref, finished=False) == {**FAILED, "closed": True, "answer": None}
+
+
+def test_finished_defaults_to_true_and_true_changes_nothing():
+    assert inspect.signature(reward.score).parameters["finished"].default is True
+    texts = [closed(s) for s in POOL[:12]] + ["no think tag " + ASPIRIN, "", closed("C1CC(C(=O)N")]
+    for ref in REFS[:3]:
+        for t in texts:
+            assert reward.score(t, {"ref_smiles": ref}) == reward.score(t, {"ref_smiles": ref}, finished=True)
+    assert reward.score(closed(ASPIRIN), {"ref_smiles": ASPIRIN}, finished=True)["reward"] == 1.0
+
+
+def test_a_cut_sample_has_the_contract_keys_and_plain_types_and_a_bad_reference_stays_loud():
+    res = reward.score(closed(ASPIRIN), {"ref_smiles": ASPIRIN}, finished=False)
+    assert set(res) == set(reward.score(closed(ASPIRIN), {"ref_smiles": ASPIRIN}))
+    assert type(res["tanimoto"]) is float and type(res["reward"]) is float and json.loads(json.dumps(res)) == res
+    for finished in (True, False):
+        with pytest.raises(ValueError, match="reference"):
+            reward.score(closed(ASPIRIN), {"ref_smiles": "nonsense"}, finished=finished)
+
+
+def test_the_verl_entry_point_has_no_finished_argument_and_keeps_its_value():
+    assert list(inspect.signature(reward.compute_score).parameters) == ["data_source", "solution_str", "ground_truth",
+                                                                         "extra_info"]
+    assert reward.compute_score("d", closed(ASPIRIN), {"ref_smiles": ASPIRIN}) == 1.0
+
+
+def test_compute_score_has_no_completion_status_and_says_so():
+    ref, text = {"ref_smiles": ASPIRIN}, closed(ASPIRIN)
+    assert reward.compute_score("d", text, ref, extra_info={"finish_reason": "length"}) == 1.0      # it cannot know: see score(finished=)
+    assert reward.score(text, ref, finished=False)["reward"] == 0.0
+    assert "finished=False" in reward.compute_score.__doc__
 
 
 # ---------------------------------------------------------------- salts, charges, mixtures

@@ -40,8 +40,8 @@ Change a contract only through the orchestrator, and update this file in the sam
 
 ## reward.py (v2)
 
-    score(solution_str: str, ref: dict) -> dict
-    compute_score(data_source: str, solution_str: str, ground_truth, extra_info=None) -> float    # verl-style; ground_truth is a dict or JSON string
+    score(solution_str: str, ref: dict, finished: bool = True) -> dict                            # finished: v3, 2026-10-17
+    compute_score(data_source: str, solution_str: str, ground_truth, extra_info=None) -> float    # verl-style; ground_truth is a dict or JSON string; no completion status
     ref keys: ref_smiles (required) and ref_alt_smiles (optional list); ref_conn, ref_scaffold and ref_inchikey are re-derived in the scoring process (stored copies are informational)
     score keys: closed, answer, valid, tanimoto (0..1, 0 if invalid), scaffold_match, conn_match, stereo_match (full InChIKey equal; reporting only, never rewarded), reward
 
@@ -50,6 +50,10 @@ Change a contract only through the orchestrator, and update this file in the sam
     reward = 0.05 + 0.6 * tanimoto + 0.3 * scaffold_match   otherwise (max below 1.0)
 
 `closed` is True when `</think>` appears. Weights are module constants (W_VALID, W_TANI, W_SCAF); provisional, tuned only on Train rollouts and Val, never on test splits.
+
+**Finished rule (v3, 2026-10-17).** `finished=False` marks a sample cut by the length cap (`finish_reason == "length"`). A length-terminated sample scores 0, because a deployed system cannot use text that never ended:
+`valid=False`, `reward=0.0`, `tanimoto=0.0`, `conn_match=scaffold_match=stereo_match=False`; `answer` is still extracted and `closed` still computed, for diagnostics. A bad reference still raises. The default `True` changes no existing call.
+`compute_score` is unchanged and has no completion status (the verl signature carries none; `extra_info` is ignored): it scores the text as if finished, so an adapter that knows a sample was cut must call `score(..., finished=False)` or zero the reward itself (the RL trainer does), or the old training signal comes back.
 
 ## Data products (written by `rlexp.data_prep`)
 
@@ -84,21 +88,64 @@ a null manual entry (`manual_unresolvable`), or a reference the extractor cannot
 
     id, group, split, sample_idx, text (generated text only; in nothink mode prefixed with `</think>\n\n` so the normal scorer applies), finish_reason, n_tokens, model, mode ("think"|"nothink"), temperature, top_p, max_tokens, seed
 
-`scored.jsonl`: each sample row plus the `score()` keys. `meta.json`: model, library versions, GPU name and memory, wall time, tokens per second, command line, git revision, data manifest hash (`scripts/data_manifest.py`).
+`scored.jsonl`: each sample row (it keeps `finish_reason`) plus the `score()` keys and, since v3 (2026-10-17), `lift` (a finite float; defined under metrics.py; files scored before v3 lack it and stay readable, the report then shows lift as n/a and says why). `meta.json`: model, library versions, GPU name and memory, wall time, tokens per second, command line, git revision, data manifest hash (`scripts/data_manifest.py`).
 
 ## metrics.py
 
     python -m rlexp.metrics score  --samples runs/X/samples.jsonl --data data/processed --out runs/X/scored.jsonl
-    python -m rlexp.metrics report --scored runs/X/scored.jsonl [--vs runs/Y/scored.jsonl] [--split test_t,test_r,val] [--boot 10000] [--seed 0] [--json out.json]
+    python -m rlexp.metrics report --scored runs/X/scored.jsonl [--vs runs/Y/scored.jsonl] [--split test_t,test_r,val] [--boot 10000] [--seed 0] [--data data/processed] [--json out.json]
+    score_samples(samples, data_rows, scorer=None) -> list of scored rows            # what `score` runs
+
+Changes since v2 are marked "v3, 2026-10-17".
 
 Unit of analysis is the drug (`group`); within a drug average over prompt rows and samples; across drugs equal weight. Intervals: percentile bootstrap resampling clusters (`cluster_id` components), 95%, descriptive.
-Metrics per split: exact@1 (conn_match), core@1 (conn_match or scaffold_match), stereo_exact@1, mean_tanimoto, mean_reward, valid_closed rate, truncation rate, n_tokens mean and p90,
-exact@8 and core@8 (pass@8, an oracle-coverage upper bound that needs the answer to select, never a deployable result), maj@8 (the plurality connectivity among the samples equals the reference; ties earn nothing).
-`--vs B`: paired per-drug differences A minus B with wins, losses and ties (per drug), a bootstrap interval, and an exact two-sided sign-flip permutation p-value that flips whole `cluster_id` components
+
+**Confirmatory endpoint (decision, v3, 2026-10-17): `fv_tanimoto`.** The mean count-vector Tanimoto of the FIRST valid, closed, finished answer among the first 8 samples of each prompt row (0 when none qualifies), drug-balanced, with its cost `fv_samples` (generations per answer) reported beside it.
+It is the deployable resample-until-RDKit-accepts policy: it removes the validity confound without conditioning on validity (unlike `tanimoto_valid`, which lets an arm drop hard cases) and compares arms at matched cost. `lift` and `fv_lift` are diagnostics of profile association, not the endpoint (see the condition below); so are all other metrics.
+The tested set (wins, losses, ties, a sign-flip p-value and a studentized line each) is `fv_tanimoto`, `mean_tanimoto`, `lift`, `fv_lift`, `core@1`, `exact@1`; only `fv_tanimoto` is confirmatory and no multiplicity adjustment is claimed for the rest.
+
+**Finished (v3, 2026-10-17).** A sample is finished unless its `finish_reason` is `"length"`; one without `finish_reason` counts as finished. `score_samples` passes `finished = (finish_reason != "length")` to a scorer whose signature accepts it
+(it names `finished` or takes `**kwargs`; `rlexp.reward.score` does, and then a length-terminated sample is a failed answer, see reward.py); a scorer that does not is called as before. `rlexp.ident` applies the same rule: a sample that is cut or whose think block never closed is neither a name match nor answered.
+
+**Lift (v3, 2026-10-17), a diagnostic.** For a sample of drug d on split S with a valid, closed and finished answer a: `lift = T(a, ref_d) - mean over the OTHER drugs d' of S of T(a, ref_d')`, T = `chem.tanimoto` (count vectors, the reward's).
+The references are one `ref_smiles` per drug of S in the data files given to `score_samples` (the rows of a drug share it, `InputError` if they differ; `InputError` too if a reference of S does not standardize when a valid answer needs it), so a run that sampled few drugs is still judged against all of S.
+Any other sample (invalid, unclosed, length-terminated), and every sample of a split with a single drug, has lift 0.0; the report notes a single-drug split. Stored in the scored row as `lift`; averaged like the other sample metrics. `fv_lift` is the lift of the first valid answer (0 when none).
+**When the zero holds.** A constant answer that is valid and finished on every row has mean lift exactly 0 over a complete panel (the terms cancel), and so has `fv_lift` of a constant when every row has a valid answer in its first 8 samples. An answer that is independent of the profile has expected lift 0 only if the completion process (valid, closed, finished) is also independent of the drug.
+If completion depends on the drug, or on a nuisance cue that correlates with it such as prompt length, the mean is the completion-weighted sum of the drugs' lifts and need not vanish: one fixed molecule scores clearly above 0 when only one drug finishes (+0.18 in the independent review's synthetic example, and +0.71 for a policy that used prompt length alone; the tests pin the first).
+Lift therefore measures the association between the drug and everything the policy does, including nuisance cues, not the content of the answer alone; a claim about the profile needs a matched-budget comparison against shuffled or removed profile content that keeps those cues. The value also depends on the panel (the same answer scores differently against two drugs and against four).
+Each answer's molecule and each reference's fingerprint are built once; at most samples x drugs-in-S similarities are computed.
+
+| Metric (per split) | Definition | Notes |
+|---|---|---|
+| `fv_tanimoto` | the Tanimoto of the first valid, closed, finished answer among the first 8 samples of a row (0 when none), drug-balanced | **confirmatory endpoint**; deployable with resampling, cost `fv_samples`; tested |
+| `exact@1`, `core@1`, `stereo_exact@1` | conn_match; conn_match or scaffold_match; stereo_match | exact@1 and core@1 are tested diagnostics |
+| `lift` | as above, invalid, unclosed or length-terminated = 0 | v3; diagnostic, tested |
+| `mean_tanimoto` | `tanimoto` over all attempts, invalid = 0 | tested diagnostic |
+| `tanimoto_valid` | per row the mean `tanimoto` over its valid, closed, finished samples; a row without one has no value; a drug without one drops out (the `drugs` column counts the rest) | v3; descriptive, conditions on validity |
+| `mean_reward`, `truncation`, `n_tokens_mean`, `n_tokens_p90` | mean reward; share with `finish_reason == "length"`; tokens (p90 is nearest-rank over the drug-balanced distribution) | |
+| `valid_closed` | share that is valid and closed and finished ("validity"); a length-terminated sample is a failure | v3 wording |
+| `exact@8`, `core@8` | pass@8 over all n samples of a row with n >= 8: oracle coverage that needs the answer to select, never a deployable result | labelled as such |
+| `maj@8` | the plurality connectivity among the first 8 samples equals the reference's or an alternate's; unparseable answers cast no vote; ties earn nothing | deployable |
+| `fv_reward`, `fv_lift` | the reward and the lift of the same first valid answer (0 when none of the 8 qualifies) | v3; "deployable with resampling: costs fv_samples generations per answer"; `fv_lift` tested |
+| `fv_rate`, `fv_samples` | share of rows with such a sample; mean number of samples drawn up to and including it (8 when none) | v3; the cost per answer |
+
+The @8 and `fv_*` metrics use prompt rows with at least 8 samples; shorter rows are skipped and counted (`skipped_rows`), and a drug with no usable row has no value (a run with fewer than 8 samples per row has no `fv_tanimoto`; for a deterministic control that always parses it equals `mean_tanimoto`).
+
+**Input checks (v3, 2026-10-17).** `score_samples` and `report` raise `InputError` instead of reading a bad value as missing (a NaN would otherwise be dropped by the mean and silently remove a drug from the estimand):
+any NaN, inf, null, text or bool in a sample's or scored row's `sample_idx`, `n_tokens`, `reward`, `tanimoto` or `lift` (the error names the field and the number of rows; an absent `lift` is not an error), and a scorer result whose `tanimoto` or `reward` is not finite.
+Component metadata is all or nothing: rows of a run that carry `cluster_id` only in part, a drug with two `cluster_id`s, runs A and B that disagree on a drug's `cluster_id` (or only one of them carries it) and a scored row whose `cluster_id` differs from the data row's all raise; `--data` fills a missing `cluster_id` from the data rows.
+
+**Data files read (v3, 2026-10-17).** `score` opens only the `<split>.jsonl` files of the splits that its samples name (every sample needs a `split`). `report` opens those of the splits in the scored file that it reports (`--split` narrows them; rows of the `--vs` run in other splits are left out) and `train.jsonl` for the constant-answer bar when `--data` is given.
+A Val run never opens `test_r.jsonl` or `test_t.jsonl`.
+
+`--vs B`: paired per-drug differences A minus B with a bootstrap interval for every metric. For the tested set `fv_tanimoto`, `mean_tanimoto`, `lift`, `fv_lift`, `core@1`, `exact@1` (v3; was `exact@1`, `core@1`) also the wins, losses and ties (per drug) and an exact two-sided sign-flip permutation p-value that flips whole `cluster_id` components
 (the drug differences are summed within a cluster and the cluster totals are flipped; drugs when rows carry no cluster_id): exact enumeration when there are at most 20 non-tied units, otherwise 100,000 seeded Monte Carlo flips,
-with the number of clusters reported. The p-value, not the bootstrap interval, is the decision statistic for the confirmatory contrast.
+with the number of clusters reported; a difference of at least 1e-9 is a win or a loss (1e-9 only absorbs float noise in drug means). The p-value is None when no drug has a value in both runs (an `fv_*` metric of runs with fewer than 8 samples per row). The p-value, not the bootstrap interval, is the decision statistic for the confirmatory contrast.
+The report prints once a plain note that the test is not assumption-free (v3): the components are independent exchangeable units and a sign flip is valid under a null in which each component-summed difference is symmetric about zero (a zero mean alone is not enough).
+Beside the p-value (v3) a studentized line: the paired mean difference divided by its component-bootstrap standard error (`boot_se`, the standard deviation of the `--boot` resampled differences; `studentized` in the JSON is None when the standard error is undefined or zero). It is a descriptive size in bootstrap standard errors, not a calibrated test: five wins among 41 drugs with 36 ties give about 2.4 with an exact p of 0.0625.
 maj@8 counts the plurality answer as correct when its conn equals that of the reference or of any `ref_alt_smiles` alternate.
-Also report the constant-answer bar when `--data` is given.
+**Constant-answer bar (v3, 2026-10-17).** With `--data` the report scores the best constant Train reference on the run's own prompt rows, each answered 8 times so that `fv_*` exist (the constant always parses, so its `fv_tanimoto` is its Tanimoto): `exact@1`, `core@1`, `lift`, `mean_tanimoto`, `mean_reward`, `fv_tanimoto`.
+Its lift uses the same reference panel as the samples' lift, every drug of the split in the data. A constant has lift 0 over a complete panel, so the bar prints 0.000 when the run covers every drug of the split; on a partial run it is the mean over the sampled drugs of their lifts against the whole panel and is not forced to 0.
 
 ## controls.py (CPU baselines, same scorer)
 
