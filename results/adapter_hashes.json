@@ -1,0 +1,37 @@
+{
+ "A2-epoch1": {
+  "adapter_model.safetensors": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd",
+  "adapter_config.json": "bde8fbad67cad709bba943f01a0b8996f2799c3ba62d0442a8e4c8d4ed7fc294",
+  "size_bytes": 259787008
+ },
+ "R1-step-10": {
+  "adapter_model.safetensors": "9a355947f16e9bad458f5ffbba4878a60d0ac12e9410d5cac405dc06e9841c7a",
+  "adapter_config.json": "6dd0306dc3c3982e5e9c04af82bc5a4ce17af9b25533cf17af940ab9fd761dc5",
+  "size_bytes": 259787008
+ },
+ "R1-step-20": {
+  "adapter_model.safetensors": "8abcf8938d8d3fa58160fae49014da2534ed9af3660a57c8f3a9285b89c1369c",
+  "adapter_config.json": "6dd0306dc3c3982e5e9c04af82bc5a4ce17af9b25533cf17af940ab9fd761dc5",
+  "size_bytes": 259787008
+ },
+ "R1-step-30": {
+  "adapter_model.safetensors": "cc7ffcebc8f958bbe16a7621e32516f066302e252179a648b0a74a857671ab17",
+  "adapter_config.json": "0a015a2211b9c21cd78e081c63ce7e0b02785766fb69446b8cfcebcbbe93e324",
+  "size_bytes": 259787008
+ },
+ "R1-step-40": {
+  "adapter_model.safetensors": "3372769983acc45731ca1c7561d7cf15c51c6940c22529760fff6673d2abdcb7",
+  "adapter_config.json": "0a015a2211b9c21cd78e081c63ce7e0b02785766fb69446b8cfcebcbbe93e324",
+  "size_bytes": 259787008
+ },
+ "R3-step-10": {
+  "adapter_model.safetensors": "f249fc7abcc0683c2ec0cf71fb99cf5f254ece28c2f29921b5eefc75bfefe911",
+  "adapter_config.json": "19625540efff41e42b01ce1d2fc0295c083365d4148dbcf597e11454a39c2708",
+  "size_bytes": 259787008
+ },
+ "R3-step-20": {
+  "adapter_model.safetensors": "ac53a2983b2479ddab6440f8cd7a0e13012abbb153c2ef0c9f92afbb4d6e0262",
+  "adapter_config.json": "19625540efff41e42b01ce1d2fc0295c083365d4148dbcf597e11454a39c2708",
+  "size_bytes": 259787008
+ }
+}

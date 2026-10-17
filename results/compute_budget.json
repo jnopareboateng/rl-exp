@@ -1,0 +1,135 @@
+{
+ "training": [
+  {
+   "label": "SFT A2 (answer-only, 3 epochs)",
+   "kind": "SFT",
+   "steps": 129,
+   "status": "complete",
+   "seconds": 541.607992082998
+  },
+  {
+   "label": "SFT A1 (reasoning traces, 2 epochs)",
+   "kind": "SFT",
+   "steps": 84,
+   "status": "complete",
+   "seconds": 1527.3989204860172
+  },
+  {
+   "label": "RL-full pilot R1 (40 steps)",
+   "kind": "RL",
+   "steps": 40,
+   "status": "complete",
+   "step_seconds": 2675.6665617599974,
+   "eval_seconds": 206.00097264500437,
+   "seconds": 2881.667534405002
+  },
+  {
+   "label": "RL-contrastive R3 (cut by a runtime loss)",
+   "kind": "RL",
+   "steps": 29,
+   "status": "running",
+   "step_seconds": 1858.6529666849892,
+   "eval_seconds": 255.11576206999962,
+   "seconds": 2113.768728754989
+  }
+ ],
+ "sampling": {
+  "4B untrained and prompt probes": {
+   "runs": 8,
+   "wall_seconds": 1835.987084986998,
+   "generation_seconds": 1457.6222416910016
+  },
+  "A1 Val sampling": {
+   "runs": 1,
+   "wall_seconds": 1285.491403031001,
+   "generation_seconds": 1880.5260424200005
+  },
+  "Diagnostics: shuffled and blank profile": {
+   "runs": 4,
+   "wall_seconds": 422.2876901589997,
+   "generation_seconds": 107.36251650999998
+  },
+  "A2 Val sampling": {
+   "runs": 6,
+   "wall_seconds": 574.6032446040031,
+   "generation_seconds": 319.0190572189931
+  },
+  "A4 Val sampling": {
+   "runs": 3,
+   "wall_seconds": 620.0451656430002,
+   "generation_seconds": 472.4502972610003
+  },
+  "27B untrained (Qwen3.5 and Qwen3.8)": {
+   "runs": 2,
+   "wall_seconds": 2037.4383164030005,
+   "generation_seconds": 1699.2000657169992
+  },
+  "9B untrained": {
+   "runs": 5,
+   "wall_seconds": 774.6126732959992,
+   "generation_seconds": 365.5473450950012
+  },
+  "Diagnostics: identification and name-given": {
+   "runs": 8,
+   "wall_seconds": 1228.1179035690002,
+   "generation_seconds": 526.1272128089968
+  },
+  "RL checkpoints: Val re-sampling": {
+   "runs": 12,
+   "wall_seconds": 914.6613957749994,
+   "generation_seconds": 391.1399828320002
+  }
+ },
+ "runs_without_meta": [
+  "colab-s1/a1-val-partial",
+  "colab-s1/rlfull-s20-t0.6",
+  "colab-s1/rlfull-s20-t1.0",
+  "colab-s1/rlfull-s30-t0.6",
+  "colab-s1/rlfull-s30-t1.0",
+  "colab-s1/rlfull-s40-t0.6",
+  "colab-s1/rlfull-s40-t1.0",
+  "colab-s1/strict-a-direct",
+  "colab-s1/strict-a2-val",
+  "colab-s1/strict-a4-icl",
+  "colab-s1/strict-b27-direct",
+  "colab-s1/strict-b9-t0.6",
+  "colab-s1/strict-rlfull-s40-t0.6",
+  "colab-s1/val-control_constant",
+  "colab-s1/val-control_constant_scaffold",
+  "colab-s1/val-control_copy_nearest",
+  "colab-s1/val8-control_constant",
+  "colab-s1/val8-control_constant_pool",
+  "colab-s1/val8-control_constant_scaffold",
+  "colab-s1/val8-control_copy_nearest"
+ ],
+ "runtime_sessions": {
+  "as_of": "2026-10-17T22:30:00Z",
+  "runtimes": [
+   {
+    "start": "2026-10-17T12:10:00Z",
+    "end": "2026-10-17T20:35:00Z",
+    "gpu": "Colab A100-SXM4-40GB (runtime 1)",
+    "note": "disappeared; adapters and Val evaluations were on Drive, resumable RL checkpoints were not",
+    "hours": 8.416666666666666
+   },
+   {
+    "start": "2026-10-17T20:57:00Z",
+    "end": null,
+    "gpu": "Colab A100-SXM4-40GB (runtime 2)",
+    "note": "rebuilt from the bootstrap bundle; running",
+    "hours": 1.55
+   },
+   {
+    "hours": 0.29,
+    "gpu": "Kaggle T4 quota",
+    "note": "a 14-minute probe session billed before it was cancelled, plus one 3.3-minute smoke run"
+   }
+  ],
+  "note": "Hand-kept from the agent session log: start is the first tool call to a runtime, end the call that found it gone; this is wall-clock time with the runtime attached, GPU idle time included."
+ },
+ "totals_hours": {
+  "training": 1.9623453265913906,
+  "sampling_wall": 2.6925680215186114,
+  "sampling_generation": 2.005276322653887
+ }
+}

@@ -18,6 +18,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [status-main](status-main.md) — Val phase done; Colab A100 runtime lost 2026-10-17 20:35; Test evaluation and the tag wait on a GPU
 
 ## Decisions
+- [decision-comparator-c3-registered](decision-comparator-c3-registered.md) — C3 joins the comparator set and A1 leaves it; prereg deviations D1 and D2, before any Test sample
 - [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers
 - [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint, one confirmatory contrast, sign-flip test, prereg tag
 - [decision-decoding-grid-k8](decision-decoding-grid-k8.md) — Selectable temperatures {0.3, 0.6, 1.0} at k=8; 0.01 is a k=1 near-greedy report, never selected
@@ -32,9 +33,11 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [gotcha-agent-restarts](gotcha-agent-restarts.md) — A session restart kills background agents and wipes scratch; workers must save after every item
 - [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures; 2.2% of Val samples differ from the strict rule
 - [gotcha-base-model-verbosity](gotcha-base-model-verbosity.md) — Qwen3.5-4B rambles under the dataset's xhigh prompt (0% valid); a direct-answer prompt works
+- [gotcha-blank-profile-shared-draws](gotcha-blank-profile-shared-draws.md) — Blank-profile runs give every row one prompt, so draws repeat across rows; read mean_tanimoto
 - [gotcha-colab-mcp-hang](gotcha-colab-mcp-hang.md) — A dropped Colab tab hangs MCP calls for 30 min; poll in short calls and reconnect with authuser=1
 - [gotcha-core-endpoint-low-power](gotcha-core-endpoint-low-power.md) — core@1 is near 0 for every arm at 4B-27B and untestable; the endpoint is fv_tanimoto instead
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
+- [gotcha-rl-checkpoint-needs-drive-sync](gotcha-rl-checkpoint-needs-drive-sync.md) — A lost Colab VM kills RL resume unless the whole run dir, checkpoints included, is synced to Drive
 - [gotcha-t5-reward-spread](gotcha-t5-reward-spread.md) — T5 fails on Val: valid-answer reward std >= 0.05 in at most 15.5% of rows (A2 at T=1.0: 5.2%)
 
 ## Environment
@@ -42,5 +45,6 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [env-compute-supply](env-compute-supply.md) — Kaggle: 2 x T4, 6 GPU-h/week, batch runs only; Colab is primary and needs a browser accept
 
 ## References
+- [reference-compute-budget](reference-compute-budget.md) — Per-stage GPU hours: scripts/compute_budget.py reads run records; runtime windows are hand-kept
 - [reference-gpu-stack](reference-gpu-stack.md) — gpu/STACK.md: sourced Qwen3.5/3.8 GPU stack memo (vLLM 0.31.0, torch 2.13.0, TRL first), untested
 - [reference-hf-resources-considered](reference-hf-resources-considered.md) — microsoft/msr-acc, HuggingFaceBio, BioMysteryBench reviewed 2026-10-17: peripheral, not used
