@@ -1,0 +1,24 @@
+# environments and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# agent scratch and ledgers (never tracked)
+.agent-runs/
+.jspace/
+# data: raw inputs and prompt files hold the private dataset text; only small derived artifacts are tracked
+data/raw/
+data/processed/*
+!data/processed/refs.jsonl
+!data/processed/split_report.json
+# heavy run outputs; small summaries belong in results/
+runs/
+*.safetensors
+*.gguf
+*.bin
+*.pt
+# editor and OS
+.DS_Store
+Thumbs.db
+*.Zone.Identifier
