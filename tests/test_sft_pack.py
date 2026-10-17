@@ -6,6 +6,7 @@ These tests need no torch. They use synthetic text and a character tokenizer.
 The loss and gradient tests run the real functions on numpy stand-ins for torch.
 """
 
+import ast
 import fcntl
 import importlib.util
 import json
@@ -348,6 +349,66 @@ def test_fp16_overflow_skips_the_step_for_a_retry_and_any_other_nonfinite_gradie
     assert parameters[1].abs().max().item() == 0.0
 
 
+class Recorder:
+    """Stands in for the scaler, the optimizer and the scheduler of step_optimizer and records what is asked of them."""
+    def __init__(self, enabled=False, scale=1024.0):
+        self.enabled, self.scale, self.calls = enabled, scale, []
+
+    def unscale_(self, optimizer):
+        self.calls.append("unscale")
+
+    def step(self, optimizer=None):
+        self.calls.append("step")
+
+    def update(self):
+        self.calls.append("update")
+
+    def is_enabled(self):
+        return self.enabled
+
+    def get_scale(self):
+        return self.scale
+
+
+def numpy_clip_torch(limits):
+    """The two torch functions step_optimizer uses, on numpy. clip_grad_norm_ records its limit and scales like torch."""
+    def clip_grad_norm_(parameters, max_norm):
+        limits.append(max_norm)
+        grads = [p.grad for p in parameters]
+        total = float(np.sqrt(sum(float((g.astype(np.float64) ** 2).sum()) for g in grads)))
+        if math.isfinite(total):
+            for g in grads:
+                g *= min(1.0, max_norm / (total + 1e-6))
+        return np.float32(total)
+    return types.SimpleNamespace(isfinite=np.isfinite, nn=types.SimpleNamespace(utils=types.SimpleNamespace(clip_grad_norm_=clip_grad_norm_)))
+
+
+def step_with(pack, grads, scaler):
+    limits, scheduler = [], Recorder()
+    parameters = [types.SimpleNamespace(grad=np.array(g, dtype=np.float32)) for g in grads]
+    result = pack.step_optimizer(parameters, None, scheduler, scaler, numpy_clip_torch(limits))
+    return result, limits, scheduler.calls, parameters
+
+
+def test_step_optimizer_clips_at_norm_one_and_counts_one_step(pack):
+    scaler = Recorder()
+    result, limits, scheduled, parameters = step_with(pack, [[3.0, 0.0], [0.0, 4.0]], scaler)       # a gradient of norm 5
+    assert result is True and limits == [1.0]
+    assert scaler.calls == ["unscale", "step", "update"] and scheduled == ["step"]
+    assert float(np.sqrt(sum((p.grad ** 2).sum() for p in parameters))) == pytest.approx(1.0, rel=1e-3)
+
+
+def test_an_fp16_overflow_is_not_a_step_and_any_other_nonfinite_gradient_raises(pack):
+    scaler = Recorder(enabled=True)
+    result, limits, scheduled, _ = step_with(pack, [[float("inf"), 1.0]], scaler)
+    assert result is False and scheduled == []                                  # retried, so the schedule does not advance
+    assert scaler.calls == ["unscale", "step", "update"]                         # the scaler still skips the step and lowers its scale
+    for recorder in (Recorder(enabled=False), Recorder(enabled=True, scale=1.0)):      # no scaler to blame, or no scale left to lower
+        with pytest.raises(ValueError, match="Non-finite gradients"):
+            step_with(pack, [[float("nan"), 1.0]], recorder)
+        assert recorder.calls == ["unscale"]
+
+
 def test_best_epoch_is_the_lowest_val_loss_and_a_tie_keeps_the_earlier(pack):
     assert pack.is_best(1.0, None)
     assert pack.is_best(0.9, 1.0)
@@ -530,7 +591,9 @@ def test_export_takes_only_a_committed_epoch_adapter_that_still_matches_its_hash
     (epoch / "notes.txt").unlink()
     # A checkpoint directory is exportable only as the committed latest or best.
     manifest = pack.load_checkpoint(root)[2]
-    assert merge_lora.resolve_adapter(root / manifest["latest"]) == (root / manifest["latest"]).resolve()
+    assert manifest["best"] != manifest["latest"]                       # the best epoch is not the last one in make_run
+    for kept in ("latest", "best"):
+        assert merge_lora.resolve_adapter(root / manifest[kept]) == (root / manifest[kept]).resolve()
     stale = adapter_payload(root / "checkpoints/step-00000001-stale", b"pruned long ago")
     with pytest.raises(ValueError, match="committed latest or best"):
         merge_lora.resolve_adapter(stale)
@@ -591,8 +654,8 @@ def test_an_epoch_adapter_copied_out_of_its_run_needs_a_recorded_or_explicit_rev
     with pytest.raises(stop):
         merge_lora.main(["--base", "synthetic/base", "--adapter", str(plain), "--out", str(tmp_path / "export")])
     assert seen == ["rev-c", "rev-a"] and not (tmp_path / "run.lock").exists()
-    # Only this trainer's own directories are checked against the run. Another pack's kept adapter is a plain adapter.
-    other = adapter_payload(root / "adapters/step-3", b"another pack")
+    # Only the trainers' own directory names are checked against the run. Any other name in adapters/ is a plain adapter.
+    other = adapter_payload(root / "adapters/custom-3", b"someone else's")
     assert merge_lora.owning_run(other) is None and merge_lora.resolve_adapter(other) == other
     assert merge_lora.owning_run(root / "adapters/.pending-x") == root.resolve()
 
@@ -619,6 +682,151 @@ def test_export_reuse_requires_the_adapters_base_revision(pack, tmp_path, monkey
     merge_lora.merge("synthetic/base", epoch, output)
     with pytest.raises(ValueError, match="--revision differs"):
         merge_lora.merge("synthetic/base", epoch, output, revision="rev-b")
+
+
+def test_a_null_pin_counts_as_no_pin(pack, tmp_path, fake_ml):
+    import merge_lora
+    seen, stop = fake_ml
+    for name in ("epoch-2", "step-5"):                                     # the SFT trainer's and the RL trainer's kept adapters
+        copy = adapter_payload(tmp_path / "elsewhere" / name, b"w")
+        (copy / "revision.json").write_text('{"revision": null}')
+        with pytest.raises(ValueError, match="records no base revision"):
+            merge_lora.merge("synthetic/base", copy, tmp_path / "export")
+        with pytest.raises(stop):
+            merge_lora.merge("synthetic/base", copy, tmp_path / "export", revision="rev-c")
+    assert seen == ["rev-c", "rev-c"]
+    # An adapter that is not a kept one still merges unpinned, as before.
+    with pytest.raises(stop):
+        merge_lora.merge("synthetic/base", adapter_payload(tmp_path / "elsewhere/my-lora", b"w"), tmp_path / "export")
+    assert seen == ["rev-c", "rev-c", None]
+
+
+def write_model_dir(path, config="{}", index='{"weight_map": {}}', shards=(("model-00001.safetensors", 10),)):
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "config.json").write_text(config)
+    (path / "model.safetensors.index.json").write_text(index)
+    for name, size in shards:
+        (path / name).write_bytes(b"x" * size)
+    return path
+
+
+def test_a_local_base_model_is_pinned_by_a_hash_of_its_files(pack, tmp_path):
+    pin = pack.local_revision(write_model_dir(tmp_path / "model"))
+    assert pin.startswith("local-") and pack.local_revision(write_model_dir(tmp_path / "copy")) == pin       # same files, same pin
+    changes = [dict(config='{"a": 1}'), dict(index='{"weight_map": {"w": "model-00001.safetensors"}}'),
+               dict(shards=(("model-00001.safetensors", 11),)),
+               dict(shards=(("model-00001.safetensors", 10), ("model-00002.safetensors", 5)))]
+    for number, change in enumerate(changes):
+        assert pack.local_revision(write_model_dir(tmp_path / f"changed{number}", **change)) != pin, change
+
+
+@pytest.fixture
+def fake_transformers(monkeypatch):
+    """Stand-ins for the Transformers loaders. They record the revision each one is given."""
+    seen, ns = [], types.SimpleNamespace
+
+    class AutoConfig:
+        @staticmethod
+        def from_pretrained(name, revision=None, trust_remote_code=False):
+            seen.append(("config", revision))
+            return ns(model_type="qwen3_5", text_config=ns(), _commit_hash="hub-commit")
+
+    class CausalLM:
+        @staticmethod
+        def from_pretrained(name, config, revision, dtype, attn_implementation, output_loading_info, trust_remote_code):
+            seen.append(("model", revision))
+            return ns(config=ns()), {}
+    monkeypatch.setitem(sys.modules, "transformers", ns(AutoConfig=AutoConfig, Qwen3_5ForCausalLM=CausalLM))
+    return seen
+
+
+def test_load_text_model_returns_a_commit_for_the_hub_and_a_content_pin_for_a_local_directory(pack, tmp_path, fake_transformers):
+    seen = fake_transformers
+    assert pack.load_text_model("Qwen/Qwen3.5-4B", "bf16")[2] == "hub-commit"
+    assert pack.load_text_model("Qwen/Qwen3.5-4B", "bf16", "pinned")[2] == "pinned"
+    assert seen == [("config", None), ("model", "hub-commit"), ("config", "pinned"), ("model", "pinned")]
+    seen.clear()
+    model = write_model_dir(tmp_path / "model")
+    pin = pack.local_revision(model)
+    assert pack.load_text_model(str(model), "bf16")[2] == pin and pack.load_text_model(str(model), "bf16", pin)[2] == pin
+    assert seen == [("config", None), ("model", None)] * 2             # Transformers is not given a revision for a local directory
+    (model / "config.json").write_text('{"changed": 1}')
+    with pytest.raises(ValueError, match="local base model changed"):
+        pack.load_text_model(str(model), "bf16", pin)                  # a resume finds another model than the run started with
+
+
+def test_a_local_base_model_must_match_the_pin_and_gets_no_revision_from_merge(pack, tmp_path, fake_ml):
+    import merge_lora
+    model = write_model_dir(tmp_path / "model")
+    root, state = make_run(pack, tmp_path, revision=pack.local_revision(model))      # trained from the local directory
+    epoch, seen_stop = root / "adapters/epoch-2", fake_ml
+    seen, stop = seen_stop
+    sys.modules["peft"].PeftConfig.from_pretrained = lambda path: types.SimpleNamespace(base_model_name_or_path=str(model), revision=None)
+    with pytest.raises(stop):
+        merge_lora.merge(str(model), epoch, tmp_path / "export")
+    assert seen == [None]
+    (model / "config.json").write_text('{"changed": 1}')                  # the directory changed since the run
+    with pytest.raises(ValueError, match="local base model differs"):
+        merge_lora.merge(str(model), epoch, tmp_path / "export")
+    assert seen == [None]
+
+
+def make_rl_run(pack, tmp_path, steps=(10, 20), revision="rev-r"):
+    """A run directory as the RL trainer leaves it: kept adapters in adapters/step-N with a revision.json, listed in
+    state["adapters"]; checkpoints without a best; the adapter modules recorded as a count."""
+    root = tmp_path / "rl"
+    state = dict(step=0, global_step=0, adapters=[], adapter_modules=7, identity=dict(revision=revision))
+    for step in steps:
+        kept = adapter_payload(root / "adapters" / f"step-{step}", b"policy %d" % step)
+        (kept / "revision.json").write_text(json.dumps(dict(revision=revision)))
+        entry = dict(step=step, path=f"adapters/step-{step}", sha256={file.name: pack.sha256(file) for file in kept.iterdir()})
+        state = {**state, "step": step, "global_step": step, "adapters": [*state["adapters"], entry]}
+        pack.commit_checkpoint(root, state, lambda path: adapter_payload(path, b"latest %d" % step))
+    return root, state
+
+
+def test_rl_kept_adapters_and_checkpoints_follow_the_same_export_rules(pack, tmp_path, fake_ml):
+    import merge_lora
+    root, state = make_rl_run(pack, tmp_path)
+    step = root / "adapters/step-20"
+    latest = root / pack.load_checkpoint(root)[2]["latest"]
+    for path in (step, latest):
+        assert merge_lora.resolve_adapter(path) == path.resolve() and merge_lora.adapter_revision(path) == "rev-r"
+    # An eval published step 30 but the checkpoint that lists it was never committed.
+    leftover = adapter_payload(root / "adapters/step-30", b"left over")
+    (leftover / "revision.json").write_text('{"revision": "rev-r"}')
+    with pytest.raises(ValueError, match="not in its run's committed list"):
+        merge_lora.resolve_adapter(leftover)
+    (step / "adapter_model.safetensors").write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="differs from the hashes"):
+        merge_lora.resolve_adapter(step)
+    (step / "adapter_model.safetensors").write_bytes(b"policy 20")
+    seen, stop = fake_ml
+    export = tmp_path / "export"
+    with (root / "run.lock").open("a") as trainer:                       # the RL trainer holds the run
+        fcntl.flock(trainer, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        for path in (step, latest, leftover):
+            with pytest.raises(ValueError, match="trainer holds this run"):
+                merge_lora.main(["--base", "synthetic/base", "--adapter", str(path), "--out", str(export)])
+    assert seen == []
+    with pytest.raises(stop):
+        merge_lora.main(["--base", "synthetic/base", "--adapter", str(step), "--out", str(export)])
+    assert seen == ["rev-r"]
+    with pytest.raises(ValueError, match="adapters/step-N"):              # RL never marks a best checkpoint
+        merge_lora.resolve_adapter(root)
+
+
+def test_module_coverage_accepts_names_or_a_count_and_an_rl_state_has_no_epoch(pack):
+    import merge_lora
+    names = ["a", "b"]
+    merge_lora.check_coverage(names, dict(adapter_modules=["b", "a"]))     # the SFT trainer records names
+    merge_lora.check_coverage(names, dict(adapter_modules=2))              # the RL trainer records a count
+    merge_lora.check_coverage(names, None)
+    merge_lora.check_coverage(names, {})
+    for recorded in (["a", "c"], ["a"], 3, 1):
+        with pytest.raises(ValueError, match="coverage"):
+            merge_lora.check_coverage(names, dict(adapter_modules=recorded))
+    assert merge_lora.adapter_epoch(Path("checkpoints/step-00000020-x"), dict(step=20, adapter_modules=7)) is None
 
 
 def test_names_other_packs_import_keep_their_signatures(pack):
@@ -689,18 +897,24 @@ def test_missing_fast_kernel_stops_an_sm80_gpu_unless_allowed(pack, monkeypatch,
     assert capsys.readouterr().out.count("WARNING") == 2
 
 
+FINGERPRINTS = dict(objective_sha256="objective-a", train_lengths_sha256="train-a", val_lengths_sha256="val-a")
+
+
 def test_resume_identity_is_options_data_dtype_and_core_versions_only(pack, tmp_path, capsys):
     args = make_args(pack, tmp_path)
     args.train.write_text("synthetic train\n")
     args.val.write_text("synthetic val\n")
     versions = dict(python="3.12.1", torch="2.10.0", transformers="5.17.0", peft="0.21.2", numpy="2.0.0", triton="3.0.0")
-    saved = dict(identity=pack.make_identity(args, "rev", "torch.bfloat16", versions), versions=versions)
+    first = dict(git_revision="git-a", versions=versions, kernels={}, command=["gpu/sft_lora.py"], trainer_sha256="src-a")
+    saved = pack.with_session(dict(identity=pack.make_identity(args, "rev", "torch.bfloat16", versions, FINGERPRINTS)), first)
     assert set(saved["identity"]["versions"]) == {"torch", "transformers", "peft"}
     assert not args.allow_slow_kernels and "allow_slow_kernels" not in saved["identity"]["options"]
 
-    def resume(arguments=args, revision="rev", dtype="torch.bfloat16", **changed):
-        current = {**versions, **changed}
-        pack.check_resume(saved, pack.make_identity(arguments, revision, dtype, current), current)
+    def resume(arguments=args, revision="rev", dtype="torch.bfloat16", fingerprints=FINGERPRINTS, **changed):
+        session = {**first, **{key: changed.pop(key) for key in ("git_revision", "trainer_sha256") if key in changed}}
+        session["versions"] = {**versions, **changed}
+        identity = pack.make_identity(arguments, revision, dtype, session["versions"], fingerprints)
+        pack.check_resume(saved, identity, session)
         return capsys.readouterr().out
     assert resume() == ""
     # A different python, numpy or triton only warns and names what changed.
@@ -716,9 +930,89 @@ def test_resume_identity_is_options_data_dtype_and_core_versions_only(pack, tmp_
         resume(revision="other")
     with pytest.raises(ValueError, match="Resume identity changed"):
         resume(dtype="torch.float16")
+    # The code revision and the trainer source may differ from the first session's: that only warns. The objective may not.
+    assert "code revision differs" in resume(git_revision="git-b") and "trainer source differs" in resume(trainer_sha256="src-b")
+    for key, what in (("objective_sha256", "training objective"), ("train_lengths_sha256", "Train lengths"),
+                      ("val_lengths_sha256", "Val lengths")):
+        with pytest.raises(ValueError, match=f"{what} differ from the first session's"):
+            resume(fingerprints={**FINGERPRINTS, key: "changed"})
+    # A checkpoint from before the fingerprints were recorded counts as different.
+    old = {**saved, "identity": {key: value for key, value in saved["identity"].items() if key not in FINGERPRINTS}}
+    with pytest.raises(ValueError, match="training objective differ"):
+        pack.check_resume(old, pack.make_identity(args, "rev", "torch.bfloat16", versions, FINGERPRINTS), first)
     args.val.write_text("changed val\n")
     with pytest.raises(ValueError, match="Resume identity changed"):
         resume()
+
+
+def test_sessions_keep_the_first_and_append_every_resume(pack):
+    one = dict(git_revision="git-a", versions={"torch": "2.10.0"}, kernels={"fla": "ok"}, command=["a"], trainer_sha256="src-a")
+    two = dict(git_revision="git-b", versions={"torch": "2.10.0", "numpy": "2.1"}, kernels={"fla": "slow"}, command=["b"],
+               trainer_sha256="src-b")
+    state = pack.with_session(dict(epoch=0), one)
+    assert state["first_session"] == dict(git_revision="git-a", versions=one["versions"], trainer_sha256="src-a")
+    assert state["sessions"] == [one] and state["git_revision"] == "git-a"
+    resumed = pack.with_session(json.loads(json.dumps(state)), two)       # a JSON round trip stands in for the checkpoint
+    assert resumed["first_session"] == state["first_session"]              # the first session is not overwritten
+    assert resumed["sessions"] == [one, two]
+    assert (resumed["git_revision"], resumed["versions"], resumed["kernels"], resumed["command"]) == ("git-b", two["versions"], two["kernels"], ["b"])
+    assert resumed["epoch"] == 0 and state["sessions"] == [one]            # other fields stay, the input is not changed
+
+
+OBJECTIVE_CODE = ("fit_lengths", "prepare_rows", "token_batches", "epoch_batches", "collate", "completion_loss",
+                  "accumulate_update", "step_optimizer")
+
+
+def source_copy(tmp_path, name, text):
+    """Load sft_lora.py from a copy of its text, so that objective_sha256 reads that copy."""
+    (tmp_path / name).mkdir()
+    (tmp_path / name / "sft_lora.py").write_text(text)
+    spec = importlib.util.spec_from_file_location(f"sft_lora_{name}", tmp_path / name / "sft_lora.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def with_statement_in(text, function):
+    """The source with one more statement in `function`, before its last statement."""
+    node = next(n for n in ast.parse(text).body if isinstance(n, ast.FunctionDef) and n.name == function)
+    lines = text.split("\n")
+    lines.insert(node.body[-1].lineno - 1, " " * node.body[-1].col_offset + "_edited = 1")
+    return "\n".join(lines)
+
+
+def test_objective_fingerprint_covers_the_training_code_and_nothing_else(pack, tmp_path):
+    source = (GPU / "sft_lora.py").read_text()
+    base = pack.objective_sha256()
+    assert len(base) == 64 and source_copy(tmp_path, "same", source).objective_sha256() == base      # a copy elsewhere
+    for function in OBJECTIVE_CODE:
+        edited = source_copy(tmp_path, function, with_statement_in(source, function))
+        assert edited.objective_sha256() != base, function
+    assert source_copy(tmp_path, "marker", source.replace('END = "<|im_end|>"', 'END = "<|im_start|>"')).objective_sha256() != base
+    # Code that is not the objective may change between sessions of one run.
+    for function in ("commit_epoch_adapter", "check_resume", "is_best", "make_identity", "main"):
+        assert source_copy(tmp_path, "other" + function, with_statement_in(source, function)).objective_sha256() == base, function
+
+
+def test_length_fingerprint_moves_with_the_tokenizer_and_with_the_supervised_count(pack):
+    rows = [fixture_row(0), fixture_row(1, "another<think>\n", "\n</think>\n\nCC<|im_end|>")]
+    plain = pack.prepare_rows(rows, CharacterTokenizer(), 1024, "drop")[0]
+    assert pack.lengths_sha256(plain) == pack.lengths_sha256(pack.prepare_rows(rows, CharacterTokenizer(), 1024, "drop")[0])
+    assert pack.lengths_sha256(plain) != pack.lengths_sha256(pack.prepare_rows(rows, MergingTokenizer(), 1024, "drop")[0])
+    base = [dict(input_ids=[1, 2, 3, 4], labels=[-100, -100, 3, 4])]
+    assert pack.lengths_sha256(base) != pack.lengths_sha256([dict(input_ids=[1, 2, 3, 4], labels=[-100, 2, 3, 4])])    # same total
+    assert pack.lengths_sha256(base) != pack.lengths_sha256([dict(input_ids=[1, 2, 3, 4, 5], labels=[-100, -100, -100, 4, 5])])  # same supervised
+
+
+def test_train_and_val_overlap_is_checked_on_the_source_row_id(pack):
+    train = [dict(id="d0/a#0"), dict(id="d0/a#1"), dict(id="d1/a#0")]
+    pack.check_disjoint(train, [dict(id="v0/a")])
+    with pytest.raises(ValueError, match="overlap"):
+        pack.check_disjoint(train, [dict(id="d0/a")])                      # the Val row is the source of two Train samples
+    with pytest.raises(ValueError, match="overlap"):
+        pack.check_disjoint([dict(id="t0/0")], [dict(id="t0/0")])
+    with pytest.raises(ValueError, match="overlap"):
+        pack.check_disjoint([dict(id=7)], [dict(id=7)])
 
 
 def test_dry_run_cli_needs_only_stdlib(pack, tmp_path):
@@ -809,10 +1103,18 @@ def test_report_keeps_the_full_runtime_versions_the_identity_no_longer_carries(p
                      kernels={}, peak_memory_bytes=9, best_val_loss=1.2)
         if recorded:
             state["versions"] = recorded
+            sessions = [dict(git_revision="git-a", versions=full, kernels={}, command=["a"], trainer_sha256="src-a"),
+                        dict(git_revision="git-b", versions=full, kernels={}, command=["b"], trainer_sha256="src-b")]
+            state = pack.with_session(pack.with_session(state, sessions[0]), sessions[1])
+            state["versions"] = recorded
         pack.commit_checkpoint(run, state, lambda path: None, True)
         destination = tmp_path / f"{name}.json"
         sft_report.report(tmp_path / "scratch", "A2", run, tmp_path / "merged", destination, 0)
-        assert json.loads(destination.read_text())["versions"] == expected
+        result = json.loads(destination.read_text())
+        assert result["versions"] == expected
+        # The report shows the session that started the run and every later one, not only the last.
+        assert result["first_session"] == (state["first_session"] if recorded else None)
+        assert result["sessions"] == (sessions if recorded else []) and result["git_revision"] == ("git-b" if recorded else None)
 
 
 def test_resolve_best_adapter_and_reject_path_escape(pack, tmp_path):

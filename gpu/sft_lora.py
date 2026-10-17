@@ -8,6 +8,8 @@ See gpu/SFT.md for the install pins, clipping rule and first-run checks.
 """
 
 import argparse
+import ast
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -27,6 +29,9 @@ import uuid
 END = "<|im_end|>"
 ADAPTER_FILES = ("adapter_model.safetensors", "adapter_config.json")
 EPOCH_FILES = (*ADAPTER_FILES, "revision.json")
+# The code that decides what is trained and how; a resume under different code is refused (see objective_sha256).
+OBJECTIVE_FUNCTIONS = ("fit_lengths", "prepare_rows", "token_batches", "epoch_batches", "collate", "completion_loss",
+                       "accumulate_update", "step_optimizer")
 PROJECTIONS = {
     "in_proj_qkv", "in_proj_z", "in_proj_a", "in_proj_b", "out_proj",
     "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj",
@@ -318,10 +323,10 @@ def commit_checkpoint(root, state, writer, is_best=False):
     return target
 
 
-def committed_epochs(root):
-    """The epoch_adapters entries of the run's committed state, keyed by their path."""
+def committed_adapters(root):
+    """The kept adapters of the run's committed state, keyed by path: this trainer's epoch_adapters and the RL trainer's adapters."""
     loaded = load_checkpoint(root)
-    return {entry["path"]: entry for entry in loaded[1].get("epoch_adapters", [])} if loaded else {}
+    return {entry["path"]: entry for entry in [*loaded[1].get("epoch_adapters", []), *loaded[1].get("adapters", [])]} if loaded else {}
 
 
 def commit_epoch_adapter(root, epoch, source, revision):
@@ -347,7 +352,7 @@ def commit_epoch_adapter(root, epoch, source, revision):
             published = {file.name: sha256(file) if file.is_file() else None for file in target.iterdir()}
             if published == entry["sha256"]:
                 return entry
-            if entry["path"] in committed_epochs(root):
+            if entry["path"] in committed_adapters(root):
                 raise PackError(f"Epoch adapter {epoch} is committed and cannot change")
             # A kill after the publish but before the checkpoint commit repeats the epoch. Swap that leftover out.
             leftover = directory / f".pending-replaced-{uuid.uuid4().hex}"
@@ -370,7 +375,7 @@ def commit_epoch_adapter(root, epoch, source, revision):
 def runtime_versions():
     from importlib.metadata import PackageNotFoundError, version
     result = {"python": sys.version.split()[0]}
-    for name in ("torch", "transformers", "peft", "safetensors", "numpy", "triton", "accelerate",
+    for name in ("torch", "transformers", "peft", "tokenizers", "safetensors", "numpy", "triton", "accelerate",
                  "flash-linear-attention", "fla-core", "causal-conv1d"):
         try:
             result[name] = version(name)
@@ -379,21 +384,67 @@ def runtime_versions():
     return result
 
 
-def make_identity(args, revision, dtype, versions):
+def objective_sha256():
+    """Fingerprint of the code that decides what is trained: END and the source text of OBJECTIVE_FUNCTIONS (row clipping and
+    preparation, batching, padding, the loss, its normalisation and the optimizer step). Edits elsewhere in this file do not
+    change it, comments and docstrings inside those functions do."""
+    lines = Path(__file__).read_text(encoding="utf-8").split("\n")
+    nodes = {node.name: node for node in ast.parse("\n".join(lines)).body if isinstance(node, ast.FunctionDef)}
+    parts = [END, *("\n".join(lines[nodes[name].lineno - 1:nodes[name].end_lineno]) for name in OBJECTIVE_FUNCTIONS)]
+    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
+
+
+def lengths_sha256(rows):
+    """Fingerprint of the kept rows' token counts (all tokens, supervised tokens), in order. Another tokenizer build moves them."""
+    counts = [[len(row["input_ids"]), sum(label != -100 for label in row["labels"])] for row in rows]
+    return hashlib.sha256(json.dumps(counts).encode("utf-8")).hexdigest()
+
+
+def make_identity(args, revision, dtype, versions, fingerprints):
     """What a resume must match. The other runtime versions live in the state and only warn."""
     skipped = ("out", "train", "val", "dry_run", "stop_after_seconds", "log_steps", "save_steps", "allow_slow_kernels")
     return dict(options={key: value for key, value in vars(args).items() if key not in skipped},
                 revision=revision, train_sha256=sha256(args.train), val_sha256=sha256(args.val), dtype=str(dtype),
-                versions={name: versions[name] for name in ("torch", "transformers", "peft")})
+                versions={name: versions[name] for name in ("torch", "transformers", "peft")}, **fingerprints)
 
 
-def check_resume(saved, identity, versions):
-    if saved["identity"] != identity:
+def check_resume(saved, identity, session):
+    """Refuse a resume that would mix training objectives, and say which part differs. A checkpoint that did not record a
+    fingerprint counts as different. Differences from the first session that cannot change the objective only warn."""
+    before = saved["identity"]
+    for key, what in (("objective_sha256", "The code that defines the training objective"),
+                      ("train_lengths_sha256", "The tokenized Train lengths"),
+                      ("val_lengths_sha256", "The tokenized Val lengths")):
+        if before.get(key) != identity[key]:
+            raise PackError(f"{what} differ from the first session's. Use a new output directory")
+    if before != identity:
         raise PackError("Resume identity changed. Use a new output directory")
-    changed = [name for name, value in versions.items() if value != saved["versions"].get(name)]
+    first = saved["first_session"]
+    changed = [name for name, value in session["versions"].items() if value != first["versions"].get(name)]
     if changed:
-        print(f"WARNING: These runtime versions changed since the checkpoint: {', '.join(changed)}. "
+        print(f"WARNING: These runtime versions differ from the first session's: {', '.join(changed)}. "
               "Resume keeps batch order. Numerical replay is UNTESTED.", flush=True)
+    for key, what in (("git_revision", "The code revision"), ("trainer_sha256", "The trainer source")):
+        if session[key] != first[key]:
+            print(f"WARNING: {what} differs from the first session's. The objective fingerprint matches, so the run continues.", flush=True)
+
+
+def with_session(state, session):
+    """Record this session in the state. The first session stays as it was, every session is appended, and the top-level
+    fields describe this one."""
+    first = state.get("first_session") or {key: session[key] for key in ("git_revision", "versions", "trainer_sha256")}
+    return {**state, **{key: session[key] for key in ("git_revision", "versions", "kernels", "command")},
+            "first_session": first, "sessions": [*state.get("sessions", []), session]}
+
+
+def source_row_id(row):
+    """The id of the row a training row came from. A3 ids are '<row id>#<sample_idx>'."""
+    return str(row["id"]).rpartition("#")[0] or str(row["id"])
+
+
+def check_disjoint(train_rows, val_rows):
+    if {source_row_id(row) for row in train_rows} & {source_row_id(row) for row in val_rows}:
+        raise PackError("Train and Val IDs overlap")
 
 
 def kernel_status(allow_slow=False):
@@ -443,20 +494,40 @@ def kernel_status(allow_slow=False):
     return status
 
 
+def local_revision(path):
+    """The pin of a base model that is a local directory, which has no commit: a hash of its config, its weights index and
+    the size of every weight file."""
+    digest = hashlib.sha256()
+    for name in ("config.json", "model.safetensors.index.json"):
+        if (path / name).is_file():
+            digest.update(f"{name}={sha256(path / name)}\n".encode())
+    for file in sorted(path.glob("*.safetensors")):
+        digest.update(f"{file.name}={file.stat().st_size}\n".encode())
+    return f"local-{digest.hexdigest()}"
+
+
 def load_text_model(model_name, dtype, revision=None):
+    """Returns the model, its config and the base revision it was loaded at: a commit for a Hub model, local_revision() for a
+    local directory. A revision that is passed must match; Transformers itself ignores revisions of local directories."""
     from transformers import AutoConfig, Qwen3_5ForCausalLM
-    config = AutoConfig.from_pretrained(model_name, revision=revision, trust_remote_code=False)
+    local = Path(model_name).is_dir()
+    pin = local_revision(Path(model_name)) if local else None
+    if local and revision not in (None, pin):
+        raise PackError("The local base model changed since this run started")
+    hub = None if local else revision
+    config = AutoConfig.from_pretrained(model_name, revision=hub, trust_remote_code=False)
     if config.model_type != "qwen3_5":
         raise PackError("This pack requires the dense Qwen3.5 model")
-    revision = revision or getattr(config, "_commit_hash", None)
+    if not local:
+        hub = hub or getattr(config, "_commit_hash", None)
     model, info = Qwen3_5ForCausalLM.from_pretrained(
-        model_name, config=config.text_config, revision=revision, dtype=dtype,
+        model_name, config=config.text_config, revision=hub, dtype=dtype,
         attn_implementation="sdpa", output_loading_info=True, trust_remote_code=False,
     )
     if info.get("missing_keys") or info.get("mismatched_keys") or info.get("error_msgs"):
         raise PackError("Base text weights did not load completely")
     model.config.use_cache = False
-    return model, config, revision
+    return model, config, pin or hub
 
 
 def adapter_targets(model, linear_type):
@@ -555,20 +626,28 @@ def run_training(args, raw_train, raw_val, started):
     existing = load_checkpoint(args.out)
     revision = existing[1]["identity"]["revision"] if existing else None
     model, original_config, revision = load_text_model(args.model, dtype, revision)
-    tokenizer = AutoTokenizer.from_pretrained(args.model, revision=revision, trust_remote_code=False)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, revision=None if Path(args.model).is_dir() else revision,
+                                              trust_remote_code=False)
     train, train_counts = prepare_rows(raw_train, tokenizer, args.max_len, args.overlength)
     val, val_counts = prepare_rows(raw_val, tokenizer, args.max_len, args.overlength)
     print(json.dumps(dict(train=train_counts, val=val_counts)), flush=True)
     if not train or not val:
         raise PackError("No Train or Val rows remain at this max_len")
-    if {row["id"] for row in raw_train} & {row["id"] for row in raw_val}:
-        raise PackError("Train and Val IDs overlap")
+    check_disjoint(raw_train, raw_val)
     lengths = [len(row["input_ids"]) for row in train]
     versions = runtime_versions()
-    identity = make_identity(args, revision, dtype, versions)
+    fingerprints = dict(objective_sha256=objective_sha256(), train_lengths_sha256=lengths_sha256(train),
+                        val_lengths_sha256=lengths_sha256(val))
+    identity = make_identity(args, revision, dtype, versions, fingerprints)
+    try:
+        git_revision = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        git_revision = None
+    session = dict(git_revision=git_revision, versions=versions, kernels=kernels, command=sys.argv,
+                   trainer_sha256=sha256(Path(__file__)))
     targets = adapter_targets(model, torch.nn.Linear)
     if existing:
-        check_resume(existing[1], identity, versions)
+        check_resume(existing[1], identity, session)
         model = PeftModel.from_pretrained(model, existing[0], is_trainable=True)
     else:
         model = get_peft_model(model, LoraConfig(r=args.rank, lora_alpha=2 * args.rank, lora_dropout=0.0,
@@ -589,22 +668,16 @@ def run_training(args, raw_train, raw_val, started):
     warmup_steps = min(math.ceil(total_steps * args.warmup_ratio), total_steps - 1)
     scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
     scaler = torch.amp.GradScaler("cuda", enabled=dtype == torch.float16)
-    state = dict(identity=identity, versions=versions, epoch=0, next_step=0, global_step=0, history=[],
+    fresh = dict(identity=identity, epoch=0, next_step=0, global_step=0, history=[],
                  best_val_loss=None, epoch_adapters=[], train=train_counts, val=val_counts, adapter_modules=actual,
                  trainable_parameters=sum(p.numel() for p in parameters), tokens=0,
                  completion_tokens=0, training_seconds=0.0, epoch_loss_sum=0.0, epoch_tokens=0,
                  gpu=dict(name=torch.cuda.get_device_name(0), memory_bytes=torch.cuda.get_device_properties(0).total_memory),
-                 kernels=kernels, status="running")
-    try:
-        git_revision = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        git_revision = None
-    state.update(git_revision=git_revision, command=sys.argv)
+                 status="running")
+    if existing and existing[1]["kernels"] != kernels:
+        print("WARNING: The kernel path changed. Resume keeps batch order. Numerical replay is UNTESTED.", flush=True)
+    state = with_session(existing[1] if existing else fresh, session)
     if existing:
-        state = existing[1]
-        if state["kernels"] != kernels:
-            print("WARNING: The kernel path changed. Resume keeps batch order. Numerical replay is UNTESTED.", flush=True)
-        state.update(kernels=kernels, versions=versions, git_revision=git_revision, command=sys.argv)
         if not 0 <= state["epoch"] <= args.epochs or not 0 <= state["next_step"] <= steps_per_epoch:
             raise PackError("Invalid resume cursor")
         # Only load checkpoints produced locally by this pack. torch state uses pickle.
@@ -716,6 +789,22 @@ def run_training(args, raw_train, raw_val, started):
         print(json.dumps(metrics), flush=True)
 
 
+@contextlib.contextmanager
+def run_lock(out):
+    """Hold <out>/run.lock exclusively for the length of a run. A held lock means another trainer or an export is using the
+    run. Once it is ours, the unfinished payloads of a killed save are removed."""
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "run.lock").open("w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise PackError("Another trainer or an export holds this run. Wait for it to stop") from None
+        for pending in out.glob("*/.pending-*"):
+            if pending.is_dir():
+                shutil.rmtree(pending)
+        yield
+
+
 def main(argv=None):
     started = time.monotonic()
     args = config_from_args(argv)
@@ -723,15 +812,7 @@ def main(argv=None):
     if args.dry_run:
         print(json.dumps(dry_plan(args, train, val), indent=2))
         return
-    args.out.mkdir(parents=True, exist_ok=True)
-    with (args.out / "run.lock").open("w") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise PackError("Another trainer or an export holds this run. Wait for it to stop") from None
-        for pending in args.out.glob("*/.pending-*"):
-            if pending.is_dir():
-                shutil.rmtree(pending)
+    with run_lock(args.out):
         run_training(args, train, val, started)
 
 

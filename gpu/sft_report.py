@@ -41,6 +41,8 @@ def report(scratch, arm, run, merged, destination, exit_code):
             result["configuration"] = state["identity"]
             result["git_revision"] = state.get("git_revision")
             result["command"] = state.get("command")
+            result["first_session"] = state.get("first_session")      # the code and versions that started the run
+            result["sessions"] = state.get("sessions", [])            # every session, in order; git_revision above is the last one's
             result["training"] = {key: state[key] for key in (
                 "status", "epoch", "global_step", "train", "val", "adapter_modules", "trainable_parameters",
                 "tokens", "completion_tokens", "training_seconds", "gpu", "kernels", "peak_memory_bytes", "best_val_loss")}

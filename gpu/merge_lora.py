@@ -18,15 +18,18 @@ import shutil
 import sys
 import tempfile
 
-from sft_lora import PackError, atomic_json, checkpoint_path, committed_epochs, print_failure, sha256, sync_directory
+from sft_lora import (PackError, atomic_json, checkpoint_path, committed_adapters, local_revision, print_failure, sha256,
+                      sync_directory)
 
 EPOCH_NAME = re.compile(r"epoch-(\d+)")
-# What this pack's trainer puts in a run, including its unfinished payloads. Another pack's directories are plain adapters.
-RUN_PATHS = {"adapters": re.compile(r"epoch-\d+|\.pending-.*"), "checkpoints": re.compile(r"step-.*|\.pending-.*")}
+# Kept adapters (the SFT trainer's epoch-N, the RL trainer's step-N) must say which base revision they were trained on.
+PINNED_NAME = re.compile(r"(?:epoch|step)-\d+")
+# What the two trainers put in a run, including their unfinished payloads. Any other directory is a plain adapter.
+RUN_PATHS = {"adapters": re.compile(r"(?:epoch|step)-\d+|\.pending-.*"), "checkpoints": re.compile(r"step-.*|\.pending-.*")}
 
 
 def owning_run(adapter):
-    """The run directory that owns <run>/adapters/epoch-N or <run>/checkpoints/step-*, else None."""
+    """The run directory that owns <run>/adapters/{epoch,step}-N or <run>/checkpoints/step-*, else None."""
     adapter = adapter.resolve()
     root, kind = adapter.parent.parent, RUN_PATHS.get(adapter.parent.name)
     inside = kind is not None and kind.fullmatch(adapter.name) and (root / "checkpoint.json").exists()
@@ -35,13 +38,14 @@ def owning_run(adapter):
 
 def resolve_adapter(path):
     """A run root selects its committed best. A path inside a run must be committed: a checkpoint is the run's latest
-    or best, an epoch adapter is in its committed list and still matches the hashes recorded there. Any other adapter
+    or best, a kept adapter is in its committed list and still matches the hashes recorded there. Any other adapter
     path works as is."""
     manifest = path / "checkpoint.json"
     if manifest.exists():
         best = json.loads(manifest.read_text(encoding="utf-8")).get("best")
         if best is None:
-            raise PackError("No complete validation epoch. There is no best adapter yet")
+            raise PackError("This run has no best checkpoint (SFT: no complete validation epoch yet; RL never marks one). "
+                            "Pass adapters/epoch-N, adapters/step-N or a checkpoint directory")
         return checkpoint_path(path, best)
     root = owning_run(path)
     if root is not None:
@@ -51,11 +55,11 @@ def resolve_adapter(path):
             if path not in {checkpoint_path(root, pointer[key]) for key in ("latest", "best") if pointer.get(key)}:
                 raise PackError("This checkpoint is not the run's committed latest or best")
         else:
-            entry = committed_epochs(root).get(f"adapters/{path.name}")
+            entry = committed_adapters(root).get(f"adapters/{path.name}")
             if entry is None:
-                raise PackError("This epoch adapter is not in its run's committed list. A killed save can leave one behind")
+                raise PackError("This kept adapter is not in its run's committed list. A killed save can leave one behind")
             if {file.name: sha256(file) if file.is_file() else None for file in path.iterdir()} != entry["sha256"]:
-                raise PackError("This epoch adapter differs from the hashes committed with its run")
+                raise PackError("This kept adapter differs from the hashes committed with its run")
     if not (path / "adapter_config.json").is_file() or not (path / "adapter_model.safetensors").is_file():
         raise PackError("Adapter safetensors or config is missing")
     return path
@@ -64,8 +68,8 @@ def resolve_adapter(path):
 def adapter_revision(adapter, requested=None):
     """The base revision an adapter was trained on. An explicit `requested` one must agree with it.
 
-    A checkpoint records it in state.json, an epoch adapter in revision.json, any other adapter in its config or nowhere.
-    An epoch adapter that records none is refused unless the revision is passed."""
+    A checkpoint records it in state.json, a kept adapter in revision.json, any other adapter in its config or nowhere. A null
+    counts as nothing recorded. A kept adapter that records none is refused unless the revision is passed."""
     state, pin = adapter / "state.json", adapter / "revision.json"
     if state.exists():
         recorded = json.loads(state.read_text(encoding="utf-8"))["identity"]["revision"]
@@ -73,8 +77,8 @@ def adapter_revision(adapter, requested=None):
         recorded = json.loads(pin.read_text(encoding="utf-8"))["revision"]
     else:
         recorded = json.loads((adapter / "adapter_config.json").read_text(encoding="utf-8")).get("revision")
-        if recorded is None and requested is None and EPOCH_NAME.fullmatch(adapter.name):
-            raise PackError("This epoch adapter records no base revision. Pass --revision")
+    if recorded is None and requested is None and PINNED_NAME.fullmatch(adapter.name):
+        raise PackError("This kept adapter records no base revision. Pass --revision")
     if recorded is not None and requested is not None and recorded != requested:
         raise PackError("--revision differs from the base revision this adapter was trained on")
     return recorded if recorded is not None else requested
@@ -101,9 +105,17 @@ def verify_export(output, adapter, base_name, revision=None):
 def adapter_epoch(adapter, state):
     """Epoch an adapter was saved at: from a checkpoint's state.json, else from an adapters/epoch-N directory name."""
     if state:
-        return state["epoch"]
+        return state.get("epoch")
     match = EPOCH_NAME.fullmatch(adapter.name)
     return int(match.group(1)) if match else None
+
+
+def check_coverage(actual, state):
+    """The adapter modules that were merged must be the ones the run trained. The SFT trainer records their names, the RL
+    trainer their count."""
+    trained = state.get("adapter_modules") if state else None
+    if isinstance(trained, list) and set(actual) != set(trained) or isinstance(trained, int) and len(actual) != trained:
+        raise PackError("The adapter module coverage changed during merge")
 
 
 def print_sizes(report):
@@ -116,6 +128,12 @@ def print_sizes(report):
 def merge(base_name, adapter, output, revision=None):
     adapter = resolve_adapter(adapter)
     revision = adapter_revision(adapter, revision)
+    local = Path(base_name).is_dir()        # a local base has no commit: its pin is a hash of its files
+    if local:
+        pin = local_revision(Path(base_name))
+        if revision not in (None, pin):
+            raise PackError("The local base model differs from the one this adapter was trained on")
+        revision = pin
     if output.exists():
         print_sizes(verify_export(output, adapter, base_name, revision))
         return
@@ -129,12 +147,13 @@ def merge(base_name, adapter, output, revision=None):
         raise PackError("Adapter and base model names differ")
     state_path = adapter / "state.json"
     state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else None
-    config = AutoConfig.from_pretrained(base_name, revision=revision, trust_remote_code=False)
+    config = AutoConfig.from_pretrained(base_name, revision=None if local else revision, trust_remote_code=False)
     if config.model_type != "qwen3_5":
         raise PackError("This pack requires the dense Qwen3.5 model")
     revision = revision or getattr(config, "_commit_hash", None)
+    hub = None if local else revision        # Transformers ignores a revision for a local directory
     full, info = Qwen3_5ForConditionalGeneration.from_pretrained(
-        base_name, config=config, revision=revision, dtype=torch.bfloat16,
+        base_name, config=config, revision=hub, dtype=torch.bfloat16,
         attn_implementation="sdpa", output_loading_info=True, trust_remote_code=False,
     )
     if info.get("missing_keys") or info.get("mismatched_keys") or info.get("error_msgs"):
@@ -144,9 +163,7 @@ def merge(base_name, adapter, output, revision=None):
         text = Qwen3_5ForCausalLM(config.text_config)
     text.model, text.lm_head = full.model.language_model, full.lm_head
     adapted = PeftModel.from_pretrained(text, adapter, is_trainable=False)
-    actual = [name for name, module in adapted.named_modules() if hasattr(module, "lora_A")]
-    if state and set(actual) != set(state["adapter_modules"]):
-        raise PackError("The adapter module coverage changed during merge")
+    check_coverage([name for name, module in adapted.named_modules() if hasattr(module, "lora_A")], state)
     merged = adapted.merge_and_unload(safe_merge=True)
     full.model.language_model, full.lm_head = merged.model, merged.lm_head
     full.to(dtype=torch.bfloat16)
@@ -156,7 +173,7 @@ def merge(base_name, adapter, output, revision=None):
     temporary = Path(tempfile.mkdtemp(prefix=".merge-", dir=output.parent))
     try:
         full.save_pretrained(temporary, safe_serialization=True, max_shard_size="4GB", save_original_format=False)
-        tokenizer = AutoTokenizer.from_pretrained(base_name, revision=revision, trust_remote_code=False)
+        tokenizer = AutoTokenizer.from_pretrained(base_name, revision=hub, trust_remote_code=False)
         tokenizer.save_pretrained(temporary)
         reloaded = AutoConfig.from_pretrained(temporary, local_files_only=True, trust_remote_code=False)
         if reloaded.model_type != config.model_type or reloaded.text_config.vocab_size != config.text_config.vocab_size:
@@ -188,7 +205,7 @@ def merge(base_name, adapter, output, revision=None):
                      safetensors_bytes=sum(file.stat().st_size for file in temporary.glob("*.safetensors")),
                      files=sum(1 for file in temporary.iterdir() if file.is_file()),
                      vllm_load="UNTESTED", epoch=adapter_epoch(adapter, state))
-        if state:
+        if state and "epoch" in state:
             sizes["best_epoch"] = state["epoch"]
             sizes["best_step"] = state["global_step"]
         sizes.update(base_model=base_name, revision=revision,

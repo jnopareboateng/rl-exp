@@ -4,9 +4,8 @@ GPU install, training, kernel execution, numerical loss parity, memory use,
 full optimizer/RNG resume, real merge and vLLM loading are **UNTESTED here**.
 CPU tests check pure data handling, batch order, atomic checkpoint publication, the
 resume identity, the kernel gate and the export rules. They run the loss shift and the
-gradient normalisation on numpy stand-ins for torch. Three tests use real CPU torch (a
-real AdamW step, the clip to norm 1, fp16 overflow and non-finite gradients). They skip
-themselves where torch is absent, so run them under an interpreter that has it.
+gradient normalisation on numpy stand-ins for torch. Three tests use real CPU torch and
+skip themselves where it is absent; see Checks below.
 
 Run from the repository root. Use local disk for active checkpoints.
 
@@ -20,6 +19,20 @@ The dry run needs only Python's standard library. It estimates each segment as
 `ceil(UTF-8 bytes / 4)` tokens. All its row, drop, clip and batch counts are
 estimates. It loads no tokenizer or model and changes no training output.
 `DRY_RUN=1 sh gpu/run_sft.sh` runs the same plan without a GPU or installation.
+
+## Checks
+
+```sh
+.venv/bin/python -m pytest -q
+PYTHONPATH=src .agent-runs/venv-torch/bin/python -m pytest -q tests/test_sft_pack.py
+```
+
+Run both. The first needs no torch, and three tests skip there: one real AdamW step on a
+LoRA-like pair (the parameter must move), the clip to norm 1 on a large gradient, and an
+fp16 overflow or a non-finite gradient. The second runs them on real CPU torch (and the
+rest of the file again on Python 3.12). Stand-in tests of the same code run in both: the
+clip limit that reaches `clip_grad_norm_`, and an overflow that is retried and not counted
+as a step. The first command alone does not prove the real-torch behaviour.
 
 ## Training environment and sources
 
@@ -80,7 +93,9 @@ checking the aggregate counts. The default avoids truncated targets.
 Row IDs must be unique within a file, or the reader refuses it. A3 files
 (`python -m rlexp.arms rft`) hold up to two samples per drug by default, often from one
 prompt, so their IDs are `<prompt row id>#<sample_idx>`. The prompt and completion are
-unchanged and the source row stays in the ID.
+unchanged and the source row stays in the ID. The Train and Val overlap check compares
+the source row id (the part before `#`), so a Val row that is the source of a Train
+sample stops the run.
 
 Each optimizer update has `BATCH_SIZE` rows, except the final short update.
 The short final group is selected at random before length sorting. The full
@@ -128,12 +143,29 @@ UNTESTED. Keep active files on local disk; Drive/FUSE semantics are UNTESTED.
 Resume uses the same command and output path. The resume identity is the trainer
 options (all of them except the paths, the stop, save and log settings and
 `--allow-slow-kernels`), the model revision, the SHA256 of the Train and Val files,
-the dtype and the torch, transformers and peft versions. A change in any of these
-requires a new output path. Every other runtime version (python, numpy, triton,
-safetensors, accelerate, FLA, causal-conv1d) is recorded in the state as `versions`.
-A change there, like a changed kernel path, only prints a warning that names the
-packages and keeps the saved cursor. This lets a fresh VM resume when it resolves
-different transitive versions. The saved
+the dtype, the torch, transformers and peft versions and three fingerprints that
+keep one run on one objective. `objective_sha256` hashes `END` and the source text of
+eight functions: `fit_lengths`, `prepare_rows`, `token_batches`, `epoch_batches`,
+`collate`, `completion_loss`, `accumulate_update` and `step_optimizer` (clip and step).
+That is the smaller unit: edits elsewhere in the file, such as the export or the
+checkpoint code, do not stop a resume, but any edit inside those functions does, even a
+comment. `train_lengths_sha256` and `val_lengths_sha256` hash the kept rows' token counts
+(all tokens and supervised tokens), so another tokenizer build, length cap or data
+change that moves a length stops the resume instead of letting the saved step cursor
+index a different plan. A difference in any of these requires a new output path, and the
+message names the part that differs. A checkpoint that did not record a fingerprint
+counts as different.
+
+Every other runtime version (python, numpy, triton, tokenizers, safetensors,
+accelerate, FLA, causal-conv1d) is recorded in the state as `versions`. The state also
+keeps `first_session` (code revision, versions and trainer source hash of the session
+that started the run, never overwritten) and `sessions` (one entry per start or resume:
+revision, versions, kernels, command, trainer source hash). The top-level `git_revision`,
+`versions`, `kernels` and `command` describe the latest session, and `sft_report.py`
+lists `first_session` and `sessions` in the report. A resume whose versions, code
+revision or trainer source differ from the first session's, or whose kernel path changed,
+only prints a warning that names what changed and keeps the saved cursor. This lets a fresh
+VM resume when it resolves different transitive versions. The saved
 remote model revision is reused. Load only checkpoints produced by this pack:
 `training.pt` is trusted local state loaded with Python pickle support.
 
@@ -161,27 +193,39 @@ writes again. Restart removes the temporary and renamed-aside directories while 
 holds the run lock.
 
 To export one, run `python gpu/merge_lora.py --adapter <out>/adapters/epoch-2 --out <dir>`.
-Inside a run (`<run>/adapters/epoch-N` or `<run>/checkpoints/step-*`, and this trainer's
-unfinished `.pending-*` payloads) the export follows these rules, all checked before
-any model loads. Any other directory, including another pack's kept adapters, is a plain
-adapter and gets none of them:
+Inside a run (`<run>/adapters/epoch-N`, the RL trainer's `<run>/adapters/step-N`,
+`<run>/checkpoints/step-*` of either trainer, and their unfinished `.pending-*`
+payloads) the export follows these rules, all checked before any model loads. Any other
+directory is a plain adapter and gets none of them:
 
 - It takes the run's `run.lock` shared and without waiting. While a trainer holds the
   lock, it stops with "A trainer holds this run". Run-root exports follow the same rule.
   The reverse also holds: a trainer start while an export holds the lock stops with
-  "Another trainer or an export holds this run".
-- An epoch directory must be in the committed `epoch_adapters` of the run, its files
-  must match the recorded SHA256 and nothing else may be in it. A leftover from a
-  killed save, a changed file or an extra file is refused. A checkpoint directory must
-  be the committed latest or best.
-- The base revision comes from `revision.json` (an epoch adapter) or `state.json` (a
-  checkpoint) and is passed to the loader. `--revision` is optional; if given it must
-  equal the recorded one, or the export stops. An epoch adapter copied out of its run
-  needs its `revision.json`, or `--revision`, or the export stops.
+  "Another trainer or an export holds this run" (`sft_lora.run_lock`).
+- A kept adapter (`epoch-N`, or an RL `step-N`) must be in the committed list of the
+  run (`epoch_adapters`, or the RL trainer's `adapters`, both from the latest committed
+  checkpoint), its files must match the recorded SHA256 and nothing else may be in it.
+  A leftover from a killed save, a changed file or an extra file is refused. A checkpoint
+  directory must be the committed latest or best; the best is only the best of an SFT
+  run. An RL run root has no best checkpoint, so export one of its kept adapters or its
+  latest checkpoint. The RL trainer records its adapter modules as a count, this trainer
+  as names; the export compares whichever is there.
+- The base revision comes from `revision.json` (a kept adapter) or `state.json` (a
+  checkpoint) and is passed to the loader. A `null` there counts as no revision.
+  `--revision` is optional; if given it must equal the recorded one, or the export
+  stops. A kept adapter copied out of its run needs a recorded revision, or
+  `--revision`, or the export stops.
+- A base model that is a local directory has no commit. Its pin is `local-` plus a hash
+  of its `config.json`, its weights index and the size of every weight file
+  (`sft_lora.local_revision`). The trainer records that pin as `identity.revision` and
+  `revision.json`, refuses a resume when the directory changed, and gives Transformers no
+  revision for it. The export recomputes the pin of `--base` and refuses when it
+  differs from the recorded one. The size of a file does not catch a weight change that
+  keeps its size.
 - An existing export is reused only if it was made at that revision too, besides the
   weight, config and file hashes.
 
-The export report records `epoch` (and, for checkpoints, `best_epoch` and `best_step`).
+The export report records `epoch` (and, for SFT checkpoints, `best_epoch` and `best_step`).
 `revision.json` is used instead of the PEFT config's `revision` field because PEFT is
 not installed where these tests run, so that field could not be checked here.
 
@@ -237,3 +281,26 @@ For the first A100 run, check five finite updates, the module list, peak memory,
 full validation, adapter effect, forced-kill resume and merged-model vLLM output.
 Start with the default token budget. Reduce it together with the length cap if
 memory fails. No GPU gate is passed by the CPU tests.
+
+## Runs made
+
+The two runs behind the A2 and A1 Val results in `docs/plan.md` section 5, on the Colab A100-40GB, base model Qwen3.5-4B at revision
+`851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`. These are the settings used for those Val results, as the Colab session recorded them (the
+run reports are not in the repository). A2 ran with the round-1 pack, before the epoch-adapter change, so it kept no `adapters/epoch-N/`
+copies. The Val samples of both runs were taken from the merged export of the best checkpoint. Everything not listed as a difference is
+the pack default of `gpu/run_sft.sh`; the differences are A2 `MAX_LEN` 2560 (default 2048) and A1 `EPOCHS` 2 (default 3).
+
+| | A2 (`ARM=A2`) | A1 (`ARM=A1`) |
+|---|---|---|
+| `MAX_LEN` | 2560 | 8192 |
+| Rows kept (`OVERLENGTH=drop`) | Train 687 of 687 | Train 670 of 687, Val 54 of 58 |
+| `MAX_TOKENS_PER_BATCH` | 8192 | 16384 |
+| `BATCH_SIZE`, optimizer steps per epoch | 16, 43 | 16, 42 (670 rows) |
+| Epochs run | 3 | 2 |
+| `LR`, rank (alpha), warmup ratio, `SEED` | 2e-4, 32 (64), 5%, 0 | the same |
+| Val loss after epoch 1, 2, 3 | 1.249, 1.609, 1.724 | 1.279, 1.252 |
+| Best epoch (lowest Val loss) | 1 | 2 |
+| Wall time | 12 minutes | 28 minutes |
+
+The merged exports that were sampled are named by optimizer step, `step-00000043-...` for A2 (end of epoch 1) and `step-00000084-...`
+for A1 (end of epoch 2), which matches the steps per epoch above.
