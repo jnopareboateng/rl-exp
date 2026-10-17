@@ -35,6 +35,10 @@ It stops before anything runs if a spec arm belongs to no stage, and stops after
 2. `.venv/bin/python scripts/final_controls.py --final runs/final` (C0 to C3, eight copies per row, scored).
 3. `.venv/bin/python scripts/confirmatory.py --selection results/selection.json --spec-sha256 <hex> --final runs/final --out results/confirmatory.json` (the one confirmatory contrast on test_t,
    test_r exploratory; refuses a run not made under the frozen spec or a cohort of the wrong size).
-4. Tables and figures: `scripts/final_table.py`, `scripts/paired_table.py`, `scripts/exposure_terciles.py`, `scripts/make_figures.py --allow-test`, `scripts/strict_rescore.py` (sensitivity), `scripts/compute_budget.py`.
+4. Tables and figures (a Test split needs `--allow-test` in each; run `final_table.py` first, the others read what it leaves in `runs/final/<id>/`):
+   `scripts/final_table.py --final runs/final --splits test_t,test_r --spec results/frozen_arms.json --out results/test_baselines.json --md results/test_table.md --allow-test`,
+   `scripts/paired_table.py --final runs/final --split test_t --selection results/selection.json --auto --out results/paired_test_t.json --md results/paired_test_t.md --allow-test` (and `--split test_r`),
+   `scripts/exposure_terciles.py --final runs/final --split test_t --a <RL arm> --b <comparator> --out results/exposure_test_t.json --md results/exposure_test_t.md --allow-test`,
+   `scripts/make_figures.py --split test_t --allow-test`, `scripts/strict_rescore.py` (sensitivity), `scripts/answer_diversity.py`, `scripts/compute_budget.py`.
 
 Every deviation from this list is reported in the paper next to the result it touches (protocol section 6).
