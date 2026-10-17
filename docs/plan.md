@@ -71,11 +71,18 @@ if more than 1% of outputs differ between this extractor and "last SMILES-only l
 
 ## 5. Phase 2: first GPU weeks (inference first, then small training)
 
-0. Runtime inventory through the Colab or Kaggle MCP. Kaggle is authenticated (6 GPU-hours per week, measured); Colab needs the user to accept the connection.
-1. Stack check, one timeboxed session, using `gpu/STACK.md` (vLLM 0.31.0, torch 2.13.0, Transformers 5.17.0, driver R575 or newer; P100 unsupported; T4 only for 4B, fp16): first GPU session = the ten ordered commands there, then a 4B sampling probe.
-2. A0 and A0n on Val plus a Train subset (k=4 to 8): valid-and-closed rate, lengths, truncation, tokens per second. **G0:** core-match pass@8 minus pass@1 is 5 points or more on Val + Train subset (RL has headroom); **G1:** valid-and-closed 80% or more at the chosen cap and T5 holds.
-3. A4 (inference only), A2, A1 (LoRA SFT, microbatch 1, packing off), A3 (sampling on Train, then SFT). Val scoring only; Test untouched.
-4. Template check: Qwen3.5 native template with thinking on versus the dataset's `<think>` placement.
+Done in the first A100 session (2026-10-17, Colab A100-40GB; aggregate numbers in `results/colab_session1_report.json`):
+the pinned stack installs in 57 s, a single prompt decodes at 113 tokens/s and batched sampling reaches about 2,000 tokens/s (no-think) or 885 tokens/s (long think), startup is about a minute once caches are warm.
+**G1 fails for the dataset prompt:** under its system turn ("Reasoning effort is set to xhigh ...") 99.8% of no-think samples hit a 512-token cap with no SMILES, 97% still hit 4,096, and only 8% of think samples close their reasoning within 8,192 tokens; none yields a valid answer.
+**Prompt policy:** answer-only arms use the direct-answer system text `rlexp.arms.DIRECT_SYSTEM` = "Reply with only the SMILES string of the drug described. No explanation." (no-think); the untrained model is reported under both prompts.
+Untrained Qwen3.5-4B, direct-answer prompt, Val (20 drugs, k=8): 82% of samples finish within 256 tokens, 17% are valid SMILES, exact@1 0, core@1 0.8% (CI 0 to 1.9%), core pass@8 5%, mean reward 0.03 against the constant-answer bar 0.15.
+So the base model has almost no knowledge of these structures; the first lift is teaching valid SMILES output (A2), and RL starts from A2, not from the base.
+
+Remaining steps:
+1. A4 (base plus in-context retrieval, direct-answer prompt, Val) and A2 / A1 LoRA SFT (scripts in progress), each scored on Val only; Test untouched.
+2. A3 (rejection-sampling FT) only from a model whose Train success rate is above zero (A2).
+3. G0 is read on A2 (core-match pass@8 minus pass@1 on Val and the Train subset), because the untrained model has nothing to sharpen; G1 becomes: A2 valid-and-closed rate of 80% or more at the answer-only cap (256 tokens).
+4. Template check: the native Qwen3.5 template with thinking on versus the dataset's `<think>` placement matters only for the trace arm (A1); the answer-only arms use the empty think block.
 
 ## 6. Phase 3: RL pilot (A5)
 
