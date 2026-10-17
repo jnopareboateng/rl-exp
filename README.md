@@ -10,7 +10,7 @@ The aim is a reproducible record that can be written up as a paper whether or no
 |---|---|
 | Data foundation (references, approval dates, leakage-safe splits) | built and audited |
 | Reward v2, metrics v3 (first-valid policy, profile-specific lift, component-level sign-flip), independent reviews | built; review fixes landing |
-| CPU controls (constant, nearest-profile copy), class-information ceiling (ChEMBL) | done on Val |
+| CPU controls (constant, nearest-profile copy, reward-optimal constant), class-information ceiling (ChEMBL) | scored by the CLI on every split before the lock, reported on Val only |
 | Zero-RL baselines on Val (4B, 9B, Qwen3.5-27B-FP8, Qwen3.8-27B-FP8), identification and name-given diagnostics | done on Val |
 | Arms A1 (trace SFT), A2 (answer-only SFT), A4 (in-context retrieval) on Val | done |
 | A5 RL (own HF-generate GRPO loop, reward modes full / contrastive / validity-only) | gates passed on the A100; pilot running |

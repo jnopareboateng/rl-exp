@@ -1,0 +1,407 @@
+{
+ "split": "val",
+ "bar": 0.3,
+ "min_std": 0.05,
+ "min_k": 4,
+ "runs": {
+  "a-direct": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 19,
+   "rows_spread": 2,
+   "share": 0.034483,
+   "share_among_ge2_valid": 0.105263,
+   "meets_bar": false,
+   "rows_spread_all_samples": 21,
+   "share_all_samples": 0.362069
+  },
+  "a1-val": {
+   "k": 4,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 20,
+   "rows_spread": 0,
+   "share": 0.0,
+   "share_among_ge2_valid": 0.0,
+   "meets_bar": false,
+   "rows_spread_all_samples": 40,
+   "share_all_samples": 0.689655
+  },
+  "a2-t0.3": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 5,
+   "share": 0.086207,
+   "share_among_ge2_valid": 0.086207,
+   "meets_bar": false,
+   "rows_spread_all_samples": 38,
+   "share_all_samples": 0.655172
+  },
+  "a2-t0.6": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 9,
+   "share": 0.155172,
+   "share_among_ge2_valid": 0.155172,
+   "meets_bar": false,
+   "rows_spread_all_samples": 41,
+   "share_all_samples": 0.706897
+  },
+  "a2-val": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 56,
+   "rows_spread": 3,
+   "share": 0.051724,
+   "share_among_ge2_valid": 0.053571,
+   "meets_bar": false,
+   "rows_spread_all_samples": 53,
+   "share_all_samples": 0.913793
+  },
+  "a4-icl": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 52,
+   "rows_spread": 7,
+   "share": 0.12069,
+   "share_among_ge2_valid": 0.134615,
+   "meets_bar": false,
+   "rows_spread_all_samples": 44,
+   "share_all_samples": 0.758621
+  },
+  "b27-direct": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 7,
+   "share": 0.12069,
+   "share_among_ge2_valid": 0.12069,
+   "meets_bar": false,
+   "rows_spread_all_samples": 51,
+   "share_all_samples": 0.87931
+  },
+  "b38-direct": {
+   "k": 4,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 43,
+   "rows_spread": 6,
+   "share": 0.103448,
+   "share_among_ge2_valid": 0.139535,
+   "meets_bar": false,
+   "rows_spread_all_samples": 40,
+   "share_all_samples": 0.689655
+  },
+  "b4-t0.3": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 25,
+   "rows_spread": 3,
+   "share": 0.051724,
+   "share_among_ge2_valid": 0.12,
+   "meets_bar": false,
+   "rows_spread_all_samples": 23,
+   "share_all_samples": 0.396552
+  },
+  "b4-t0.6": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 29,
+   "rows_spread": 2,
+   "share": 0.034483,
+   "share_among_ge2_valid": 0.068966,
+   "meets_bar": false,
+   "rows_spread_all_samples": 29,
+   "share_all_samples": 0.5
+  },
+  "b9-direct": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 48,
+   "rows_spread": 7,
+   "share": 0.12069,
+   "share_among_ge2_valid": 0.145833,
+   "meets_bar": false,
+   "rows_spread_all_samples": 47,
+   "share_all_samples": 0.810345
+  },
+  "b9-t0.3": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 49,
+   "rows_spread": 5,
+   "share": 0.086207,
+   "share_among_ge2_valid": 0.102041,
+   "meets_bar": false,
+   "rows_spread_all_samples": 41,
+   "share_all_samples": 0.706897
+  },
+  "b9-t0.6": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 53,
+   "rows_spread": 5,
+   "share": 0.086207,
+   "share_among_ge2_valid": 0.09434,
+   "meets_bar": false,
+   "rows_spread_all_samples": 46,
+   "share_all_samples": 0.793103
+  },
+  "name-4b": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 40,
+   "rows_spread": 0,
+   "share": 0.0,
+   "share_among_ge2_valid": 0.0,
+   "meets_bar": false,
+   "rows_spread_all_samples": 42,
+   "share_all_samples": 0.724138
+  },
+  "name-9b": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 45,
+   "rows_spread": 9,
+   "share": 0.155172,
+   "share_among_ge2_valid": 0.2,
+   "meets_bar": false,
+   "rows_spread_all_samples": 49,
+   "share_all_samples": 0.844828
+  },
+  "nothink-val": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 0,
+   "rows_spread": 0,
+   "share": 0.0,
+   "share_among_ge2_valid": 0.0,
+   "meets_bar": false,
+   "rows_spread_all_samples": 0,
+   "share_all_samples": 0.0
+  },
+  "rlfull-s20-t0.6": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 2,
+   "share": 0.034483,
+   "share_among_ge2_valid": 0.034483,
+   "meets_bar": false,
+   "rows_spread_all_samples": 7,
+   "share_all_samples": 0.12069
+  },
+  "rlfull-s20-t1.0": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 3,
+   "share": 0.051724,
+   "share_among_ge2_valid": 0.051724,
+   "meets_bar": false,
+   "rows_spread_all_samples": 18,
+   "share_all_samples": 0.310345
+  },
+  "rlfull-s30-t0.6": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 0,
+   "share": 0.0,
+   "share_among_ge2_valid": 0.0,
+   "meets_bar": false,
+   "rows_spread_all_samples": 1,
+   "share_all_samples": 0.017241
+  },
+  "rlfull-s30-t1.0": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 1,
+   "share": 0.017241,
+   "share_among_ge2_valid": 0.017241,
+   "meets_bar": false,
+   "rows_spread_all_samples": 10,
+   "share_all_samples": 0.172414
+  },
+  "rlfull-s40-t0.6": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 1,
+   "share": 0.017241,
+   "share_among_ge2_valid": 0.017241,
+   "meets_bar": false,
+   "rows_spread_all_samples": 3,
+   "share_all_samples": 0.051724
+  },
+  "rlfull-s40-t1.0": {
+   "k": 8,
+   "rows": 58,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 58,
+   "rows_spread": 0,
+   "share": 0.0,
+   "share_among_ge2_valid": 0.0,
+   "meets_bar": false,
+   "rows_spread_all_samples": 3,
+   "share_all_samples": 0.051724
+  },
+  "think-val": {
+   "k": 4,
+   "rows": 24,
+   "rows_incomplete": 0,
+   "rows_ge2_valid": 0,
+   "rows_spread": 0,
+   "share": 0.0,
+   "share_among_ge2_valid": 0.0,
+   "meets_bar": false,
+   "rows_spread_all_samples": 0,
+   "share_all_samples": 0.0
+  }
+ },
+ "notes": {
+  "ident-27b": "the answer is a drug name, not a structure",
+  "ident-38": "the answer is a drug name, not a structure",
+  "ident-4b": "the answer is a drug name, not a structure",
+  "ident-9b": "the answer is a drug name, not a structure",
+  "nothink-train": "no val samples",
+  "val-control_constant": "CPU control, not model output",
+  "val-control_constant_pool": "CPU control, not model output",
+  "val-control_constant_scaffold": "CPU control, not model output",
+  "val-control_copy_nearest": "CPU control, not model output",
+  "a1-val-partial": "every sample is also in run a1-val",
+  "g-4b-direct": "k = 1 < 4",
+  "g-9b-direct": "k = 1 < 4",
+  "g-9b-name": "k = 1 < 4",
+  "g-a2": "k = 1 < 4",
+  "name-27b": "k = 2 < 4",
+  "name-38": "k = 2 < 4"
+ },
+ "definition": "share of prompt rows whose reward std over valid finished samples is >= min_std; rows are the prompt ids with all k samples; reward = rlexp.reward.score with the length-cap rule",
+ "provenance": {
+  "command": ".venv/bin/python scripts/offline_audit.py --extractor-out results/extractor_audit.json --t5-out results/t5.json",
+  "inputs": {
+   "refs.jsonl": {
+    "sha256": "c94132f687aadf248ba713ed6aea1a5e0981237a7f9f885712342520ce2cf998"
+   },
+   "a-direct/samples.jsonl": {
+    "sha256": "2710f0d44a5cc2c3ae4827ab039889e26f32bd310c03984cc1dad00c818e6eba"
+   },
+   "a1-val/samples.jsonl": {
+    "sha256": "dd1af51ced6078179b2ea1f25ab081ba9db7f25b81fd6a27b1a5d5eb3bb1fd0d"
+   },
+   "a2-t0.3/samples.jsonl": {
+    "sha256": "d27721f8f220f6980fb343ce9a77f949441b39a20cefecc67ccf8894d98c0d37"
+   },
+   "a2-t0.6/samples.jsonl": {
+    "sha256": "89287c2d29345018d51ea25fe2a59e3eb8c3b4f229a614bd49f960540fb0ea28"
+   },
+   "a2-val/samples.jsonl": {
+    "sha256": "40628c9edfefe36a83ac8f5084412fd18a1668107fc9d3b2467ebe0d42ea0bac"
+   },
+   "a4-icl/samples.jsonl": {
+    "sha256": "f3f3cd196a18db2648dc2269b6ca710c8486ada78768ae6ac82400f3a13d40cc"
+   },
+   "b27-direct/samples.jsonl": {
+    "sha256": "f8c12b1d0b8c87b5bf85105733b282a654b0606e66341795a927a8778023d135"
+   },
+   "b38-direct/samples.jsonl": {
+    "sha256": "f149eb9facb910f3bce7400281c9a38ca07d428b4ea676aab490c20ab14ae1bb"
+   },
+   "b4-t0.3/samples.jsonl": {
+    "sha256": "50db47e6f26243d1ceb9ce8f08f66fb6b9430e58deed11c6f44e8c96bab69938"
+   },
+   "b4-t0.6/samples.jsonl": {
+    "sha256": "55e9f7a9cd1c1607a344fffc3d5901f24323b70c332c5d1ea52b0d159f947540"
+   },
+   "b9-direct/samples.jsonl": {
+    "sha256": "968fa3c8ce8b74fe6e4d42018f58d5c53aa82f219e0917885feadb0983909332"
+   },
+   "b9-t0.3/samples.jsonl": {
+    "sha256": "45c90b80f306f7e683c320ee69eeb80e3bd43c533e294eaa34290003a12e2df7"
+   },
+   "b9-t0.6/samples.jsonl": {
+    "sha256": "2555c18140e6298d660516cabefd6ce11be4072138fe2f935402e8dd3f72ebe9"
+   },
+   "g-4b-direct/samples.jsonl": {
+    "sha256": "278abef1eb049f1cdc8bcbafb5ca01b383da3fd47c5a9000899d3b2df7cce09a"
+   },
+   "g-9b-direct/samples.jsonl": {
+    "sha256": "2525c6caec0fd4ebda85f57b87e85e734172dce7f889ca3029f8893a25caa9e2"
+   },
+   "g-9b-name/samples.jsonl": {
+    "sha256": "2553f44afcb31a73b63b7a9285ee3f4140dfc4446f033c164c0be7608880dbe2"
+   },
+   "g-a2/samples.jsonl": {
+    "sha256": "e98520d54e86b7a894c061fa8fa4f41a257e5f529b38c6f23c958302efbed21f"
+   },
+   "name-27b/samples.jsonl": {
+    "sha256": "ba75e18dcec79c532eb1aea9a1401496fabc47f6cee6895a69b3291ff8e5ea49"
+   },
+   "name-38/samples.jsonl": {
+    "sha256": "976e3b268fa0af1c6620a6a74ff0e6d513f75802c612c3b723af0c80378c563b"
+   },
+   "name-4b/samples.jsonl": {
+    "sha256": "2d9b2a7cd107c118f6823af0daa8559cb5ef3e6aaa5e5b71b8ed79c99032a6e7"
+   },
+   "name-9b/samples.jsonl": {
+    "sha256": "ecb10542250f9390db83521e6b61e6ab1e71197a7cd56ad8d375b9a38fe81c41"
+   },
+   "nothink-val/samples.jsonl": {
+    "sha256": "937b31b61cdf9309ea84c7d694c07b153c742adebf96e0ad725b6a02410bc351"
+   },
+   "rlfull-s20-t0.6/samples.jsonl": {
+    "sha256": "91933516853615ffb582fdc05a14a46d84c0350892aedca639e76a716255dc01"
+   },
+   "rlfull-s20-t1.0/samples.jsonl": {
+    "sha256": "d6d0594c32821875c8eda4c1b335a254ce37df195596b6eb2156263b479e14bf"
+   },
+   "rlfull-s30-t0.6/samples.jsonl": {
+    "sha256": "0924b74a14b79c7a8434693a6d3ceff95e962338164adff39c274a3654ad8811"
+   },
+   "rlfull-s30-t1.0/samples.jsonl": {
+    "sha256": "5e25d70f666111fde7d92c67bf23a5c68cc3a64397968750d74e098ba8332581"
+   },
+   "rlfull-s40-t0.6/samples.jsonl": {
+    "sha256": "f8548e8a2d7268767fadc73564527ff3e03b5e7c306c0473b2850a0603caec77"
+   },
+   "rlfull-s40-t1.0/samples.jsonl": {
+    "sha256": "d32e8263a613c825309c3143f1e2ca4c796d3ebca486b1978ec7fdcad94e3995"
+   },
+   "think-val/samples.jsonl": {
+    "sha256": "9c2bf5f34adb41268bd785cad94e61b8005a2fbf2954faf5426e97915cc2e15d"
+   }
+  },
+  "git": {
+   "revision": "a00001e17a10e85ba57a2902be61504574eabaa6",
+   "script_sha256": "826bd9e1074d2641892e8e16690b21aa06d12ff39560efebc26a02541212dd7b"
+  },
+  "versions": {
+   "python": "3.14.4",
+   "rdkit": "2026.09.1",
+   "numpy": "2.5.4"
+  }
+ }
+}

@@ -15,11 +15,12 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — In flight: A2/baselines measured on Colab; RL pack and SFT fixes under review; prereg-v1 not tagged
+- [status-main](status-main.md) — In flight: RL pilot on Colab; prereg-v1 not tagged, answer-reader decision open
 
 ## Decisions
 - [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers
-- [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint (core@1), one confirmatory contrast, sign-flip test, prereg tag
+- [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint, one confirmatory contrast, sign-flip test, prereg tag
+- [decision-decoding-grid-k8](decision-decoding-grid-k8.md) — Selectable temperatures {0.3, 0.6, 1.0} at k=8; 0.01 is a k=1 near-greedy report, never selected
 - [decision-endpoint-fv-tanimoto](decision-endpoint-fv-tanimoto.md) — Confirmatory endpoint is fv_tanimoto: Tanimoto of the first valid answer of 8; lift is a diagnostic
 - [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — Synthetic profiles for more training drugs are deprioritised: class facts add little over a constant
 - [decision-review-policy](decision-review-policy.md) — Reviews are same-vendor now; reviewers list GPU checks, the lead runs them on Colab
@@ -29,11 +30,12 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Gotchas
 - [gotcha-agent-restarts](gotcha-agent-restarts.md) — A session restart kills background agents and wipes scratch; workers must save after every item
-- [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures and cannot read SMILES under 8 characters
+- [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures; 2.2% of Val samples differ from the strict rule
 - [gotcha-base-model-verbosity](gotcha-base-model-verbosity.md) — Qwen3.5-4B rambles under the dataset's xhigh prompt (0% valid); a direct-answer prompt works
 - [gotcha-colab-mcp-hang](gotcha-colab-mcp-hang.md) — A dropped Colab tab hangs MCP calls for 30 min; poll in short calls and reconnect with authuser=1
-- [gotcha-core-endpoint-low-power](gotcha-core-endpoint-low-power.md) — core@1 is near 0 for every arm at 4B-27B; the primary endpoint cannot separate arms yet
+- [gotcha-core-endpoint-low-power](gotcha-core-endpoint-low-power.md) — core@1 is near 0 for every arm at 4B-27B and untestable; the endpoint is fv_tanimoto instead
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
+- [gotcha-t5-reward-spread](gotcha-t5-reward-spread.md) — T5 fails on Val: valid-answer reward std >= 0.05 in at most 15.5% of rows (A2 at T=1.0: 5.2%)
 
 ## Environment
 - [env-colab-a100-runtime](env-colab-a100-runtime.md) — Colab A100-40GB (account 1): stack, throughput, disk traps, 27B FP8 needs memory fraction 0.93
