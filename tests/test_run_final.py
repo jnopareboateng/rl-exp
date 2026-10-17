@@ -28,7 +28,7 @@ def test_every_arm_of_the_spec_is_in_a_stage_and_the_order_is_fixed():
     stages = rf.plan({"arms": arms(*reversed(ids))})
     assert [name for name, _, _ in stages] == ["4B arms", "9B", "Qwen3.5-27B", "Qwen3.8-27B"]
     assert stages[0][1] == ["RL-full", "A2", "A0n", "A4"]                  # the confirmatory pair first, whatever the spec's order
-    assert [clear for _, _, clear in stages] == [False, False, True, True]
+    assert [clear for _, _, clear in stages] == [False, True, True, True]
 
 
 def test_an_arm_in_no_stage_stops_before_anything_runs():

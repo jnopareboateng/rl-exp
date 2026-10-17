@@ -23,9 +23,10 @@ VLLM_PY = "gpu/.venv/bin/python"
 TRAIN_PY = ".agent-runs/sft-venv/bin/python"
 SANITY = Path(".agent-runs/sanity")      # Val samples of the merged models: never inside runs/final, which holds Test samples only
 DIRECT = "Reply with only the SMILES string of the drug described. No explanation."
-# (stage, arm ids, clear the HF cache before the stage). The confirmatory pair comes first; merged models are deleted after the 4B stage.
+# (stage, arm ids, clear the HF cache and the merged models before the stage: the 4B stage holds the 4B base plus two merged models (27 GB of the runtime's 35 free), so every later family starts clean).
+# The confirmatory pair comes first.
 STAGES = [("4B arms", ["RL-full", "A2", "A0n", "A4", "A2-shuffle", "A2-blank", "RL-full-shuffle", "RL-full-blank", "name-4B", "ident-4B"], False),
-          ("9B", ["9B", "name-9B", "ident-9B"], False),
+          ("9B", ["9B", "name-9B", "ident-9B"], True),
           ("Qwen3.5-27B", ["27B-3.5", "name-27B", "ident-27B"], True),
           ("Qwen3.8-27B", ["27B-3.8", "name-3.8", "ident-3.8"], True)]
 
