@@ -15,11 +15,24 @@ RUNS = [
     ("val-control_constant", "C0 constant answer (best Train reference)", "none"),
     ("val-control_copy_nearest", "C1 copy the structure of the nearest Train profile (TF-IDF)", "none"),
     ("val-control_constant_scaffold", "C2 constant scaffold answer", "none"),
+    ("val-control_constant_pool", "C3 reward-optimal constant (chosen on Train from Train + ChEMBL pool)", "none"),
     ("a-direct", "4B untrained", "T=1.0, k=8"),
     ("a4-icl", "4B + 3 retrieved examples (A4)", "T=1.0, k=8"),
+    ("rlfull-s20-t0.6", "4B RL-full step 20", "T=0.6, k=8, think mode"),
+    ("rlfull-s20-t1.0", "4B RL-full step 20", "T=1.0, k=8, think mode"),
+    ("rlfull-s30-t0.6", "4B RL-full step 30", "T=0.6, k=8, think mode"),
+    ("rlfull-s30-t1.0", "4B RL-full step 30", "T=1.0, k=8, think mode"),
+    ("rlfull-s40-t0.6", "4B RL-full step 40", "T=0.6, k=8, think mode"),
+    ("rlfull-s40-t1.0", "4B RL-full step 40", "T=1.0, k=8, think mode"),
     ("a2-val", "4B A2 (answer-only SFT, epoch 1)", "T=1.0, k=8, think mode"),
+    ("a2-t0.6", "4B A2", "T=0.6, k=8, think mode"),
+    ("a2-t0.3", "4B A2", "T=0.3, k=8, think mode"),
     ("a1-val", "4B A1 (trace SFT, epoch 2)", "T=1.0, k=4, think mode, 8192 tokens"),
+    ("b4-t0.6", "4B untrained", "T=0.6, k=8"),
+    ("b4-t0.3", "4B untrained", "T=0.3, k=8"),
     ("b9-direct", "9B untrained", "T=1.0, k=8"),
+    ("b9-t0.6", "9B untrained", "T=0.6, k=8"),
+    ("b9-t0.3", "9B untrained", "T=0.3, k=8"),
     ("b27-direct", "Qwen3.5-27B-FP8 untrained", "T=1.0, k=8"),
     ("b38-direct", "Qwen3.8-27B-FP8 untrained", "T=1.0, k=4"),
     ("name-4b", "4B told the drug name", "T=1.0, k=8"),
@@ -30,7 +43,7 @@ RUNS = [
     ("g-9b-direct", "9B untrained near-greedy", "T=0.01, k=1"),
     ("g-4b-direct", "4B untrained near-greedy", "T=0.01, k=1"),
 ]
-COLUMNS = ("valid_closed", "exact@1", "core@1", "core@8", "mean_tanimoto", "tanimoto_valid", "lift", "fv_rate", "fv_samples", "mean_reward")
+COLUMNS = ("valid_closed", "exact@1", "core@1", "mean_tanimoto", "fv_tanimoto", "fv_samples", "fv_lift", "lift", "tanimoto_valid", "core@8", "fv_rate", "mean_reward")
 
 
 def value(metrics, name):
