@@ -14,6 +14,7 @@ import itertools
 import json
 import os
 import random
+import shutil
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -53,9 +54,28 @@ def _mol(smiles):
     return (m, c) if c else (None, None)
 
 
+def _dummy(mol) -> bool:
+    return any(a.GetAtomicNum() == 0 for a in mol.GetAtoms())
+
+
+def _refused(smiles):
+    """Why chem.standardize refuses a string RDKit can parse: "dummy_atom" or "over_max_atoms"; None otherwise."""
+    m = Chem.MolFromSmiles(smiles) if isinstance(smiles, str) and smiles else None
+    if m is None:
+        return None
+    return "dummy_atom" if _dummy(m) else "over_max_atoms" if m.GetNumAtoms() > chem.MAX_ATOMS else None
+
+
+def _same_skeleton(a, b) -> bool:
+    """Same formula and heavy-atom skeleton (chem.skeleton); never true when InChI fails."""
+    sa = chem.skeleton(a)
+    return sa is not None and sa == chem.skeleton(b)
+
+
 def _sft(rows):
-    """(connectivity, Mol) of the majority standardised answer over a group's completions; (None, None) if none parse."""
-    votes, mols = Counter(), {}
+    """(connectivity, Mol, refused) of the majority standardised answer over a group's completions; (None, None, ...) if
+    none parse. `refused` counts the answers chem.standardize rejected for a dummy atom or size, by reason."""
+    votes, mols, refused = Counter(), {}, Counter()
     for r in rows:
         a = chem.extract_answer(r["completion"])
         m, c = _mol(a) if a else (None, None)
@@ -63,13 +83,15 @@ def _sft(rows):
             key = (c, chem.canonical(m))
             votes[key] += 1
             mols[key] = m
+        elif a and _refused(a):
+            refused[_refused(a)] += 1
     per_conn = Counter()
     for (c, _), n in votes.items():
         per_conn[c] += n
     if not votes:
-        return None, None
+        return None, None, refused
     c = min(per_conn, key=lambda k: (-per_conn[k], k))  # ties: smallest key, so the order of rows never matters
-    return c, mols[min((k for k in votes if k[0] == c), key=lambda k: (-votes[k], k[1]))]
+    return c, mols[min((k for k in votes if k[0] == c), key=lambda k: (-votes[k], k[1]))], refused
 
 
 def _year(pool_entry, manual, audit):
@@ -85,7 +107,7 @@ def _extractable(mol, conn, smiles) -> bool:
     """chem.extract_answer recovers the molecule from its canonical SMILES and from N_VARIANTS seeded random variants of it."""
     for s in (smiles, *Chem.MolToRandomSmilesVect(mol, N_VARIANTS, randomSeed=VARIANT_SEED)):
         a = chem.extract_answer("</think>\n" + s)
-        m = chem.standardize(a) if a else None
+        m = chem.standardize(a) if a else None  # strict conn: InChI does not change with the SMILES atom order
         if m is None or (chem.canonical(m) != smiles and chem.conn(m) != conn):  # same canonical SMILES needs no InChI
             return False
     return True
@@ -95,27 +117,36 @@ def build_refs(rows, pool, manual=None, audit=None, exposure=None) -> tuple[dict
     """One reference row per group in `rows` (single-drug, non-PD). Returns ({group: ref}, notes for the report).
 
     Structure: manual > ChEMBL (when the SFT majority answer agrees or is missing) > SFT answer (when ChEMBL has none).
-    A manual entry with smiles null declares the group unresolvable: excluded, never falling back to ChEMBL or the SFT
-    answer. ChEMBL and SFT disagreeing with no manual entry excludes the group, as does a reference the answer extractor
-    cannot recover (see _extractable). Year: see _year. Exposure (PubChem record year, PubMed count) and the manual
-    `convention` are copied through. cluster_id and split are filled in by assign_splits."""
+    "Agrees" means an equal conn or an equal chem.skeleton (a tautomer difference is agreement); only a different
+    skeleton, with no manual entry, excludes the group (unresolved_disagreement). A manual entry with smiles null declares
+    the group unresolvable: excluded, never falling back to ChEMBL or the SFT answer. A reference the answer extractor
+    cannot recover is excluded too (see _extractable). Alternates (ref_alt_smiles): the ChEMBL parent when the reference
+    came from a manual entry or the SFT answer, and the SFT majority answer when it came from ChEMBL or a manual entry,
+    kept only when their conn differs from the reference and their skeleton equals it. Year: see _year. Exposure
+    (PubChem record year, PubMed count) and the manual `convention` are copied through. cluster_id and split are
+    filled in by assign_splits."""
     manual, audit, exposure = manual or {}, audit or {}, exposure or {}
     by = defaultdict(list)
     for r in rows:
         by[r["group"]].append(r)
-    notes = {"disagreements": [], "year_overrides": [], "exposure_matched": len(set(exposure) & set(by)),
-             "manual_effect": {k: [] for k in ("identical", "changed_smiles_only", "changed_connectivity", "filled_gap", "unresolvable")},
+    notes = {"disagreements": [], "year_overrides": [], "rejected_structures": [], "exposure_matched": len(set(exposure) & set(by)),
+             "manual_effect": {k: [] for k in ("identical", "changed_smiles_only", "changed_tautomer", "changed_connectivity",
+                                               "filled_gap", "unresolvable")},
              "unused_manual": sorted(set(manual) - set(by)), "unused_audit": sorted(set(audit) - set(by))}
     refs = {}
     for g in sorted(by):
         e, aud, man = pool.get(g) or {}, audit.get(g) or {}, manual.get(g)  # man: None, or {"smiles": str | None, ...}
         ok = e.get("status") == "ok"
-        ch, ch_conn = _mol(e.get("parent_smiles")) if ok else (None, None)
-        sft_conn, sft = _sft(by[g])
-        agrees = None if ch is None or sft is None else ch_conn == sft_conn
+        cand = e.get("parent_smiles") if ok else None
+        ch, ch_conn = _mol(cand)
+        sft_conn, sft, refused = _sft(by[g])
+        if ch is None and _refused(cand):  # a candidate structure chem.standardize refuses is reported, not silently dropped
+            notes["rejected_structures"].append({"group": g, "source": "chembl", "why": _refused(cand)})
+        notes["rejected_structures"] += [{"group": g, "source": "sft_answer", "why": w, "rows": n} for w, n in sorted(refused.items())]
+        agrees = None if ch is None or sft is None else (ch_conn == sft_conn or _same_skeleton(ch, sft))
         man_mol, man_conn = _mol(man["smiles"]) if man is not None else (None, None)
         if man is not None and man["smiles"] is not None and man_mol is None:
-            raise ValueError(f"manual_refs[{g!r}].smiles does not parse: {man['smiles']!r}")
+            raise ValueError(f"manual_refs[{g!r}].smiles is refused ({_refused(man['smiles']) or 'not a SMILES'}): {man['smiles']!r}")
         unresolvable = man is not None and man["smiles"] is None
         convention = (man or {}).get("convention")
         assert convention in (None, "ligand_only"), f"manual_refs[{g!r}].convention must be 'ligand_only' or absent: {convention!r}"
@@ -128,12 +159,18 @@ def build_refs(rows, pool, manual=None, audit=None, exposure=None) -> tuple[dict
         mol, conn, src = (None,) * 3 if unresolvable else (man_mol, man_conn, "manual") if man_mol is not None else base
         if man is not None:  # what the entry did to the reference the data alone would have given
             how = ("unresolvable" if unresolvable else "filled_gap" if base[0] is None
-                   else "changed_connectivity" if base[1] != man_conn
-                   else "changed_smiles_only" if chem.canonical(base[0]) != chem.canonical(man_mol) else "identical")
+                   else "identical" if chem.canonical(base[0]) == chem.canonical(man_mol)
+                   else "changed_smiles_only" if base[1] == man_conn
+                   else "changed_tautomer" if _same_skeleton(base[0], man_mol) else "changed_connectivity")
             notes["manual_effect"][how].append(g)
+        alts = set()
+        for other, other_conn, usable in ((ch, ch_conn, src in ("manual", "sft_answer")), (sft, sft_conn, src in ("chembl", "manual"))):
+            if usable and other is not None and other_conn != conn and _same_skeleton(other, mol):
+                alts.add(chem.canonical(other))
         year, ysrc = _year(e, man or {}, aud)
         ref = dict.fromkeys(("ref_smiles", "ref_inchikey", "ref_conn", "ref_scaffold"))
         if mol is not None:
+            assert not _dummy(mol), f"{g!r}: a reference with a dummy atom can never be matched"
             ref = {"ref_smiles": chem.canonical(mol), "ref_inchikey": chem.inchikey(mol), "ref_conn": conn,
                    "ref_scaffold": chem.scaffold(mol)}
             assert _mol(ref["ref_smiles"])[1] == conn, f"{g!r}: the reference does not keep its connectivity through its SMILES"
@@ -146,13 +183,14 @@ def build_refs(rows, pool, manual=None, audit=None, exposure=None) -> tuple[dict
         if agrees is False:
             notes["disagreements"].append({
                 "group": g, "chembl_smiles": chem.canonical(ch), "sft_smiles": chem.canonical(sft),
-                "tanimoto": round(chem.tanimoto(ch, sft), 3), "resolved_by": "manual" if man_mol is not None else None})
+                "tanimoto": round(chem.tanimoto_bits(ch, sft), 3), "resolved_by": "manual" if man_mol is not None else None})
         if ysrc in ("manual", "audit") and year != e.get("approval_year"):
             notes["year_overrides"].append({"group": g, "pool_year": e.get("approval_year"), "year": year, "source": ysrc,
                                             **({"confidence": aud.get("confidence")} if ysrc == "audit" else {})})
         refs[g] = {"group": g, "components": g.split(" | "), **ref, "ref_source": src,
                    "chembl_id": e.get("chembl_id") if ok else None, "approval_year": year, "approval_source": ysrc,
-                   "sft_agrees": agrees, "cluster_id": -1, "split": "excluded", "exclude_reason": reason, "n_rows": len(by[g]),
+                   "sft_agrees": agrees, "ref_alt_smiles": sorted(alts), "cluster_id": -1, "split": "excluded",
+                   "exclude_reason": reason, "n_rows": len(by[g]),
                    "n_heavy": mol.GetNumHeavyAtoms() if mol is not None else None, "convention": convention,
                    "pubchem_create_year": (exposure.get(g) or {}).get("pubchem_create_year"),
                    "pubmed_count": (exposure.get(g) or {}).get("pubmed_count")}
@@ -162,7 +200,7 @@ def build_refs(rows, pool, manual=None, audit=None, exposure=None) -> tuple[dict
 def assign_splits(refs, seed=SEED, n_test_r=N_TEST_R, n_val=N_VAL) -> dict:
     """Set cluster_id and split on every ref in place. Returns the split facts for the report.
 
-    Clusters = connected components over the included drugs, with an edge when Tanimoto >= SIM or when the two drugs share
+    Clusters = connected components over the included drugs, with an edge when bit Tanimoto >= SIM or when the two drugs share
     an identical non-empty Murcko scaffold (an answer that earns scaffold credit on one earns it on the other).
     Test-T = final year >= TEST_T_YEAR; the rest of a Test-T drug's component is buffer. Remaining whole components, in a
     seeded shuffle, fill Test-R then Val greedily (a component that would overshoot is skipped); everything left is Train."""
@@ -171,9 +209,9 @@ def assign_splits(refs, seed=SEED, n_test_r=N_TEST_R, n_val=N_VAL) -> dict:
     assert all(m is not None for m in mols), [g for g, m in zip(inc, mols) if m is None]
     n = len(inc)
     sim = np.eye(n)
-    for i in range(n):  # ponytail: O(n^2) chem.tanimoto calls (~12 s at 340 drugs); cache fingerprints if n reaches thousands
+    for i in range(n):  # ponytail: O(n^2) chem.tanimoto_bits calls (~12 s at 340 drugs); cache fingerprints if n reaches thousands
         for j in range(i):
-            sim[i, j] = sim[j, i] = chem.tanimoto(mols[i], mols[j])
+            sim[i, j] = sim[j, i] = chem.tanimoto_bits(mols[i], mols[j])  # bits, not counts: 0.4 was set on this one
     parent = list(range(n))
 
     def find(i):
@@ -253,7 +291,7 @@ def make_row(r, ref) -> dict:
            "cluster_id": ref["cluster_id"], "prompt": r["prompt"] + THINK}
     if ref["split"] in ("train", "val"):
         row["completion"] = r["completion"][len(THINK):]
-    row |= {k: ref[k] for k in ("ref_smiles", "ref_conn", "ref_scaffold", "ref_inchikey", "n_heavy", "approval_year")}
+    row |= {k: ref[k] for k in ("ref_smiles", "ref_alt_smiles", "ref_conn", "ref_scaffold", "ref_inchikey", "n_heavy", "approval_year")}
     return row | {k: r[k] for k in ("n_prompt_tokens", "n_completion_tokens")}
 
 
@@ -292,28 +330,53 @@ def make_report(refs, rows, dropped, notes, info, inputs) -> dict:
                                             for k, gs in sorted(why.items())}},
         "splits": splits, "targets": info["targets"], "clusters": info["clusters"],
         "max_cross_tanimoto": info["max_cross_tanimoto"], "scaffold_overlap": info["scaffold_overlap"],
-        "references": {"exposure_matched": notes["exposure_matched"], "ref_source": count(r["ref_source"] for r in refs.values() if r["ref_source"]),
+        "references": {"exposure_matched": notes["exposure_matched"],
+                       "with_alternates": {"count": sum(bool(r["ref_alt_smiles"]) for r in refs.values()),
+                                           "groups": [g for g, r in refs.items() if r["ref_alt_smiles"]]},
+                       "ref_source": count(r["ref_source"] for r in refs.values() if r["ref_source"]),
                        "sft_agrees": count(json.dumps(r["sft_agrees"]) for r in refs.values()),
                        "approval_source": count(r["approval_source"] for r in refs.values() if r["approval_source"]),
                        "sft_answer_groups": [g for g, r in refs.items() if r["ref_source"] == "sft_answer"]},
         "manual_effect": notes["manual_effect"], "disagreements": notes["disagreements"], "year_overrides": notes["year_overrides"],
+        "rejected_structures": notes["rejected_structures"],
         "unused_hand_entries": {"manual_refs": notes["unused_manual"], "approval_audit": notes["unused_audit"]},
     }
 
 
 def _write_all(out, files):
-    """Stage every file beside its target, then rename them all; a failure replaces nothing. Hand files are refused."""
+    """All or nothing. Stage every file beside its target, copy each existing target to a backup, rename the staged files
+    into place, then delete the backups. On any exception put the old files back and remove what was staged, so a failed
+    run leaves the directory as it found it (if a restore itself fails, the unrestored backups stay on disk). Backups
+    are copies, so no target is ever missing while the renames run. Hand files are refused."""
     assert not set(files) & set(HAND), f"data_prep never writes {HAND}"
-    staged = {}
+    tag = f".{os.getpid()}"
+    staged, backup = ({n: out / f".{n}{tag}.{kind}" for n in files} for kind in ("new", "old"))
+    backed, replaced = [], []  # names with a backup; names whose target is now the new file
     try:
-        for name, text in files.items():
-            staged[name] = out / f".{name}.{os.getpid()}.tmp"
-            staged[name].write_text(text, encoding="utf-8")
-        for name, tmp in staged.items():
-            os.replace(tmp, out / name)
+        for n, text in files.items():
+            staged[n].write_text(text, encoding="utf-8")
+        for n in files:
+            if (out / n).exists():
+                shutil.copy2(out / n, backup[n])
+                backed.append(n)
+        for n in files:
+            os.replace(staged[n], out / n)
+            replaced.append(n)
+    except BaseException:
+        for n in reversed(replaced):
+            if n in backed:
+                os.replace(backup[n], out / n)  # the old file comes back
+            else:
+                (out / n).unlink(missing_ok=True)  # there was none before
+        for n in backed:
+            backup[n].unlink(missing_ok=True)  # reached only when every restore worked
+        raise
+    else:
+        for n in backed:
+            backup[n].unlink(missing_ok=True)
     finally:
-        for tmp in staged.values():
-            tmp.unlink(missing_ok=True)  # only our own staging files
+        for p in staged.values():
+            p.unlink(missing_ok=True)  # only our own staging files
 
 
 def write_outputs(refs, rows, report, out_dir):
@@ -360,7 +423,9 @@ def summary(rep) -> str:
     hand = ", ".join(f"{k} {inp[k].get('entries', 'absent')}" for k in ("manual_refs", "approval_audit", "exposure"))
     lines = [f"rows read {inp['rows_read']}: dropped PD {drop['pd']['rows']} + combination {drop['combination']['rows']}"
              f" -> {inp['rows_kept']} rows, {inp['groups_kept']} drugs | hand files: {hand}",
-             f"ref_source {rep['references']['ref_source']} sft_agrees {rep['references']['sft_agrees']}",
+             f"ref_source {rep['references']['ref_source']} sft_agrees {rep['references']['sft_agrees']}"
+             f" | references with alternates {rep['references']['with_alternates']['count']}"
+             f" | structures refused (dummy atom, size) {len(rep['rejected_structures'])}",
              "excluded " + (", ".join(f"{k} {len(v['groups'])}" for k, v in drop["excluded"].items()) or "none"),
              f"{'split':8}{'drugs':>6}{'rows':>6}  " + " ".join(f"{t:>4}" for t in tasks) + "   by year " + " ".join(BUCKETS)]
     for s, v in sp.items():

@@ -5,13 +5,16 @@
 import hashlib
 import itertools
 import json
+import math
 import os
+import shutil
 import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
 
 import pytest
+from rdkit import Chem
 
 from rlexp import chem
 from rlexp import data_prep as dp
@@ -65,6 +68,8 @@ OSELTAMIVIR, FUROSEMIDE = "CCOC(=O)C1=CC(OC(CC)CC)C(NC(C)=O)C(N)C1", "NS(=O)(=O)
 PEPTIDE = "NCC(=O)" * 30 + "O"  # 30 glycines: 121 heavy atoms, acyclic
 MALTOL = "Cc1occc(=O)c1O"  # the ligand of ferric maltol
 L_ALANINE, D_ALANINE = "C[C@H](N)C(=O)O", "C[C@@H](N)C(=O)O"  # same connectivity, different SMILES
+KETO, ENOL, ENOL2 = "CCOC(=O)CC(C)=O", "CCOC(=O)C=C(C)O", "CCOC(O)=CC(C)=O"  # ethyl acetoacetate tautomers: different conn, equal skeleton
+DUMMY, OVERSIZE = "c1ccc(*)cc1CC(=O)O", "NCC(=O)" * 120 + "O"  # chem.standardize refuses a dummy atom and more than 400 atoms
 
 
 def rows_for(group, *answers, tasks=("A", "B", "C", "MO")):
@@ -101,6 +106,8 @@ def make_inputs(tmp_path):
     pool["bare atom"] = entry("bare atom", "[129Xe]", 2022)
     rows += rows_for("peptide", PEPTIDE, PEPTIDE)  # over 100 heavy atoms
     pool["peptide"] = entry("peptide", PEPTIDE, 2018)
+    rows += rows_for("acetoacetate", ENOL, ENOL)  # ChEMBL has the keto form, the SFT answers the enol form: agreement, one alternate
+    pool["acetoacetate"] = entry("acetoacetate", KETO, 2018)
     rows += [r | {"task_type": "PD"} for r in rows_for("protein only", ASPIRIN)]
     rows += rows_for("caffeine | aspirin", ASPIRIN)
     cut = len(rows) // 2
@@ -121,11 +128,11 @@ def test_components_follow_tanimoto_and_identical_scaffold_edges():
     refs, _ = refs_for()
     assert not [g for g, r in refs.items() if r["exclude_reason"]]  # every fixture drug passes the screens
     mols = {g: chem.standardize(s) for g, s in DRUGS.items()}
-    assert chem.tanimoto(mols["naproxen"], mols["ibuprofen"]) >= 0.4 > chem.tanimoto(mols["naproxen"], mols["ibuprofen methyl ester"])
+    assert chem.tanimoto_bits(mols["naproxen"], mols["ibuprofen"]) >= 0.4 > chem.tanimoto_bits(mols["naproxen"], mols["ibuprofen methyl ester"])
     for fam in SCAFFOLD_FAMILIES:  # same scaffold, no Tanimoto edge: only the scaffold rule can join them
         scaffolds = {refs[g]["ref_scaffold"] for g in fam}
         assert len(scaffolds) == 1 and scaffolds != {""}, fam
-        assert all(chem.tanimoto(mols[a], mols[b]) < 0.4 for a, b in itertools.combinations(sorted(fam), 2)), fam
+        assert all(chem.tanimoto_bits(mols[a], mols[b]) < 0.4 for a, b in itertools.combinations(sorted(fam), 2)), fam
     assert refs["metformin"]["ref_scaffold"] == refs["valproic acid"]["ref_scaffold"] == ""  # acyclic: no scaffold, no edge
     clusters = {}
     for g, r in refs.items():
@@ -142,7 +149,7 @@ def test_no_pair_across_splits_is_similar_or_shares_a_scaffold_and_components_st
     mols = {g: chem.standardize(refs[g]["ref_smiles"]) for g in used}
     for a, b in itertools.combinations(used, 2):
         if refs[a]["split"] != refs[b]["split"]:
-            assert chem.tanimoto(mols[a], mols[b]) < 0.4, (a, b)
+            assert chem.tanimoto_bits(mols[a], mols[b]) < 0.4, (a, b)
             sa, sb = chem.scaffold(mols[a]), chem.scaffold(mols[b])  # recomputed, not read back from refs
             assert not (sa and sa == sb), (a, b, sa)
     for fam in FAMILIES:
@@ -152,7 +159,7 @@ def test_no_pair_across_splits_is_similar_or_shares_a_scaffold_and_components_st
     for pair, v in info["max_cross_tanimoto"].items():  # the report numbers match an independent recomputation
         a, b = v["pair"]
         assert {refs[a]["split"], refs[b]["split"]} == set(pair.split("|"))
-        assert v["max"] == round(chem.tanimoto(mols[a], mols[b]), 4) < 0.4
+        assert v["max"] == round(chem.tanimoto_bits(mols[a], mols[b]), 4) < 0.4
     assert info["scaffold_overlap"] == {"drugs_sharing_a_scaffold_with_train": {"val": 0, "test_r": 0, "test_t": 0},
                                         "shared_scaffolds": dict.fromkeys(info["max_cross_tanimoto"], 0)}
 
@@ -305,6 +312,69 @@ def test_convention_is_copied_from_the_manual_entry_and_validated():
         dp.build_refs(rows, pool, {"ferric maltol": {"smiles": MALTOL, "approval_year": 2016, "convention": "ligand-only"}})
 
 
+def test_alternates_are_other_registry_forms_with_an_equal_skeleton_and_a_different_conn():
+    canon = lambda s: chem.canonical(chem.standardize(s))
+    keto, enol, enol2 = canon(KETO), canon(ENOL), canon(ENOL2)
+    cases = {  # group -> (ChEMBL SMILES, SFT answers, manual SMILES, expected (ref_source, sft_agrees, ref_alt_smiles))
+        "chembl keto, sft enol": (KETO, [ENOL] * 2, None, ("chembl", True, [enol])),
+        "chembl keto, sft keto": (KETO, [KETO], None, ("chembl", True, [])),
+        "chembl keto, sft keto, manual enol": (KETO, [KETO], ENOL, ("manual", True, [keto])),  # the same form twice is listed once
+        "chembl keto, sft enol, manual enol": (KETO, [ENOL], ENOL, ("manual", True, [keto])),  # the reference itself is never listed
+        "chembl keto, sft enol, manual keto": (KETO, [ENOL], KETO, ("manual", True, [enol])),
+        "chembl enol, sft enol2, manual keto": (ENOL, [ENOL2], KETO, ("manual", True, sorted([enol, enol2]))),
+        "chembl salt, sft keto, manual keto": (ENOL + ".[Na+].[Cl-]", [KETO], KETO, ("manual", True, [enol])),  # standardised first
+        "no chembl, sft enol": (None, [ENOL], None, ("sft_answer", None, [])),
+        "no chembl, sft enol, manual keto": (None, [ENOL], KETO, ("manual", None, [enol])),
+        "other skeleton under manual": (CAFFEINE, [CAFFEINE], THEOPHYLLINE, ("manual", True, [])),  # a different molecule is no alternate
+    }
+    rows = [r for g, (_, answers, _, _) in cases.items() for r in rows_for(g, *answers)]
+    pool = {g: entry(g, c, 2018, **({} if c else {"status": "no_match"})) for g, (c, _, _, _) in cases.items()}
+    refs, _ = dp.build_refs(rows, pool, {g: {"smiles": m} for g, (_, _, m, _) in cases.items() if m})
+    for g, (_, _, _, want) in cases.items():
+        r = refs[g]
+        assert (r["ref_source"], r["sft_agrees"], r["ref_alt_smiles"]) == want and r["exclude_reason"] is None, g
+        ref_mol = chem.standardize(r["ref_smiles"])
+        alt_mols = [chem.standardize(a) for a in r["ref_alt_smiles"]]
+        assert all(chem.conn(m) != r["ref_conn"] and chem.skeleton(m) == chem.skeleton(ref_mol) for m in alt_mols), g
+        assert len({chem.conn(m) for m in alt_mols}) == len(alt_mols)
+    assert {g for g, r in refs.items() if r["ref_alt_smiles"]} == {g for g, c in cases.items() if c[3][2]}
+
+
+def test_a_tautomer_difference_is_agreement_and_only_a_different_skeleton_is_a_disagreement():
+    rows = rows_for("tautomer", ENOL, ENOL) + rows_for("other molecule", THEOPHYLLINE, THEOPHYLLINE)
+    pool = {"tautomer": entry("tautomer", KETO, 2018), "other molecule": entry("other molecule", CAFFEINE, 2018)}
+    refs, notes = dp.build_refs(rows, pool)
+    assert chem.conn(chem.standardize(KETO)) != chem.conn(chem.standardize(ENOL))  # strict conn does differ
+    assert (refs["tautomer"]["sft_agrees"], refs["tautomer"]["exclude_reason"], refs["tautomer"]["ref_source"]) == (True, None, "chembl")
+    assert (refs["other molecule"]["sft_agrees"], refs["other molecule"]["exclude_reason"]) == (False, "unresolved_disagreement")
+    assert [d["group"] for d in notes["disagreements"]] == ["other molecule"]
+
+
+def test_structures_chem_refuses_are_reported_not_dropped_silently_and_no_reference_has_a_dummy_atom(monkeypatch):
+    rows = rows_for("chembl dummy", ASPIRIN) + rows_for("sft dummy", DUMMY, ASPIRIN) + rows_for("oversize", OVERSIZE)
+    pool = {"chembl dummy": entry("chembl dummy", DUMMY, 2018), "sft dummy": entry("sft dummy", ASPIRIN, 2018),
+            "oversize": entry("oversize", OVERSIZE, 2018)}
+    refs, notes = dp.build_refs(rows, pool)
+    assert notes["rejected_structures"] == [
+        {"group": "chembl dummy", "source": "chembl", "why": "dummy_atom"},
+        {"group": "oversize", "source": "chembl", "why": "over_max_atoms"},
+        {"group": "oversize", "source": "sft_answer", "why": "over_max_atoms", "rows": 1},
+        {"group": "sft dummy", "source": "sft_answer", "why": "dummy_atom", "rows": 1}]
+    assert (refs["chembl dummy"]["ref_source"], refs["chembl dummy"]["exclude_reason"]) == ("sft_answer", None)  # the SFT answer is used
+    assert (refs["sft dummy"]["ref_source"], refs["sft dummy"]["sft_agrees"]) == ("chembl", True)  # the other row still votes
+    assert (refs["oversize"]["ref_smiles"], refs["oversize"]["exclude_reason"]) == (None, "no_structure")
+    mols = [Chem.MolFromSmiles(r["ref_smiles"]) for r in refs.values() if r["ref_smiles"]]
+    assert mols and not any(a.GetAtomicNum() == 0 for m in mols for a in m.GetAtoms())
+    for bad, why in ((DUMMY, "dummy_atom"), (OVERSIZE, "over_max_atoms")):  # a hand-written structure is an error that says why
+        with pytest.raises(ValueError, match=why):
+            dp.build_refs(rows_for("x", ASPIRIN), {}, {"x": {"smiles": bad}})
+    # the check itself: were a dummy atom ever to get past chem, the reference would be refused rather than written
+    real = dp._mol
+    monkeypatch.setattr(dp, "_mol", lambda s: (Chem.MolFromSmiles(s), "FAKEKEYFAKEKEY") if s == DUMMY else real(s))
+    with pytest.raises(AssertionError, match="dummy atom"):
+        dp.build_refs(rows_for("leaky", "no structure here"), {"leaky": entry("leaky", DUMMY, 2018)})
+
+
 def test_references_the_answer_extractor_cannot_recover_are_excluded():
     cases = {"bare isotope": ("[129Xe]", 2022), "ethanol": ("CCO", 2018), "tiny and undated": ("CCO", None),
              "fine": (ASPIRIN, 2018), "fine and undated": (ASPIRIN, None)}
@@ -381,14 +451,15 @@ def test_split_rows_move_the_think_prefix_into_the_prompt_and_carry_cluster_and_
             seen += 1
             assert list(row) == ["id", "group", "task_type", "split", "cluster_id", "prompt",
                                  *(["completion"] if split in ("train", "val") else []),
-                                 "ref_smiles", "ref_conn", "ref_scaffold", "ref_inchikey", "n_heavy", "approval_year",
-                                 "n_prompt_tokens", "n_completion_tokens"]  # the contract's field order
+                                 "ref_smiles", "ref_alt_smiles", "ref_conn", "ref_scaffold", "ref_inchikey", "n_heavy",
+                                 "approval_year", "n_prompt_tokens", "n_completion_tokens"]  # the contract's field order
             assert row["split"] == split == ref["split"]
             assert row["prompt"] == o["prompt"] + THINK and row["prompt"].endswith("<|im_start|>assistant\n<think>\n")
             if split in ("train", "val"):
                 assert row["completion"] == o["completion"][len(THINK):] and not row["completion"].startswith("<think>")
                 assert row["prompt"] + row["completion"] == o["prompt"] + o["completion"]  # same text, new cut point
-            assert (row["cluster_id"], row["ref_inchikey"], row["n_heavy"]) == (ref["cluster_id"], ref["ref_inchikey"], ref["n_heavy"])
+            assert (row["cluster_id"], row["ref_inchikey"], row["n_heavy"], row["ref_alt_smiles"]) == (
+                ref["cluster_id"], ref["ref_inchikey"], ref["n_heavy"], ref["ref_alt_smiles"])
             mol = chem.standardize(row["ref_smiles"])
             assert row["cluster_id"] >= 0 and row["ref_inchikey"] == chem.inchikey(mol) and row["n_heavy"] == mol.GetNumHeavyAtoms()
             assert row["ref_conn"] == chem.conn(mol)
@@ -396,7 +467,8 @@ def test_split_rows_move_the_think_prefix_into_the_prompt_and_carry_cluster_and_
                 ref["ref_smiles"], ref["ref_conn"], ref["ref_scaffold"], ref["approval_year"])
             assert (row["n_prompt_tokens"], row["n_completion_tokens"], row["task_type"], row["group"]) == (
                 o["n_prompt_tokens"], o["n_completion_tokens"], o["task_type"], o["group"])
-    assert seen == sum(r["n_rows"] for r in refs.values() if r["split"] in dp.SPLITS) == 2 * 25
+    assert seen == sum(r["n_rows"] for r in refs.values() if r["split"] in dp.SPLITS) == 2 * 26
+    assert any(row["ref_alt_smiles"] for split in dp.SPLITS for row in read_jsonl(data / f"{split}.jsonl"))  # the non-empty case is covered
     g = next(g for g, r in refs.items() if r["split"] == "train")
     good = orig[f"{g}#0"]
     assert dp.make_row(good, refs[g])["completion"] == good["completion"][len(THINK):]
@@ -413,7 +485,11 @@ def test_every_group_is_in_exactly_one_split_and_the_report_says_why_the_rest_ar
     dp.main(args)
     data = tmp_path / "data"
     refs = {r["group"]: r for r in read_jsonl(data / "refs.jsonl")}
-    assert set(refs) == set(DRUGS) | {"mystery", "undated", "bare atom", "peptide"}  # PD-only and combination groups never reach refs
+    assert set(refs) == set(DRUGS) | {"mystery", "undated", "bare atom", "peptide", "acetoacetate"}  # PD-only and combination groups never reach refs
+    assert list(refs["peptide"]) == [  # the contract's field order
+        "group", "components", "ref_smiles", "ref_inchikey", "ref_conn", "ref_scaffold", "ref_source", "chembl_id", "approval_year",
+        "approval_source", "sft_agrees", "ref_alt_smiles", "cluster_id", "split", "exclude_reason", "n_rows", "n_heavy", "convention",
+        "pubchem_create_year", "pubmed_count"]
     assert {g: r["exclude_reason"] for g, r in refs.items() if r["exclude_reason"]} == {
         "mystery": "no_structure", "undated": "no_approval_year", "bare atom": "unextractable_reference"}
     where = {}
@@ -423,7 +499,7 @@ def test_every_group_is_in_exactly_one_split_and_the_report_says_why_the_rest_ar
     assert all(len(s) == 1 for s in where.values())
     assert {g: next(iter(s)) for g, s in where.items()} == {g: r["split"] for g, r in refs.items() if r["split"] in dp.SPLITS}
     by_split = Counter(r["split"] for r in refs.values())
-    assert by_split == {"train": 12, "val": 3, "test_r": 5, "test_t": 5, "buffer": 5, "excluded": 3}
+    assert by_split == {"train": 13, "val": 3, "test_r": 5, "test_t": 5, "buffer": 5, "excluded": 3}
     assert all(r["cluster_id"] == -1 for r in refs.values() if r["split"] == "excluded")
     n_rows = Counter(r["group"] for r in rows if r["task_type"] != "PD" and " | " not in r["group"])
     assert all(r["n_rows"] == n_rows[g] for g, r in refs.items())
@@ -440,10 +516,16 @@ def test_every_group_is_in_exactly_one_split_and_the_report_says_why_the_rest_ar
     big = {s: sum((r["n_heavy"] or 0) > 100 for r in refs.values() if r["split"] == s) for s in by_split}
     assert {s: v["drugs_n_heavy_over_100"] for s, v in report["splits"].items()} == big and sum(big.values()) == 1
     assert {v["drugs_ligand_only"] for v in report["splits"].values()} == {0}
-    assert report["manual_effect"] == {k: [] for k in ("identical", "changed_smiles_only", "changed_connectivity", "filled_gap", "unresolvable")}
+    assert report["manual_effect"] == {k: [] for k in ("identical", "changed_smiles_only", "changed_tautomer", "changed_connectivity",
+                                                       "filled_gap", "unresolvable")}
+    keto, enol = (chem.canonical(chem.standardize(s)) for s in (KETO, ENOL))
+    tauto = refs["acetoacetate"]  # ChEMBL keto form, SFT answers in the enol form: they agree, and the enol form rides along
+    assert (tauto["ref_source"], tauto["sft_agrees"], tauto["ref_smiles"], tauto["ref_alt_smiles"]) == ("chembl", True, keto, [enol])
+    assert {g for g, r in refs.items() if r["ref_alt_smiles"]} == {"acetoacetate"}
+    assert report["references"]["with_alternates"] == {"count": 1, "groups": ["acetoacetate"]} and report["rejected_structures"] == []
     assert report["seed"] == 0 and all(t["exact"] for t in report["targets"].values())
     sizes = Counter(Counter(r["cluster_id"] for r in refs.values() if r["cluster_id"] >= 0).values())
-    assert report["clusters"]["size_distribution"] == {str(k): v for k, v in sorted(sizes.items())} == {"1": 11, "2": 6, "3": 1, "4": 1}
+    assert report["clusters"]["size_distribution"] == {str(k): v for k, v in sorted(sizes.items())} == {"1": 12, "2": 6, "3": 1, "4": 1}
     assert report["scaffold_overlap"]["drugs_sharing_a_scaffold_with_train"] == {"val": 0, "test_r": 0, "test_t": 0}
     assert set(report["scaffold_overlap"]["shared_scaffolds"].values()) == {0}
     assert report["inputs"]["sha256"] == {  # the first 12 hex of every input file's SHA-256 (no hand files exist here)
@@ -476,6 +558,7 @@ def test_hand_files_are_read_but_never_overwritten_or_deleted(tmp_path):
         "mystery": {"smiles": FUROSEMIDE, "approval_year": 2019, "source": "t", "note": "n"},
         "metformin": {"smiles": DRUGS["metformin"], "approval_year": 2018, "source": "t", "note": "n", "convention": "ligand_only"},
         "tamoxifen": {"smiles": None, "approval_year": 2018, "source": "t", "note": "unresolvable"},
+        "acetoacetate": {"smiles": ENOL, "approval_year": 2018, "source": "t", "note": "the SFT form"},
         "typo group": {"smiles": None, "approval_year": 2000}}), encoding="utf-8")
     audit.write_text(json.dumps({"undated": {"fda_year": None, "earliest_global_year": 2020, "earliest_regulator": "EMA",
                                              "evidence": [], "confidence": "low"}}), encoding="utf-8")
@@ -501,13 +584,16 @@ def test_hand_files_are_read_but_never_overwritten_or_deleted(tmp_path):
     assert (refs["tamoxifen"]["exclude_reason"], refs["tamoxifen"]["split"], refs["tamoxifen"]["approval_year"]) == ("manual_unresolvable", "excluded", 2018)
     assert (refs["metformin"]["convention"], refs["metformin"]["ref_source"]) == ("ligand_only", "manual")
     assert report["dropped"]["excluded"]["manual_unresolvable"] == {"rows": 2, "groups": ["tamoxifen"]}
-    assert report["manual_effect"] == {"identical": ["metformin"], "changed_smiles_only": [], "changed_connectivity": [],
-                                       "filled_gap": ["mystery"], "unresolvable": ["tamoxifen"]}
+    assert report["manual_effect"] == {"identical": ["metformin"], "changed_smiles_only": [], "changed_tautomer": ["acetoacetate"],
+                                       "changed_connectivity": [], "filled_gap": ["mystery"], "unresolvable": ["tamoxifen"]}
+    assert (refs["acetoacetate"]["ref_source"], refs["acetoacetate"]["sft_agrees"]) == ("manual", True)
+    assert refs["acetoacetate"]["ref_alt_smiles"] == [chem.canonical(chem.standardize(KETO))]  # the ChEMBL form
+    assert report["references"]["with_alternates"] == {"count": 1, "groups": ["acetoacetate"]}
     assert {s: v["drugs_ligand_only"] for s, v in report["splits"].items() if v["drugs_ligand_only"]} == {refs["metformin"]["split"]: 1}
     assert report["unused_hand_entries"] == {"manual_refs": ["typo group"], "approval_audit": []}
     assert report["references"]["exposure_matched"] == 2
     assert {k: report["inputs"][k]["entries"] for k in ("manual_refs", "approval_audit", "exposure")} == {
-        "manual_refs": 4, "approval_audit": 1, "exposure": 3}
+        "manual_refs": 5, "approval_audit": 1, "exposure": 3}
     assert {k: v for k, v in report["inputs"]["sha256"].items() if k in {p.name for p in hand}} == {  # hashes of what was read
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:12] for p in (manual, audit, exposure)}
     assert {o["group"] for o in report["year_overrides"]} == {"mystery", "undated"}
@@ -535,3 +621,110 @@ def test_a_malformed_hand_file_stops_the_run_and_is_left_alone(tmp_path, name, t
         dp.main(args)
     assert (data / name).read_text(encoding="utf-8") == text  # never repaired or deleted
     assert {p: p.read_bytes() for p in data.glob("*.jsonl")} == outputs  # and nothing half-written replaced the last good outputs
+
+
+def test_a_pair_at_exactly_the_threshold_is_linked_and_one_just_below_is_not(monkeypatch):
+    assert dp.SIM == 0.4
+    rows, pool = synth()
+    refs, _ = dp.build_refs(rows, pool)
+    key = lambda a, b: frozenset((refs[a]["ref_smiles"], refs[b]["ref_smiles"]))
+    table = {key("nicotine", "warfarin"): 0.4, key("fluoxetine", "haloperidol"): math.nextafter(0.4, 0)}
+    monkeypatch.setattr(chem, "tanimoto_bits", lambda a, b: table.get(frozenset((chem.canonical(a), chem.canonical(b))), 0.0))
+    assert len({refs[g]["ref_scaffold"] for g in ("nicotine", "warfarin")}) == 2  # only the similarity rule can join the pair
+    dp.assign_splits(refs, 0, 5, 3)
+    assert refs["nicotine"]["cluster_id"] == refs["warfarin"]["cluster_id"]  # >= 0.4, not > 0.4
+    assert refs["fluoxetine"]["cluster_id"] != refs["haloperidol"]["cluster_id"]  # the largest double below 0.4 is no link
+
+
+def test_the_leakage_graph_and_the_report_use_the_bit_tanimoto_never_the_count_one(tmp_path, monkeypatch):
+    def forbidden(a, b):
+        raise AssertionError("chem.tanimoto (count vectors) must not feed the leakage graph or the report: 0.4 was set on bits")
+
+    monkeypatch.setattr(chem, "tanimoto", forbidden)
+    refs_for()
+    args, _ = make_inputs(tmp_path)
+    dp.main(args)
+
+
+FILES = ("refs.jsonl", "train.jsonl", "val.jsonl", "test_r.jsonl", "test_t.jsonl", "split_report.json")
+
+
+class Injected(OSError):
+    pass
+
+
+def snapshot(directory):
+    """Every entry of the directory, hidden ones included, with its bytes: a stray staging or backup file shows up."""
+    return {p.name: p.read_bytes() for p in sorted(directory.iterdir())}
+
+
+def fail_at_step(mp, n):
+    """Make step n (1-based) of the next _write_all raise: a staging write, a backup copy or a rename. Returns the step log."""
+    log = []
+
+    def wrap(fn, label):
+        def inner(*a, **k):
+            log.append(label)
+            if len(log) == n:
+                raise Injected(f"step {n} ({label})")
+            return fn(*a, **k)
+
+        return inner
+
+    mp.setattr(os, "replace", wrap(os.replace, "rename"))
+    mp.setattr(shutil, "copy2", wrap(shutil.copy2, "backup"))
+    mp.setattr(Path, "write_text", wrap(Path.write_text, "stage"))
+    return log
+
+
+@pytest.mark.parametrize("existing", [FILES, FILES[::2], ()], ids=["all six exist", "three exist", "none exist"])
+def test_write_is_all_or_nothing_whichever_step_fails(tmp_path, monkeypatch, existing):
+    new = {n: f"new {n}\n" * 3 for n in FILES}
+    out = tmp_path / "out"
+    out.mkdir()
+
+    def reset():
+        for p in out.iterdir():
+            p.unlink()
+        for n in existing:
+            (out / n).write_text(f"old {n}\n", encoding="utf-8")
+        (out / "unrelated.txt").write_text("not ours\n", encoding="utf-8")
+        return snapshot(out)
+
+    before = reset()
+    with monkeypatch.context() as mp:  # a run that succeeds, to count its steps
+        log = fail_at_step(mp, 0)
+        dp._write_all(out, new)
+    assert snapshot(out) == {**before, **{n: t.encode() for n, t in new.items()}}  # new files in, unrelated one kept, nothing stray
+    steps = len(log)
+    assert steps == len(FILES) + len(existing) + len(FILES)  # stage, back up what exists, rename
+    for n in range(1, steps + 1):
+        before = reset()
+        with monkeypatch.context() as mp:
+            fail_at_step(mp, n)
+            with pytest.raises(Injected):
+                dp._write_all(out, new)
+        assert snapshot(out) == before, f"a failure at step {n} of {steps} left the directory changed"
+
+
+def test_a_failure_on_the_second_rename_of_a_real_run_leaves_the_previous_outputs_untouched(tmp_path, monkeypatch):
+    args, _ = make_inputs(tmp_path)
+    dp.main(args)
+    data = tmp_path / "data"
+    before = snapshot(data)
+    renames, real = [], os.replace
+
+    def second_rename_fails(*a, **k):
+        renames.append(a)
+        if len(renames) == 2:
+            raise Injected("second rename")
+        return real(*a, **k)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "replace", second_rename_fails)
+        with pytest.raises(Injected):
+            dp.main(args + ["--seed", "3"])
+    assert snapshot(data) == before  # not refs.jsonl new while train.jsonl is old
+    dp.main(args + ["--seed", "3"])
+    after = snapshot(data)
+    assert after != before and set(after) == set(before)
