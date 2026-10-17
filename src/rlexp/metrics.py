@@ -12,21 +12,26 @@ Definitions
   @8         per prompt row with n >= 8 samples; rows with fewer are skipped and counted, and a drug with no usable
              row has no value. exact@8 and core@8 are pass@8, 1 - C(n-c,8)/C(n,8) over all n samples (n = 8 is "any
              of 8"): oracle coverage, which needs the answer to select and is never a deployable result.
-             maj@8: the plurality connectivity among the first 8 answers (by sample_idx) is the reference; an answer
-             that does not parse casts no vote and a tie for first place earns nothing.
+             maj@8: the plurality connectivity among the first 8 answers (by sample_idx) is the reference or one of
+             its ref_alt_smiles (all spellings of the reference add up); an answer that does not parse casts no vote
+             and a tie for first place earns nothing.
   intervals  95% percentile bootstrap, descriptive. The resampled units are the cluster_id components when the rows
              carry cluster_id (all drugs of a drawn component come along; the drug stays the unit of analysis
              inside it), else the drugs. Seeded per split and block, vectorised. A drug without a value for a
              metric drops out of that metric's mean in every resample.
   --vs       paired A - B on the prompt rows both runs scored (so the same drugs). For exact@1 and core@1 also the
-             wins, losses and ties per drug and the two-sided sign-flip permutation p-value on the per-drug
-             differences, which is the decision statistic: all 2^n sign patterns when n <= 20 drugs are not tied,
+             wins, losses and ties per drug and the two-sided sign-flip permutation p-value, the decision statistic.
+             Related drugs repeat one outcome, so the flipped unit is the cluster: the drug differences are SUMMED
+             within each cluster_id (the numerator of the reported drug-level mean) and the cluster totals are flipped;
+             without cluster_id every drug is its own unit. All 2^n sign patterns when at most 20 units are not tied,
              else 100,000 seeded random flips. Splits are reported separately and never pooled.
-  bar        the constant-answer bar scores the Train reference most similar to the other Train references
-             against every prompt row the run scored (needs --data with a train split and rlexp.reward.score).
+  bar        the constant-answer bar scores the Train reference with the highest mean 2048-bit Morgan Tanimoto (bit
+             vectors, chem.tanimoto_bits; the scorer itself uses count vectors) to the other Train references against
+             every prompt row the run scored (needs --data with a train split and rlexp.reward.score).
 """
 import argparse
 import functools
+import itertools
 import json
 import os
 import sys
@@ -40,7 +45,8 @@ import numpy as np
 DATA_SPLITS = ("train", "val", "test_r", "test_t")        # <data dir>/<split>.jsonl
 SPLIT_ORDER = ("test_t", "test_r", "val", "train")        # report order
 REF_KEYS = ("ref_smiles", "ref_conn", "ref_scaffold")     # required in every data row
-REF_OPTIONAL = ("ref_inchikey",)                          # handed to the scorer when the data row has it
+REF_OPTIONAL = ("ref_inchikey", "ref_alt_smiles")         # handed to the scorer when the data row has them
+ROW_KEYS = ("cluster_id", "ref_alt_smiles")               # copied from the data row into each scored row when present
 SCORE_KEYS = ("closed", "answer", "valid", "tanimoto", "scaffold_match", "conn_match", "stereo_match", "reward")
 SCORED_KEYS = ("id", "group", "split", "sample_idx", "finish_reason", "n_tokens") + SCORE_KEYS
 SAMPLE_METRICS = ("exact@1", "core@1", "stereo_exact@1", "mean_tanimoto", "mean_reward", "valid_closed",
@@ -161,8 +167,9 @@ def _default_scorer():
 
 def score_samples(samples, data_rows, scorer=None):
     """Join samples to data rows by id and add scorer(text, ref) to each: closed, answer, valid, tanimoto,
-    scaffold_match, conn_match, stereo_match, reward. group, split and cluster_id (when the data has it) come
-    from the data row. Unknown ids raise InputError."""
+    scaffold_match, conn_match, stereo_match, reward. group, split, cluster_id and ref_alt_smiles (when the data
+    has them) come from the data row, and the scorer is also handed ref_alt_smiles and ref_inchikey. Unknown ids
+    raise InputError."""
     _check_rows(samples, ("id", "sample_idx", "text"), "samples")
     index = _index(data_rows)
     _known(samples, index, "samples")
@@ -174,8 +181,7 @@ def score_samples(samples, data_rows, scorer=None):
         miss = [k for k in SCORE_KEYS if k not in res]
         if miss:
             raise InputError(f"scorer result lacks {miss}")
-        out.append({**s, "group": d["group"], "split": d["split"],
-                    **({"cluster_id": d["cluster_id"]} if "cluster_id" in d else {}), **res})
+        out.append({**s, "group": d["group"], "split": d["split"], **{k: d[k] for k in ROW_KEYS if k in d}, **res})
     return out
 
 
@@ -188,19 +194,21 @@ def answer_samples(rows, answers, model):
 
 
 def best_constant(refs):
-    """(smiles, mean Tanimoto to the others) of the reference most similar to the other references.
-    refs: {group: ref_smiles}, one per drug; ties go to the first. Standardised like the scorer does."""
-    from rdkit import DataStructs
+    """(smiles, mean bit Tanimoto to the others) of the reference with the highest mean 2048-bit Morgan Tanimoto
+    (chem.tanimoto_bits) to the other references. Bit vectors on purpose: the scorer itself now uses count
+    vectors, so this is a simple Train-only rule, not the best constant under the reward. refs: {group: ref_smiles},
+    one per drug; ties go to the first. About 5 s for 240 references (all pairs through the public function)."""
     from rlexp import chem
     groups = list(refs)
     mols = [chem.standardize(refs[g]) for g in groups]
     if any(m is None for m in mols):
-        raise InputError(f"{sum(m is None for m in mols)} reference(s) do not parse")
+        raise InputError(f"{sum(m is None for m in mols)} reference(s) do not standardize")
     if len(mols) < 2:
         raise InputError("need at least 2 references to pick a central one")
-    fps = [chem._FP.GetFingerprint(m) for m in mols]    # bulk path: chem.tanimoto per pair takes ~10 s for 260 refs
-    S = np.array([DataStructs.BulkTanimotoSimilarity(f, fps) for f in fps])
-    mean = (S.sum(1) - np.diag(S)) / (len(fps) - 1)
+    S = np.zeros((len(mols), len(mols)))
+    for i, j in itertools.combinations(range(len(mols)), 2):
+        S[i, j] = S[j, i] = chem.tanimoto_bits(mols[i], mols[j])
+    mean = S.sum(1) / (len(mols) - 1)
     i = int(mean.argmax())
     return refs[groups[i]], float(mean[i])
 
@@ -226,8 +234,10 @@ def _conn_of(answer):
 
 def _maj(first):
     """1.0 if the plurality connectivity among these scored answers is the reference, else 0.0. An answer with
-    conn_match is a vote for the reference, another parseable answer votes for its own connectivity (so two
-    spellings of one wrong molecule add up), an unparseable one casts no vote, and a tie for first earns nothing."""
+    conn_match, or whose conn equals that of one of the row's ref_alt_smiles, votes for the reference (all spellings
+    of the reference add up); another parseable answer votes for its own connectivity (so two spellings of one wrong
+    molecule add up too); an unparseable answer casts no vote; a tie for first place earns nothing."""
+    alts = {c for c in map(_conn_of, first[0].get("ref_alt_smiles") or ()) if c}
     votes = Counter()
     for r in first:
         if r["conn_match"]:
@@ -235,7 +245,7 @@ def _maj(first):
         elif r["valid"] and r["answer"]:
             c = _conn_of(r["answer"])
             if c:
-                votes[c] += 1
+                votes[True if c in alts else c] += 1
     top = votes.most_common(2)
     return float(bool(top) and top[0][0] is True and (len(top) == 1 or top[0][1] > top[1][1]))
 
@@ -320,10 +330,11 @@ def _estimate(a, boot, rng, b=None):
 
 
 def sign_flip_p(d, rng, flips=FLIPS):
-    """Two-sided sign-flip permutation p-value for H0: each per-drug difference is as likely + as -. The statistic
-    is T = sum(d); tied drugs (|d| < TIE) never change it and are dropped. Up to EXACT_MAX non-tied drugs: every
-    one of the 2^n sign patterns, p = share with |T*| >= |T|. More: `flips` seeded random patterns with
-    p = (1 + #{|T*| >= |T|}) / (flips + 1), which is never 0. Returns (p, method, n non-tied)."""
+    """Two-sided sign-flip permutation p-value for H0: each unit's total difference is as likely + as -. d holds one
+    total per unit (a cluster, or a drug when there are no clusters). The statistic is T = sum(d); tied units
+    (|d| < TIE) never change it and are dropped. Up to EXACT_MAX non-tied units: every one of the 2^n sign patterns,
+    p = share with |T*| >= |T|. More: `flips` seeded random patterns with p = (1 + #{|T*| >= |T|}) / (flips + 1),
+    which is never 0. Returns (p, method, n non-tied units)."""
     d = d[np.abs(d) >= TIE]
     x, n = np.abs(d), len(d)
     if n == 0:
@@ -385,10 +396,13 @@ def _paired(ra, rb, boot, seed, split, cluster):
     flips = _rng(seed, split, 3)
     for m in TESTED:
         d = a["V"][:, METRICS.index(m)] - b["V"][:, METRICS.index(m)]
-        d = d[~np.isnan(d)]
-        p, method, n = sign_flip_p(d, flips)
+        ok = ~np.isnan(d)
+        d, clu = d[ok], a["clu"][ok]
+        # related drugs repeat one outcome: sum the drug differences inside each cluster and flip the totals as units
+        p, method, n = sign_flip_p(np.bincount(clu, weights=d, minlength=int(a["clu"].max()) + 1), flips)
         out[m].update(wins=int((d >= TIE).sum()), losses=int((d <= -TIE).sum()), ties=int((np.abs(d) < TIE).sum()),
-                      n_nontied=n, p_value=p, p_method=method)
+                      n_clusters=len(np.unique(clu)), n_nontied=n, p_unit="cluster" if cluster else "drug",
+                      p_value=p, p_method=method)
     return {"n_drugs": len(a["drugs"]), "n_rows": len(ids), "metrics": out}
 
 
@@ -399,13 +413,23 @@ def _by_split(rows):
     return out
 
 
-def _clusters(rows, index):
-    """group -> cluster_id, read from the scored rows or else the data rows; None if any drug lacks one."""
+def _fill(rows, index):
+    """Scored rows with cluster_id and ref_alt_smiles taken from the data row where the scored row lacks them."""
+    if index is None:
+        return rows
+    out = []
+    for r in rows:
+        d = index[r["id"]]
+        add = {k: d[k] for k in ROW_KEYS if k not in r and k in d}
+        out.append({**r, **add} if add else r)
+    return out
+
+
+def _clusters(rows):
+    """group -> cluster_id from the scored rows; None if any drug lacks one (then drugs are the units)."""
     cl = {}
     for r in rows:
         c = r.get("cluster_id")
-        if c is None and index is not None:
-            c = index[r["id"]].get("cluster_id")
         if c is None:
             return None
         if cl.setdefault(r["group"], c) != c:
@@ -415,8 +439,8 @@ def _clusters(rows, index):
 
 def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=None, names=("A", "B")):
     """Per-split drug-level metrics with bootstrap intervals; JSON-able dict (undefined numbers are None).
-    vs: a second run for paired A - B. data: data rows, enabling coverage, cluster ids for rows that lack them,
-    and the constant-answer bar."""
+    vs: a second run for paired A - B. data: data rows, enabling coverage, cluster ids and alternate references
+    for scored rows that lack them, and the constant-answer bar."""
     _check_rows(scored, SCORED_KEYS, "scored")
     if vs is not None:
         _check_rows(vs, SCORED_KEYS, "--vs")
@@ -425,6 +449,7 @@ def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=N
         _known(scored, index, "scored")
         if vs is not None:
             _known(vs, index, "--vs")
+    scored, vs = _fill(scored, index), (_fill(vs, index) if vs is not None else None)
     res = {"meta": {"a": names[0], "b": names[1] if vs is not None else None, "boot": boot, "seed": seed, "ci": 95},
            "notes": [], "splits": {}}
     by, byb = _by_split(scored), _by_split(vs or [])
@@ -443,7 +468,7 @@ def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=N
         if not rows:
             res["splits"][s] = {"n_drugs": 0, "n_rows": 0, "n_samples": 0}
             continue
-        cl = _clusters(rows, index)
+        cl = _clusters(rows)
         a = aggregate(rows, cluster=cl)
         out = res["splits"][s] = {"n_drugs": len(a["drugs"]), "n_rows": len(a["ids"]), "n_samples": a["n_samples"],
                                   "bootstrap": {"unit": "cluster" if cl else "drug", "n_units": int(a["clu"].max()) + 1},
@@ -457,7 +482,7 @@ def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=N
             (smiles, centrality), sc = bar
             mine = [r for r in data if r["id"] in a["ids"]]
             ab = aggregate(score_samples(answer_samples(mine, [smiles] * len(mine), "constant"), mine, sc), cluster=cl)
-            out["constant"] = {"smiles": smiles, "mean_tanimoto_to_train": centrality,
+            out["constant"] = {"smiles": smiles, "mean_bit_tanimoto_to_train": centrality,
                                "metrics": {m: e for m, e in _block(ab, boot, _rng(seed, s, 2)).items() if m in BAR}}
     return res
 
@@ -530,16 +555,23 @@ def format_report(res):
                 prow = lambda k, e: (f"  {_name(k):<16}{_v(e['a'], k):>9}{_v(e['b'], k):>9}{_v(e['diff'], k, True):>10}  "
                                      f"{_ci(e, k, True):<26}{e['n_drugs']:>5}{e['n_rows']:>6}   {_note(e)}")
                 L += _table(p["metrics"], prow)
-                L += ["", "  sign-flip permutation test on the per-drug differences (decision statistic; ties dropped)",
-                      f"  {'metric':<16}{'wins':>6}{'losses':>8}{'ties':>6}{'non-tied':>10}{'p (2-sided)':>13}   method"]
-                L += [f"  {k:<16}{e['wins']:>6}{e['losses']:>8}{e['ties']:>6}{e['n_nontied']:>10}{_p(e['p_value']):>13}   "
+                tested = {k: e for k, e in p["metrics"].items() if "p_value" in e}
+                unit = next(iter(tested.values()))["p_unit"]
+                L += ["", "  sign-flip permutation test, the decision statistic. "
+                      + ("The drug differences are summed within each cluster and the cluster totals flipped as units"
+                         if unit == "cluster" else "Rows carry no cluster_id, so the drug differences are flipped one by one")
+                      + "; ties dropped; wins, losses and ties count drugs.",
+                      f"  {'metric':<16}{'wins':>6}{'losses':>8}{'ties':>6}{'clusters' if unit == 'cluster' else 'drugs':>10}"
+                      f"{'non-tied':>10}{'p (2-sided)':>13}   method"]
+                L += [f"  {k:<16}{e['wins']:>6}{e['losses']:>8}{e['ties']:>6}{e['n_clusters']:>10}{e['n_nontied']:>10}"
+                      f"{_p(e['p_value']):>13}   "
                       + (f"exact, 2^{e['n_nontied']} sign patterns" if e["p_method"] == "exact"
                          else f"Monte Carlo, {FLIPS} flips, p = (1 + hits) / (flips + 1)")
-                      for k, e in p["metrics"].items() if "p_value" in e]
+                      for k, e in tested.items()]
         c = sp.get("constant")
         if c is not None:
-            L += ["", f"  constant-answer bar (Train reference with the highest mean Tanimoto to the other Train "
-                      f"references, {c['mean_tanimoto_to_train']:.3f}), same prompt rows"]
+            L += ["", f"  constant-answer bar (Train reference with the highest mean bit Tanimoto to the other Train "
+                      f"references, {c['mean_bit_tanimoto_to_train']:.3f}), same prompt rows"]
             L += [row(k, e) for k, e in c["metrics"].items()]
     L += [""] + [f"note: {n}" for n in res["notes"]]
     L += ["drugs = drugs with a value; rows = prompt rows used; skip = rows with fewer than "

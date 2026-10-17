@@ -243,6 +243,47 @@ def test_maj_at_8_skips_short_rows_and_weights_drugs_equally():
     assert (e["n_drugs"], e["n_rows"], e["skipped_rows"]) == (2, 3, 1)
 
 
+KETO, ENOL = "CC(=O)c1ccccc1", "C=C(O)c1ccccc1"       # acetophenone and its enol: different conn, same skeleton
+
+
+def alt_votes(answers, alts, group="d"):
+    return [dict(r, ref_alt_smiles=alts) for r in votes(answers, group)]
+
+
+def maj_alt(answers, alts):
+    return m(metrics.report(alt_votes(answers, alts), boot=20), metric="maj@8")["value"]
+
+
+def test_alternate_references_are_registry_spellings_with_their_own_strict_key():
+    from rlexp import chem
+    conn = lambda smiles: chem.conn(chem.standardize(smiles))
+    assert conn(KETO) != conn(ENOL) and chem.skeleton(chem.standardize(KETO)) == chem.skeleton(chem.standardize(ENOL))
+
+
+@pytest.mark.parametrize("answers,alts,want", [
+    ([ENOL] * 8, [ENOL], 1.0),                                   # every answer is the registered alternate
+    ([ENOL] * 8, [], 0.0),                                       # ... and without the registry entry it is another molecule
+    (["ref"] * 3 + [ENOL] * 3 + [IBU] * 2, [ENOL], 1.0),         # the two spellings add up: 6 against 2
+    (["ref"] * 3 + [ENOL] * 3 + [IBU] * 2, [], 0.0),             # unregistered: 3 against 3 is a tie
+    (["ref"] * 2 + [ENOL] + [IBU] * 5, [ENOL], 0.0),             # an alternate does not rescue a wrong plurality
+    (["ref"] * 2 + [ENOL] * 2 + [IBU] * 3 + ["bad"], [ENOL], 1.0),    # 4 against 3, one unparseable answer casts nothing
+    ([ENOL] * 3 + [IBU] * 3 + [NAP] * 2, [ENOL], 0.0),           # the alternate is 3 and ties with ibuprofen's 3
+    (["ref"] * 4 + [ENOL] * 4, ["not a smiles", ENOL], 1.0),     # an alternate that does not parse is skipped, others still work
+    ([KETO] * 8, [ENOL], 0.0),                                   # a spelling that is not registered stays another molecule
+])
+def test_maj_at_8_counts_alternate_spellings_of_the_reference(answers, alts, want):
+    assert maj_alt(answers, alts) == want
+
+
+def test_alternates_missing_from_the_scored_rows_come_from_the_data_rows():
+    rows = votes([ENOL] * 8)                                     # scored rows without ref_alt_smiles
+    data = [data_row("val", "d", 0, ref_alt_smiles=[ENOL])]
+    assert m(metrics.report(rows, boot=20, data=data), metric="maj@8")["value"] == 1.0
+    assert m(metrics.report(rows, boot=20), metric="maj@8")["value"] == 0.0           # nothing to learn them from
+    own = [dict(r, ref_alt_smiles=[]) for r in rows]                                   # the scored row's own list wins
+    assert m(metrics.report(own, boot=20, data=data), metric="maj@8")["value"] == 0.0
+
+
 # ----------------------------------------------------------------------------------------- intervals
 def test_bootstrap_coverage_of_a_known_proportion():
     hits, sims, p, D = 0, 200, 0.3, 60
@@ -500,6 +541,88 @@ def test_paired_sign_flip_is_seeded_through_report_and_uses_monte_carlo_for_many
     assert 1 / (metrics.FLIPS + 1) <= e["p_value"] < 3e-4 and abs(e["p_value"] - exact) < 1.5e-4
 
 
+# ------------------------------------------------------------------------- sign-flip over clusters
+def _runs(spec):
+    """spec: (group, cluster_id or None, label in A, label in B) per drug -> (A rows, B rows), one 8-sample row each."""
+    A, B = [], []
+    for g, c, la, lb in spec:
+        extra = {"cluster_id": c} if c is not None else {}
+        A += [dict(r, **extra) for r in _eight("val", g, 0, la)]
+        B += [dict(r, **extra) for r in _eight("val", g, 0, lb)]
+    return A, B
+
+
+def test_six_concordant_wins_inside_one_cluster_are_one_unit_not_six():
+    spec = [(f"w{i}", 7, "exact", "miss") for i in range(6)]
+    A, B = _runs(spec)
+    e = pm(metrics.report(A, vs=B, boot=100))
+    assert (e["wins"], e["losses"], e["ties"]) == (6, 0, 0)                    # wins, losses, ties stay per drug
+    assert (e["n_clusters"], e["n_nontied"], e["p_unit"], e["p_value"]) == (1, 1, "cluster", 1.0)     # one unit: no rejection
+    # the same six wins as six unrelated drugs (no cluster_id) do reject: the overstatement the cluster unit prevents
+    A0, B0 = _runs([(g, None, la, lb) for g, _, la, lb in spec])
+    f = pm(metrics.report(A0, vs=B0, boot=100))
+    assert (f["p_unit"], f["n_clusters"], f["n_nontied"], f["p_value"]) == ("drug", 6, 6, 2 / 2 ** 6)
+
+
+def test_five_wins_over_forty_three_singleton_clusters_still_gives_0_0625():
+    spec = [(f"d{d}", 1000 + d, "exact" if d < 5 or d % 2 else "miss", "miss" if d < 5 else "exact" if d % 2 else "miss")
+            for d in range(43)]
+    A, B = _runs(spec)
+    res = metrics.report(A, vs=B, boot=100)
+    for k in ("exact@1", "core@1"):
+        e = pm(res, metric=k)
+        assert (e["wins"], e["losses"], e["ties"], e["n_clusters"], e["n_nontied"]) == (5, 0, 38, 43, 5), k
+        assert (e["p_unit"], e["p_value"], e["p_method"]) == ("cluster", 0.0625, "exact"), k
+
+
+def test_cluster_totals_are_sums_of_the_drug_differences():
+    # totals (2, 1, -1): T = 2 and 6 of the 8 sign patterns reach |T*| >= 2, so p = 0.75.
+    # Cluster means (1, 1, -1) would give T = 1, every pattern reaches it, p = 1.0
+    A, B = _runs([("a1", 1, "exact", "miss"), ("a2", 1, "exact", "miss"), ("b", 2, "exact", "miss"), ("c", 3, "miss", "exact")])
+    e = pm(metrics.report(A, vs=B, boot=100))
+    assert (e["wins"], e["losses"], e["ties"], e["n_clusters"], e["n_nontied"]) == (3, 1, 0, 3, 3)
+    assert e["p_value"] == 0.75 == brute_p([2.0, 1.0, -1.0])
+
+
+def test_a_cluster_whose_drug_differences_cancel_is_a_tied_unit():
+    A, B = _runs([("a", 1, "exact", "miss"), ("b", 1, "miss", "exact"), ("c", 2, "exact", "miss")])
+    e = pm(metrics.report(A, vs=B, boot=100))
+    assert (e["wins"], e["losses"], e["ties"]) == (2, 1, 0)                    # drug level: nothing tied
+    assert (e["n_clusters"], e["n_nontied"], e["p_value"]) == (2, 1, 1.0)      # cluster 1 sums to 0 and carries no information
+
+
+def test_exact_enumeration_is_decided_by_the_number_of_clusters_not_drugs():
+    A, B = _runs([(f"d{i}", i // 3, "exact", "miss") for i in range(30)])      # 30 winning drugs in 10 clusters of 3
+    e = pm(metrics.report(A, vs=B, boot=100))
+    assert (e["wins"], e["n_clusters"], e["n_nontied"], e["p_method"], e["p_value"]) == (30, 10, 10, "exact", 2 / 2 ** 10)
+    A, B = _runs([(f"d{i}", None, "exact", "miss") for i in range(30)])        # without cluster_id: 30 units, Monte Carlo
+    f = pm(metrics.report(A, vs=B, boot=100))
+    assert (f["n_nontied"], f["p_method"], f["p_unit"]) == (30, "monte_carlo", "drug")
+
+
+def test_cluster_flipping_matches_brute_force_on_random_clusters_and_is_seeded():
+    rng = random.Random(4)
+    spec, totals = [], {}
+    for i in range(14):
+        c = rng.randrange(6)
+        la, lb = rng.choice([("exact", "miss"), ("miss", "exact"), ("exact", "exact")])
+        spec.append((f"d{i}", c, la, lb))
+        totals[c] = totals.get(c, 0.0) + (la == "exact") - (lb == "exact")
+    A, B = _runs(spec)
+    e = pm(metrics.report(A, vs=B, boot=50, seed=1))
+    assert e["p_value"] == pytest.approx(brute_p(list(totals.values())), abs=1e-12)
+    assert e == pm(metrics.report(A, vs=B, boot=50, seed=1))
+
+
+def test_report_text_names_the_unit_of_the_sign_flip_test():
+    A, B = _runs([(f"w{i}", 7, "exact", "miss") for i in range(6)])
+    text = metrics.format_report(metrics.report(A, vs=B, boot=50))
+    assert "summed within each cluster and the cluster totals flipped as units" in text and "clusters" in text
+    A, B = _runs([(f"w{i}", None, "exact", "miss") for i in range(6)])
+    text = metrics.format_report(metrics.report(A, vs=B, boot=50))
+    assert "flipped one by one" in text and "no cluster_id" in text
+
+
 # ------------------------------------------------------------------------------- joining and errors
 def test_score_samples_joins_refs_by_id_and_keeps_sample_fields():
     data = [data_row("val", "a", 0), data_row("val", "b", 0), data_row("test_t", "c", 0)]
@@ -513,18 +636,20 @@ def test_score_samples_joins_refs_by_id_and_keeps_sample_fields():
     assert [r["conn_match"] for r in metrics.score_samples(crossed, data, fake_scorer)] == [False] * 3
 
 
-def test_score_samples_passes_ref_inchikey_when_present_and_copies_cluster_id():
+def test_score_samples_passes_optional_refs_to_the_scorer_and_copies_cluster_and_alternates():
     seen = []
 
     def spy(text, ref):
         seen.append(dict(ref))
         return fake_scorer(text, ref)
-    data = [data_row("val", "a", 0, ref_inchikey="KEY-A", cluster_id=7), data_row("val", "b", 0)]
+    data = [data_row("val", "a", 0, ref_inchikey="KEY-A", cluster_id=7, ref_alt_smiles=[ENOL]), data_row("val", "b", 0)]
     smp = [{"id": r["id"], "sample_idx": 0, "text": "</think>\nx"} for r in data]
     out = metrics.score_samples(smp, data, spy)
-    assert set(seen[0]) == {"ref_smiles", "ref_conn", "ref_scaffold", "ref_inchikey"} and seen[0]["ref_inchikey"] == "KEY-A"
-    assert set(seen[1]) == {"ref_smiles", "ref_conn", "ref_scaffold"}               # optional key left out, not None
-    assert out[0]["cluster_id"] == 7 and "cluster_id" not in out[1]
+    assert set(seen[0]) == {"ref_smiles", "ref_conn", "ref_scaffold", "ref_inchikey", "ref_alt_smiles"}
+    assert seen[0]["ref_inchikey"] == "KEY-A" and seen[0]["ref_alt_smiles"] == [ENOL]    # the scorer gets the alternates
+    assert set(seen[1]) == {"ref_smiles", "ref_conn", "ref_scaffold"}               # optional keys left out, not None
+    assert out[0]["cluster_id"] == 7 and out[0]["ref_alt_smiles"] == [ENOL]          # and so do the scored rows
+    assert "cluster_id" not in out[1] and "ref_alt_smiles" not in out[1]
 
 
 def test_unknown_id_is_a_clear_error():
@@ -593,6 +718,7 @@ def test_coverage_and_constant_bar_use_train_refs_and_the_scored_rows_only():
     assert bar["metrics"]["exact@1"]["value"] == pytest.approx(0.5)       # v0 yes, v1 no; v2 not scored
     assert (bar["metrics"]["exact@1"]["n_drugs"], bar["metrics"]["exact@1"]["n_rows"]) == (2, 3)
     assert "PARTIAL" in metrics.format_report(res) and "constant-answer bar" in metrics.format_report(res)
+    assert "highest mean bit Tanimoto" in metrics.format_report(res) and 0 < bar["mean_bit_tanimoto_to_train"] < 1
 
 
 def test_bar_is_skipped_with_a_note_when_it_cannot_be_computed(monkeypatch):
@@ -617,7 +743,8 @@ def test_cli_score_then_report_roundtrip(tmp_path, monkeypatch, capsys):
     drugs = {"train": ["t0", "t1", "t2"], "val": ["v0", "v1", "v2"], "test_t": ["x0", "x1"]}
     ref = {g: SMILES[k] for k, g in enumerate(g for gs in drugs.values() for g in gs)}      # one reference per drug
     cluster = {"v0": 10, "v1": 10, "v2": 11, "x0": 12, "x1": 13}                           # v0 and v1 are one component
-    rows = {s: [data_row(s, g, i, ref[g]) | {"prompt": "P" * 50, "completion": "C" * 50, "cluster_id": cluster.get(g, 1)}
+    rows = {s: [data_row(s, g, i, ref[g]) | {"prompt": "P" * 50, "completion": "C" * 50, "cluster_id": cluster.get(g, 1),
+                                             "ref_alt_smiles": []}
                 for g in gs for i in range(2)] for s, gs in drugs.items()}
     for s, rs in rows.items():
         _write(data / f"{s}.jsonl", rs)
@@ -637,6 +764,7 @@ def test_cli_score_then_report_roundtrip(tmp_path, monkeypatch, capsys):
     got = [json.loads(line) for line in (tmp_path / "a.scored.jsonl").read_text().splitlines()]
     assert len(got) == 80 and set(metrics.SCORE_KEYS) <= set(got[0]) and got[0]["text"].startswith("t</think>")
     assert {r["group"]: r["cluster_id"] for r in got} == cluster                           # scored rows carry the cluster
+    assert all(r["ref_alt_smiles"] == [] for r in got)
     assert not list(tmp_path.glob("*.tmp"))
 
     out_json = tmp_path / "rep.json"
@@ -647,12 +775,13 @@ def test_cli_score_then_report_roundtrip(tmp_path, monkeypatch, capsys):
     assert list(res["splits"]) == ["test_t", "val"] and "split test_t   drugs 2 of 2   rows 4 of 4" in text
     e = res["splits"]["val"]["paired"]["metrics"]["exact@1"]
     assert e["diff"] == pytest.approx(5 / 8) and e["excludes_zero"] and res["splits"]["val"]["constant"]
-    assert (e["wins"], e["losses"], e["ties"], e["p_value"]) == (3, 0, 0, 0.25)             # 2 of 2^3 sign patterns
+    assert (e["wins"], e["losses"], e["ties"]) == (3, 0, 0)                                  # drugs
+    assert (e["n_clusters"], e["n_nontied"], e["p_unit"], e["p_value"]) == (2, 2, "cluster", 0.5)   # v0, v1 flip together
     assert res["splits"]["val"]["bootstrap"] == {"unit": "cluster", "n_units": 2}
     assert res["splits"]["val"]["metrics"]["exact@8"]["label"].startswith("oracle coverage")
     assert "paired A - B on 3 common drugs" in text and "*" in text and "n_tokens_p90" in text
     assert "bootstrap resamples 2 clusters of 3 drugs" in text and "oracle coverage (needs the answer" in text
-    assert "sign-flip permutation test" in text and "0.2500" in text
+    assert "sign-flip permutation test" in text and "0.5000" in text and "clusters" in text
     # a data directory that does not match the run is an error, not a silent partial report
     other = tmp_path / "other"
     other.mkdir()

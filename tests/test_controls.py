@@ -1,6 +1,8 @@
 """controls.py on a synthetic dataset and a recording fake scorer (one smoke test uses the real reward.score if present)."""
+import inspect
 import json
 import math
+import re
 
 import numpy as np
 import pytest
@@ -20,7 +22,7 @@ def prompt(user, system=SYSTEM):
 def row(split, group, i, user, smiles, system=SYSTEM):
     return {"id": f"{group}/{i}", "group": group, "task_type": "A", "split": split, "prompt": prompt(user, system),
             "ref_smiles": smiles, "ref_conn": f"conn-{group}", "ref_scaffold": f"scaf-{group}",
-            "ref_inchikey": f"key-{group}", "cluster_id": sum(map(ord, group)),
+            "ref_inchikey": f"key-{group}", "ref_alt_smiles": [], "cluster_id": sum(map(ord, group)),
             "approval_year": 2020, "n_prompt_tokens": 10, "n_completion_tokens": 20}
 
 
@@ -138,7 +140,7 @@ def test_one_answer_per_prompt_row_scored_through_the_same_path(tmp_path):
     rec = Recorder()
     out = controls.run(data, tmp_path / "runs", scorer=rec)
     ev = [r for s in ("val", "test_r", "test_t") for r in d[s]]
-    assert set(out) == {"control_copy_nearest", "control_constant"}
+    assert set(out) == {"control_copy_nearest", "control_constant", "control_constant_scaffold"}
     for name in out:
         samples = read(tmp_path / "runs" / name / "samples.jsonl")
         scored = read(tmp_path / "runs" / name / "scored.jsonl")
@@ -151,9 +153,11 @@ def test_one_answer_per_prompt_row_scored_through_the_same_path(tmp_path):
         assert [(s["group"], s["split"]) for s in samples] == [(r["group"], r["split"]) for r in ev]
         assert all(set(metrics.SCORE_KEYS) <= set(s) for s in scored)
         assert [s["cluster_id"] for s in scored] == [r["cluster_id"] for r in ev]      # so report() can resample clusters
+        assert all(s["ref_alt_smiles"] == [] for s in scored)
         assert meta["model"] == name and meta["n_samples"] == len(ev) and meta["train_drugs"] == 6
-    assert sorted(p.name for p in (tmp_path / "runs").iterdir()) == ["control_constant", "control_copy_nearest"]
-    assert len(rec.calls) == 2 * len(ev)
+    assert sorted(p.name for p in (tmp_path / "runs").iterdir()) == \
+        ["control_constant", "control_constant_scaffold", "control_copy_nearest"]
+    assert len(rec.calls) == 3 * len(ev)
     assert all(set(ref) == set(metrics.REF_KEYS + metrics.REF_OPTIONAL) for _, ref in rec.calls)   # never the prompt
     assert not list((tmp_path / "runs").rglob("*.tmp"))
 
@@ -173,18 +177,84 @@ def test_control_scored_files_feed_metrics_report(tmp_path):
     assert const["splits"]["test_t"]["metrics"]["exact@1"]["value"] == 0.0
 
 
-def test_constant_control_is_the_most_central_train_reference(tmp_path):
+def test_constant_control_is_the_most_central_train_reference_by_bit_tanimoto(tmp_path):
     d = dataset()
     refs = {r["group"]: r["ref_smiles"] for r in d["train"]}
     mols = {g: chem.standardize(s) for g, s in refs.items()}
-    centrality = {g: np.mean([chem.tanimoto(mols[g], mols[h]) for h in mols if h != g]) for g in mols}
-    best = max(centrality, key=centrality.get)                    # brute force, one pair at a time
+
+    def centrality(similarity):
+        return {g: np.mean([similarity(mols[g], mols[h]) for h in mols if h != g]) for g in mols}
+    bits, counts = centrality(chem.tanimoto_bits), centrality(chem.tanimoto)           # one pair at a time
+    best = max(bits, key=bits.get)
+    assert max(counts, key=counts.get) != best          # the count-vector winner differs here, so the test tells them apart
     controls.run(write_data(tmp_path / "data", d), tmp_path / "runs", scorer=Recorder())
     texts = {s["text"] for s in read(tmp_path / "runs" / "control_constant" / "samples.jsonl")}
     assert texts == {"</think>\n" + refs[best]}
     meta = json.loads((tmp_path / "runs" / "control_constant" / "meta.json").read_text())
-    assert meta["constant_smiles"] == refs[best] and meta["mean_tanimoto_to_train"] == pytest.approx(centrality[best])
-    assert metrics.best_constant(refs) == (refs[best], pytest.approx(centrality[best]))
+    assert meta["constant_smiles"] == refs[best] and meta["mean_bit_tanimoto_to_train"] == pytest.approx(bits[best])
+    assert metrics.best_constant(refs) == (refs[best], pytest.approx(bits[best]))
+    flat = lambda doc: " ".join(doc.split())            # docstrings wrap lines
+    for doc in (controls.__doc__, metrics.best_constant.__doc__):
+        assert "bit Tanimoto" in flat(doc) and "count vectors" in flat(doc)      # says which Tanimoto picks it
+
+
+def test_metrics_and_controls_use_only_the_public_chem_functions():
+    for module in (metrics, controls):
+        assert not re.search(r"\bchem\._", inspect.getsource(module)), module.__name__
+
+
+# ------------------------------------------------------------------------------- constant scaffold
+def test_scaffold_constant_picks_the_shortest_reference_of_the_most_common_ring_scaffold():
+    benzene = ["CC(C)Cc1ccc(cc1)C(C)C(=O)O", "CC(=O)Oc1ccccc1C(=O)O", "CC(=O)Nc1ccc(O)cc1"]     # three drugs, scaffold c1ccccc1
+    refs = {"naproxen": SMILES[1], "ketoprofen": SMILES[2], "caffeine": SMILES[3]}
+    refs.update({f"b{i}": s for i, s in enumerate(benzene)})
+    smiles, scaffold, n = controls.scaffold_constant(refs)
+    assert (smiles, scaffold, n) == ("CC(=O)Nc1ccc(O)cc1", "c1ccccc1", 3)              # paracetamol is the shortest of the three
+    # drugs are counted once, however many prompt rows they have: the run uses {group: ref}, so a repeat cannot add a vote
+    assert controls.scaffold_constant({**refs, "b0": benzene[0]})[2] == 3
+
+
+def test_scaffold_constant_ignores_acyclic_references_and_breaks_ties_by_first_seen():
+    acyclic = {f"a{i}": "CCCCCCCC" + "C" * i + "O" for i in range(5)}                 # five drugs share the empty scaffold
+    ring = {"p": "c1ccccc1CC", "q": "Cc1ccccc1", "r": "C1CCCCC1CC", "s": "CC1CCCCC1"}   # 2 + 2: benzene first, cyclohexane second
+    smiles, scaffold, n = controls.scaffold_constant({**acyclic, **ring})
+    assert (scaffold, n) == ("c1ccccc1", 2)                       # acyclic never wins, the first scaffold wins a tie
+    assert smiles == "Cc1ccccc1" and len(smiles) < len("c1ccccc1CC")      # the shorter of the two benzene references
+    assert controls.scaffold_constant({**ring, "p2": "c1ccccc1CC"})[0] == "Cc1ccccc1"   # equal lengths: first seen
+    equal = controls.scaffold_constant({"x": "CCc1ccccc1", "y": "CCc1ccccc1".replace("CC", "Cl", 1)[:0] + "OCc1ccccc1"})
+    assert equal[0] == "CCc1ccccc1"                                                     # same length, the first in file order
+
+
+def test_scaffold_constant_errors_are_clear():
+    with pytest.raises(metrics.InputError, match="no Train reference has a ring scaffold"):
+        controls.scaffold_constant({"a": "CCCCCCCCO", "b": "CCCCCCCCCO"})
+    with pytest.raises(metrics.InputError, match="1 reference"):
+        controls.scaffold_constant({"a": "CCCCCCCCO", "b": "not a smiles"})
+
+
+def test_constant_scaffold_control_writes_the_same_layout_and_one_answer_per_row(tmp_path):
+    d = dataset()
+    controls.run(write_data(tmp_path / "data", d), tmp_path / "runs", scorer=Recorder())
+    ev = [r for s in ("val", "test_r", "test_t") for r in d[s]]
+    base = tmp_path / "runs" / "control_constant_scaffold"
+    samples, scored = read(base / "samples.jsonl"), read(base / "scored.jsonl")
+    meta = json.loads((base / "meta.json").read_text())
+    assert [s["id"] for s in samples] == [r["id"] for r in ev] == [s["id"] for s in scored]
+    assert {s["text"] for s in samples} == {"</think>\n" + SMILES[5]}      # paracetamol: shortest of the 3 benzene drugs
+    assert all((s["model"], s["sample_idx"], s["finish_reason"]) == ("control_constant_scaffold", 0, "stop") for s in samples)
+    assert all(set(metrics.SCORE_KEYS) <= set(s) for s in scored)
+    assert (meta["model"], meta["constant_smiles"], meta["scaffold"], meta["scaffold_drugs"], meta["scaffold_share"]) == \
+        ("control_constant_scaffold", SMILES[5], "c1ccccc1", 3, 0.5)                    # 3 of the 6 Train drugs
+    assert meta["n_samples"] == len(ev) and meta["train_drugs"] == 6 and not list(base.glob("*.tmp"))
+
+
+def test_constant_scaffold_run_fails_cleanly_when_train_has_no_ring(tmp_path):
+    d = dataset()
+    for i, r in enumerate(d["train"]):
+        r["ref_smiles"] = "CCCCCCCC" + "C" * (i // 2) + "O"                              # six distinct acyclic references
+    with pytest.raises(metrics.InputError, match="ring scaffold"):
+        controls.run(write_data(tmp_path / "data", d), tmp_path / "runs", scorer=Recorder())
+    assert not (tmp_path / "runs").exists()                                              # nothing half-written
 
 
 def test_missing_or_malformed_inputs_are_clear_errors(tmp_path):
@@ -203,7 +273,8 @@ def test_cli_prints_counts_only(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(metrics, "_default_scorer", lambda: Recorder())
     controls.main(["--data", str(write_data(tmp_path / "data", dataset())), "--out", str(tmp_path / "runs")])
     out = capsys.readouterr().out
-    assert "control_copy_nearest: 8 samples" in out and "control_constant: 8 samples" in out and "</think>" not in out
+    assert all(f"{n}: 8 samples" in out for n in ("control_copy_nearest", "control_constant", "control_constant_scaffold"))
+    assert "</think>" not in out
     assert (tmp_path / "runs" / "control_constant" / "scored.jsonl").exists()
 
 
@@ -217,6 +288,12 @@ def test_controls_scored_by_the_real_reward_if_present(tmp_path):
             mol = chem.standardize(r["ref_smiles"])
             r["ref_conn"], r["ref_scaffold"] = chem.conn(mol), chem.scaffold(mol)
     controls.run(write_data(tmp_path / "data", d), tmp_path / "runs")
-    for name in ("control_copy_nearest", "control_constant"):
+    for name in ("control_copy_nearest", "control_constant", "control_constant_scaffold"):
         scored = read(tmp_path / "runs" / name / "scored.jsonl")
         assert len(scored) == 8 and all(s["closed"] and s["valid"] and s["answer"] for s in scored), name
+    # scaffold control: paracetamol (benzene scaffold) is a core hit for exactly the eval drugs with a benzene scaffold
+    scored = read(tmp_path / "runs" / "control_constant_scaffold" / "scored.jsonl")
+    eval_refs = {r["id"]: r["ref_smiles"] for s in ("val", "test_r", "test_t") for r in d[s]}
+    benzene = {i for i, smi in eval_refs.items() if chem.scaffold(chem.standardize(smi)) == "c1ccccc1"}
+    assert benzene and benzene != set(eval_refs)                   # the fixture has both kinds of eval drug
+    assert {s["id"] for s in scored if s["scaffold_match"]} == benzene and not any(s["conn_match"] for s in scored)

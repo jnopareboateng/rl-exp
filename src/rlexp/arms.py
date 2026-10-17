@@ -6,7 +6,7 @@
 
   A1  trace_sft        the reference trace cut right after the final answer (a description after it on its line goes too)
   A2  answer_only_sft  an empty think block, then the canonical reference SMILES
-  A3  rft_dataset      Train rollouts that reached conn_match; rft_report counts drugs covered and drugs without a hit
+  A3  rft_dataset      Train rollouts that reach conn_match when re-scored now; rft_report counts drugs covered and not
   A4  nearest_train + icl_prompt   the 3 nearest Train prompts as worked examples inside the user turn
 Prompts end with '<think>\\n' and completions end with '<|im_end|>' (contracts.md); SFT rows are {id, prompt, completion}.
 """
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from rlexp import chem
+from rlexp import chem, reward
 
 END, THINK, USER = "<|im_end|>", "</think>", "<|im_start|>user\n"
 ICL_HEADER = "Worked examples from similar profiles (each followed by its known answer):"
@@ -164,18 +164,39 @@ def nearest_train(query_rows, train_rows, k=3):
 
 
 # ---------------------------------------------------------------- A3
-def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True):
+def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, stats=None):
     """A3 rows {id, prompt, completion} from scored samples (contracts.md "Sampling and scoring products").
-    Kept: conn_match, finish_reason == 'stop', closed (unless require_closed is False) and a prompt row in data_rows
-    (so passing the Train rows drops samples of other splits). Per drug at most max_per_drug: preference is fewer
-    n_tokens, then lower sample_idx, then id; the best sample of each prompt row comes first, the rest fill.
-    completion = text + '<|im_end|>' unless it ends with it. A nothink sample's text starts '</think>' so the
-    sequence the model saw ('<think>\\n\\n</think>\\n\\n') is restored with a leading newline."""
+    Success is decided here, never by the stored conn_match/closed (they go stale when a reference or the scorer
+    changes): each sample with finish_reason == 'stop' whose prompt row is in data_rows is re-scored with
+    reward.score(text, that row) and kept if the fresh result has conn_match and closed (closed is implied by
+    conn_match today; require_closed=False drops that test). Passing the Train rows drops samples of other splits.
+    Per drug at most max_per_drug: preference is fewer n_tokens, then lower sample_idx, then id; the best sample of
+    each prompt row comes first, the rest fill. completion = text + '<|im_end|>' unless it ends with it. A nothink
+    sample's text starts '</think>', so the sequence the model saw ('<think>\\n\\n</think>\\n\\n') is restored with a
+    leading newline. A reference that does not standardize raises ValueError. If stats is a dict it receives
+    rescored, kept (fresh successes before the per-drug cap), stale_kept (the stored flags said success, the fresh
+    score says no) and stale_dropped (the reverse)."""
     rows = {r["id"]: r for r in data_rows}
     by_drug = defaultdict(list)
+    n = dict.fromkeys(("rescored", "kept", "stale_kept", "stale_dropped"), 0)
     for s in scored_rows:
-        if s["id"] in rows and s["conn_match"] and (s["closed"] or not require_closed) and s["finish_reason"] == "stop":
-            by_drug[rows[s["id"]]["group"]].append(s)
+        row = rows.get(s["id"])
+        if row is None or s["finish_reason"] != "stop":
+            continue
+        try:
+            fresh = reward.score(s["text"], row)
+        except ValueError as e:
+            raise ValueError(f"row {s['id'][:60]}: {e}") from None
+        ok = bool(fresh["conn_match"] and (fresh["closed"] or not require_closed))
+        was = bool(s["conn_match"] and (s["closed"] or not require_closed))
+        n["rescored"] += 1
+        n["kept"] += ok
+        n["stale_kept"] += was and not ok
+        n["stale_dropped"] += ok and not was
+        if ok:
+            by_drug[row["group"]].append(s)
+    if stats is not None:
+        stats.update(n)
     out = []
     for group in sorted(by_drug):
         ranked = sorted(by_drug[group], key=lambda s: (s["n_tokens"], s["sample_idx"], s["id"]))
@@ -251,12 +272,14 @@ def build(data_dir, out_dir):
 def rft(scored_path, data_dir, out_path, max_per_drug=2):
     """Write the A3 file from a scored.jsonl of Train rollouts and print the coverage report."""
     train = _read(Path(data_dir) / "train.jsonl")
-    selected = rft_dataset(_read(scored_path), train, max_per_drug=max_per_drug)
+    stats = {}
+    selected = rft_dataset(_read(scored_path), train, max_per_drug=max_per_drug, stats=stats)
     _write(out_path, selected, lines=True)
     rep = rft_report(selected, train)
     print(f"{Path(out_path).name}: {rep['examples']} examples | drugs covered {rep['drugs_covered']} of {rep['drugs_total']}, "
-          f"{rep['drugs_without_success']} Train drugs without a successful sample | "
-          f"completion chars {_chars([a['completion'] for a in selected])}")
+          f"{rep['drugs_without_success']} Train drugs without a successful sample | rescored {stats['rescored']} samples, "
+          f"{stats['kept']} succeed now; the stored flags would have wrongly kept {stats['stale_kept']} and wrongly dropped "
+          f"{stats['stale_dropped']} | completion chars {_chars([a['completion'] for a in selected])}")
 
 
 def main(argv=None):

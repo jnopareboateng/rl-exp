@@ -3,12 +3,17 @@
 
   python -m rlexp.controls --data data/processed --out runs
 
-Writes runs/control_copy_nearest/ and runs/control_constant/ (samples.jsonl, scored.jsonl, meta.json), one answer per
-prompt row of val, test_r and test_t, as text '</think>\\n' + smiles, then scores them with metrics.score_samples.
-  control_copy_nearest  TF-IDF cosine between the user part of a prompt and the user part of every Train prompt;
-                        the answer is the nearest Train row's ref_smiles, copied. An answer-copying control, not
-                        retrieval-augmented prompting. Train rows are the only copy targets.
-  control_constant      the Train reference with the highest mean Tanimoto to the other Train references.
+Writes runs/control_copy_nearest/, runs/control_constant/ and runs/control_constant_scaffold/ (samples.jsonl,
+scored.jsonl, meta.json), one answer per prompt row of val, test_r and test_t, as text '</think>\\n' + smiles, then
+scores them with metrics.score_samples.
+  control_copy_nearest       TF-IDF cosine between the user part of a prompt and the user part of every Train prompt;
+                             the answer is the nearest Train row's ref_smiles, copied. An answer-copying control, not
+                             retrieval-augmented prompting. Train rows are the only copy targets.
+  control_constant           the Train reference with the highest mean bit Tanimoto to the other Train references
+                             (2048-bit Morgan vectors, chem.tanimoto_bits; the scorer itself now uses count vectors).
+  control_constant_scaffold  the shortest Train reference among those whose non-empty Murcko scaffold is the most
+                             common among the Train references (each drug counted once): a do-nothing bar for core@1.
+Ties go to the first in Train file order.
 """
 import argparse
 import re
@@ -20,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import rdkit
 
-from rlexp import metrics
+from rlexp import chem, metrics
 
 CONTROL_SPLITS = ("val", "test_r", "test_t")
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -60,6 +65,23 @@ def nearest(corpus, queries):
     return S.argmax(axis=1), S.max(axis=1)
 
 
+def scaffold_constant(refs):
+    """(smiles, scaffold, number of drugs with it): the shortest reference among those whose non-empty Murcko scaffold
+    is the most common among the references. refs: {group: ref_smiles}, one per drug; ties go to the first."""
+    by_scaffold, bad = {}, 0
+    for smiles in refs.values():
+        mol = chem.standardize(smiles)
+        bad += mol is None
+        if mol is not None and (scaf := chem.scaffold(mol)):
+            by_scaffold.setdefault(scaf, []).append(smiles)
+    if bad:
+        raise metrics.InputError(f"{bad} reference(s) do not standardize")
+    if not by_scaffold:
+        raise metrics.InputError("no Train reference has a ring scaffold")
+    scaf = max(by_scaffold, key=lambda k: len(by_scaffold[k]))      # max keeps the first of equals
+    return min(by_scaffold[scaf], key=len), scaf, len(by_scaffold[scaf])
+
+
 def _user(row):
     try:
         return user_part(row["prompt"])
@@ -77,14 +99,19 @@ def run(data_dir, out_dir, scorer=None):
         raise metrics.InputError(f"no rows for split(s) {empty} under {data_dir}")
     train, ev = by["train"], [r for s in CONTROL_SPLITS for r in by[s]]
     idx, cos = nearest([_user(r) for r in train], [_user(r) for r in ev])
-    smiles, centrality = metrics.best_constant({r["group"]: r["ref_smiles"] for r in train})
+    refs = {r["group"]: r["ref_smiles"] for r in train}
+    smiles, centrality = metrics.best_constant(refs)
+    scaf_smiles, scaf, scaf_drugs = scaffold_constant(refs)
     common = {"train_rows": len(train), "train_drugs": len({r["group"] for r in train}),
               "rows_by_split": {s: len(by[s]) for s in CONTROL_SPLITS}, "command": " ".join(sys.argv),
               "numpy": np.__version__, "rdkit": rdkit.__version__}
     controls = {
         "control_copy_nearest": ([train[i]["ref_smiles"] for i in idx],
                               {"mean_cosine": float(cos.mean()), "zero_cosine_rows": int((cos == 0).sum())}),
-        "control_constant": ([smiles] * len(ev), {"constant_smiles": smiles, "mean_tanimoto_to_train": centrality}),
+        "control_constant": ([smiles] * len(ev), {"constant_smiles": smiles, "mean_bit_tanimoto_to_train": centrality}),
+        "control_constant_scaffold": ([scaf_smiles] * len(ev), {"constant_smiles": scaf_smiles, "scaffold": scaf,
+                                                                  "scaffold_drugs": scaf_drugs,
+                                                                  "scaffold_share": scaf_drugs / len(refs)}),
     }
     out = {}
     for name, (answers, extra) in controls.items():

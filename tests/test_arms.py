@@ -299,13 +299,20 @@ def test_icl_pipeline_never_shows_the_query_cluster():
 
 
 # ---------------------------------------------------------------- A3
+IBU_ALT = "OC(=O)C(C)c1ccc(CC(C)C)cc1"                    # ibuprofen written differently
+REFS = {"d0": IBUPROFEN, "d1": ASPIRIN, "d2": PARACETAMOL, "d3": CAFFEINE}
+
+
 def data_rows():
-    return [row("d0/a", group="d0"), row("d0/b", group="d0"), row("d1/a", group="d1"), row("d2/a", group="d2"), row("d3/a", group="d3")]
+    return [row(f"{g}/{v}", smiles=REFS[g], group=g) for g, v in (("d0", "a"), ("d0", "b"), ("d1", "a"), ("d2", "a"), ("d3", "a"))]
 
 
-def sample(rid, idx, n, text=None, **kw):
-    s = {"id": rid, "group": rid.split("/")[0], "split": "train", "sample_idx": idx, "text": text or f"T-{rid}-{idx}</think>\n\nANS",
-         "finish_reason": "stop", "n_tokens": n, "closed": True, "conn_match": True, "mode": "think"}
+def sample(rid, idx, n, ok=True, answer=None, **kw):
+    """A scored sample. Its text answers the drug's reference (ok) or another molecule, and the stored flags agree with
+    the text unless a keyword overrides them (a stale scored.jsonl)."""
+    answer = answer or (REFS[rid.split("/")[0]] if ok else NAPROXEN)
+    s = {"id": rid, "group": rid.split("/")[0], "split": "train", "sample_idx": idx, "text": f"T-{rid}-{idx}</think>\n\n{answer}",
+         "finish_reason": "stop", "n_tokens": n, "closed": True, "conn_match": ok, "mode": "think"}
     return {**s, **kw}
 
 
@@ -314,11 +321,57 @@ def picked(out):
 
 
 def test_rft_keeps_only_closed_conn_match_stop_samples():
-    scored = [sample("d0/a", 0, 10, conn_match=False), sample("d0/a", 1, 11, closed=False), sample("d0/a", 2, 12, finish_reason="length"),
-              sample("d0/a", 3, 13), sample("d2/a", 0, 10, conn_match=False), sample("d2/a", 1, 10, finish_reason="length")]
-    out = arms.rft_dataset(scored, data_rows())
-    assert picked(out) == ["d0/a-3"]
-    assert picked(arms.rft_dataset(scored, data_rows(), require_closed=False)) == ["d0/a-1", "d0/a-3"]
+    scored = [sample("d0/a", 0, 10, ok=False), sample("d0/a", 1, 11, text="T-d0/a-1 never closes " + IBUPROFEN, conn_match=False, closed=False),
+              sample("d0/a", 2, 12, finish_reason="length"), sample("d0/a", 3, 13), sample("d0/a", 4, 14, answer=IBU_ALT),
+              sample("d2/a", 0, 10, ok=False), sample("d2/a", 1, 10, finish_reason="length")]
+    assert picked(arms.rft_dataset(scored, data_rows())) == ["d0/a-3", "d0/a-4"]       # a different spelling of the molecule counts
+
+
+def test_rft_require_closed_follows_the_fresh_closed_flag(monkeypatch):
+    monkeypatch.setattr(arms.reward, "score", lambda text, ref: {"conn_match": True, "closed": False})
+    scored = [sample("d0/a", 0, 10)]
+    assert arms.rft_dataset(scored, data_rows()) == []
+    assert picked(arms.rft_dataset(scored, data_rows(), require_closed=False)) == ["d0/a-0"]
+
+
+def test_rft_scores_each_stop_finished_sample_against_its_own_row(monkeypatch):
+    seen = []
+    monkeypatch.setattr(arms.reward, "score", lambda text, ref: seen.append((text, ref["id"])) or {"conn_match": True, "closed": True})
+    scored = [sample("d0/b", 0, 10), sample("d1/a", 0, 10, finish_reason="length"), sample("zz/a", 0, 10, answer=ASPIRIN)]
+    arms.rft_dataset(scored, data_rows())
+    assert seen == [(f"T-d0/b-0</think>\n\n{IBUPROFEN}", "d0/b")]          # no scoring for a truncated sample or an unknown row
+
+
+def test_rft_drops_a_sample_whose_reference_changed_after_scoring():
+    scored = [sample("d1/a", 0, 10)]                                          # scored while d1's reference was aspirin
+    rows = data_rows()
+    assert picked(arms.rft_dataset(scored, rows)) == ["d1/a-0"]
+    rows[2] = {**rows[2], "ref_smiles": PARACETAMOL}                          # the reference was corrected since
+    stats = {}
+    assert arms.rft_dataset(scored, rows, stats=stats) == []
+    assert stats == {"rescored": 1, "kept": 0, "stale_kept": 1, "stale_dropped": 0}
+
+
+def test_rft_rescoring_overrides_every_kind_of_stale_flag():
+    scored = [sample("d0/a", 0, 10, answer=ASPIRIN),                                          # stored success for an old reference
+              sample("d0/a", 1, 11, conn_match=False),                                        # stored failure, answers the current one
+              sample("d0/a", 2, 12),                                                          # consistent success
+              sample("d0/b", 0, 13, answer=NAPROXEN),                                         # stored success, wrong molecule
+              sample("d0/b", 1, 14, text="T-d0/b-1 no think " + IBUPROFEN),                   # stored closed and conn_match, no </think>
+              sample("d0/b", 2, 15, closed=False),                                            # stored not closed, the text closes and answers
+              sample("d1/a", 0, 16, finish_reason="length"),                                  # correct but truncated: never a candidate
+              sample("d1/a", 1, 17, ok=False)]                                                # consistent failure
+    stored = [s for s in scored if s["conn_match"] and s["closed"] and s["finish_reason"] == "stop"]
+    assert len(stored) == 4                                                                   # what the stored flags alone would keep
+    stats = {}
+    out = arms.rft_dataset(scored, data_rows(), max_per_drug=9, stats=stats)
+    assert picked(out) == ["d0/a-1", "d0/a-2", "d0/b-2"]
+    assert stats == {"rescored": 7, "kept": 3, "stale_kept": 3, "stale_dropped": 2}
+
+
+def test_rft_raises_with_the_row_id_on_a_reference_that_does_not_standardize():
+    with pytest.raises(ValueError, match="d9/a"):
+        arms.rft_dataset([sample("d9/a", 0, 10, answer=ASPIRIN)], [row("d9/a", smiles="not a smiles", group="d9")])
 
 
 def test_rft_max_per_drug_prefers_short_samples_spread_over_prompt_rows():
@@ -339,18 +392,18 @@ def test_rft_ties_go_to_the_lowest_sample_idx_then_id():
 
 def test_rft_rows_and_completion_end_token():
     rows = data_rows()
-    scored = [sample("d0/a", 0, 10, text="why</think>\n\nANS"), sample("d1/a", 0, 10, text="why</think>\n\nANS<|im_end|>")]
+    scored = [sample("d0/a", 0, 10, text=f"why</think>\n\n{IBUPROFEN}"), sample("d1/a", 0, 10, text=f"why</think>\n\n{ASPIRIN}<|im_end|>")]
     out = arms.rft_dataset(scored, rows)
-    assert [o["completion"] for o in out] == ["why</think>\n\nANS<|im_end|>"] * 2
+    assert [o["completion"] for o in out] == [f"why</think>\n\n{IBUPROFEN}<|im_end|>", f"why</think>\n\n{ASPIRIN}<|im_end|>"]
     assert [(o["id"], o["prompt"]) for o in out] == [("d0/a", rows[0]["prompt"]), ("d1/a", rows[2]["prompt"])]
     assert all(set(o) == {"id", "prompt", "completion"} for o in out)
-    nothink = arms.rft_dataset([sample("d0/a", 0, 10, text="</think>\n\nANS", mode="nothink")], rows)[0]
-    assert nothink["completion"] == "\n</think>\n\nANS<|im_end|>"                  # same layout as the A2 completion
+    nothink = arms.rft_dataset([sample("d0/a", 0, 10, text=f"</think>\n\n{IBUPROFEN}", mode="nothink")], rows)[0]
+    assert nothink["completion"] == f"\n</think>\n\n{IBUPROFEN}<|im_end|>"        # same layout as the A2 completion
 
 
 def test_rft_ignores_samples_of_rows_outside_the_data_and_reports_coverage():
     rows = data_rows()
-    scored = [sample("d0/a", 0, 10), sample("d1/a", 0, 10, conn_match=False), sample("d3/a", 0, 10), sample("val9/a", 0, 10)]
+    scored = [sample("d0/a", 0, 10), sample("d1/a", 0, 10, ok=False), sample("d3/a", 0, 10), sample("val9/a", 0, 10, answer=IBUPROFEN)]
     out = arms.rft_dataset(scored, rows)
     assert picked(out) == ["d0/a-0", "d3/a-0"]                                     # the val9 sample has no Train row
     assert arms.rft_report(out, rows) == {"examples": 2, "drugs_covered": 2, "drugs_total": 4, "drugs_without_success": 2}
@@ -403,12 +456,17 @@ def test_cli_build_writes_the_arm_files_and_prints_only_counts(tmp_path, capsys)
 
 def test_cli_rft_writes_the_file_and_reports_coverage(tmp_path, capsys):
     data = write_data(tmp_path / "data")
-    scored = [sample("t0/0", 0, 10), sample("t1/0", 0, 10, conn_match=False), sample("t2/0", 0, 10), sample("v0/0", 0, 10)]
+    ref = {r["id"]: r["ref_smiles"] for r in data["train"] + data["val"]}
+    scored = [sample("t0/0", 0, 10, answer=ref["t0/0"]), sample("t1/0", 0, 10, answer=NAPROXEN, conn_match=False),
+              sample("t2/0", 0, 10, answer=ref["t2/0"]), sample("t3/0", 0, 10, answer=NAPROXEN),   # t3: stored success, wrong now
+              sample("v0/0", 0, 10, answer=ref["v0/0"])]                                          # a val sample: not a Train row
     (tmp_path / "scored.jsonl").write_text("".join(json.dumps(s) + "\n" for s in scored))
     out = tmp_path / "a3.jsonl"
     arms.main(["rft", "--scored", str(tmp_path / "scored.jsonl"), "--data", str(tmp_path / "data"), "--out", str(out)])
     assert [o["id"] for o in jsonl(out)] == ["t0/0", "t2/0"]
-    assert "2 examples | drugs covered 2 of 6, 4 Train drugs without a successful sample" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "2 examples | drugs covered 2 of 6, 4 Train drugs without a successful sample" in printed
+    assert "rescored 4 samples, 2 succeed now; the stored flags would have wrongly kept 1 and wrongly dropped 0" in printed
 
 
 def test_cli_fails_cleanly_on_bad_input(tmp_path):
