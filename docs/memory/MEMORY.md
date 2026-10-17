@@ -15,11 +15,12 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — In flight: repo restructured; workers finishing reward v2 and curated data; no GPU run or result yet
+- [status-main](status-main.md) — In flight: A2/baselines measured on Colab; RL pack and SFT fixes under review; prereg-v1 not tagged
 
 ## Decisions
 - [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers
 - [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint (core@1), one confirmatory contrast, sign-flip test, prereg tag
+- [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — No synthetic profiles for more training drugs: class facts predict structure like a constant
 - [decision-reward-v2](decision-reward-v2.md) — Reward: 1.0 on connectivity match, else 0.05+0.6*Tanimoto+0.3*scaffold match; no similarity floor
 - [decision-split-design](decision-split-design.md) — Splits by components (Tanimoto>=0.4 or same scaffold); Test-T = approved 2025-26, a temporal cohort
 - [decision-task-framing](decision-task-framing.md) — SFT answers equal the real approved drug (98-99%): task is structure recovery, scored exactly
@@ -28,6 +29,8 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [gotcha-agent-restarts](gotcha-agent-restarts.md) — A session restart kills background agents and wipes scratch; workers must save after every item
 - [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures and cannot read SMILES under 8 characters
 - [gotcha-base-model-verbosity](gotcha-base-model-verbosity.md) — Qwen3.5-4B rambles under the dataset's xhigh prompt (0% valid); a direct-answer prompt works
+- [gotcha-colab-mcp-hang](gotcha-colab-mcp-hang.md) — A dropped Colab tab hangs MCP calls for 30 min; poll in short calls and reconnect with authuser=1
+- [gotcha-core-endpoint-low-power](gotcha-core-endpoint-low-power.md) — core@1 is near 0 for every arm at 4B-27B; the primary endpoint cannot separate arms yet
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
 
 ## Environment
