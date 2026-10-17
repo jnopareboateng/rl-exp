@@ -22,6 +22,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint (core@1), one confirmatory contrast, sign-flip test, prereg tag
 - [decision-endpoint-fv-tanimoto](decision-endpoint-fv-tanimoto.md) — Confirmatory endpoint is fv_tanimoto: Tanimoto of the first valid answer of 8; lift is a diagnostic
 - [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — Synthetic profiles for more training drugs are deprioritised: class facts add little over a constant
+- [decision-review-policy](decision-review-policy.md) — Reviews are same-vendor now; reviewers list GPU checks, the lead runs them on Colab
 - [decision-reward-v2](decision-reward-v2.md) — Reward: 1.0 on connectivity match, else 0.05+0.6*Tanimoto+0.3*scaffold match; no similarity floor
 - [decision-split-design](decision-split-design.md) — Splits by components (Tanimoto>=0.4 or same scaffold); Test-T = approved 2025-26, a temporal cohort
 - [decision-task-framing](decision-task-framing.md) — SFT answers equal the real approved drug (98-99%): task is structure recovery, scored exactly
