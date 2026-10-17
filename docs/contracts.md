@@ -26,7 +26,8 @@ Change a contract only through the orchestrator, and update this file in the sam
 ## Chemistry definitions (one implementation, `rlexp.chem`, imported everywhere)
 
 - standardize(smiles) -> Mol | None: parse, keep the largest fragment (`LargestFragmentChooser`), neutralise (`Uncharger`). None if unparseable.
-- canonical = `Chem.MolToSmiles(mol)` (isomeric). conn = first block of `Chem.MolToInchiKey(mol)` (connectivity, stereo-agnostic). inchikey = the full key (stereo-sensitive).
+- canonical = `Chem.MolToSmiles(mol)` (isomeric). conn = tautomer-tolerant identity: formula plus heavy-atom skeleton (the InChI layers before hydrogens, charge, stereo and isotopes), sha1-hashed to 14 hex characters;
+  five reference drugs differ from their ChEMBL entry only in hydrogen placement, which the standard InChIKey first block would score as a miss. inchikey = the full standard InChIKey (stereo and hydrogen-placement sensitive), used for stereo_match only.
 - scaffold = canonical SMILES of the Murcko scaffold; empty string for acyclic molecules. A scaffold match requires both non-empty and equal.
 - tanimoto = Morgan radius 2, 2048 bits, `rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)`.
 - extract_answer(text) -> str | None: text after the last `</think>`; scan whitespace tokens from the end, stripping `` ` * . , ; : `` from each token, after replacing the literal `<|im_end|>` with a space;
@@ -55,7 +56,7 @@ Change a contract only through the orchestrator, and update this file in the sam
     group, components[list], ref_smiles, ref_inchikey, ref_conn, ref_scaffold, ref_source ("chembl"|"sft_answer"|"manual"),
     chembl_id|null, approval_year|null, approval_source ("chembl"|"openfda"|"audit"|"manual"|null), sft_agrees (bool|null),
     cluster_id (int; component of the graph on included drugs with an edge when Tanimoto >= 0.4 OR the two drugs share an identical non-empty Murcko scaffold),
-    split ("train"|"val"|"test_r"|"test_t"|"buffer"|"excluded"), exclude_reason (str|null), n_rows, pubchem_create_year|null, pubmed_count|null   (last two from exposure.json when present)
+    split ("train"|"val"|"test_r"|"test_t"|"buffer"|"excluded"), exclude_reason (str|null), n_rows, n_heavy (heavy atoms of ref_smiles), convention ("ligand_only"|null), pubchem_create_year|null, pubmed_count|null   (last two from exposure.json when present)
 
 `data/processed/{train,val,test_r,test_t}.jsonl`, one row per prompt row:
 
@@ -64,7 +65,8 @@ Change a contract only through the orchestrator, and update this file in the sam
 
 `data/processed/split_report.json`: counts per split (drugs, rows, task type, approval year), dropped sets with reasons (PD, combinations, each exclude_reason with group names), leakage numbers, component sizes, scaffold overlap between splits, seed, input hashes.
 Hand files in `data/curated/` (read by `data_prep`, never written by it):
-`manual_refs.json` `{group: {"smiles": str|null, "approval_year": int|null, "source": str, "note": str}}`;
+`manual_refs.json` `{group: {"smiles": str|null, "approval_year": int|null, "source": str, "note": str, "convention": "ligand_only" (optional)}}`;
+a manual entry whose `smiles` is null means the group is unresolvable and is excluded (`manual_unresolvable`), never falling back to ChEMBL or the SFT answer; `convention: ligand_only` marks metal or radiolabel complexes whose reference is the organic ligand (carried to refs rows);
 `approval_audit.json` `{group: {"fda_year": int|null, "earliest_global_year": int|null, "earliest_regulator": str, "evidence": [url], "confidence": "high"|"medium"|"low"}}`;
 `exposure.json` `{group: {"pubchem_cid": int|null, "pubchem_create_year": int|null, "pubmed_count": int|null}}` (a proxy for public exposure before approval, a covariate only).
 
@@ -72,7 +74,7 @@ Split rules: single-drug groups only (no `" | "`); PD dropped. Final approval ye
 Test-T = final year >= 2025 (a temporal cohort, not proof that a model has not seen the molecule). Buffer = other drugs in a Test-T drug's component (unused anywhere).
 From the rest, whole components go to Test-R (30 drugs), Val (20 drugs), Train (the remainder) by a seeded shuffle (seed 0), greedy, skipping a component that would overshoot a target.
 Excluded: no resolvable structure (`unresolved_disagreement` = ChEMBL and the SFT answers disagree without a manual entry), no final year (`no_approval_year`),
-or a reference the extractor cannot recover from itself or from 20 random SMILES variants of it (`unextractable_reference`). Assert and report that no pair across Train, Val, Test-R, Test-T has Tanimoto >= 0.4 or an identical non-empty scaffold.
+a null manual entry (`manual_unresolvable`), or a reference the extractor cannot recover from itself or from 20 random SMILES variants of it (`unextractable_reference`). Assert and report that no pair across Train, Val, Test-R, Test-T has Tanimoto >= 0.4 or an identical non-empty scaffold.
 
 ## Sampling and scoring products
 
