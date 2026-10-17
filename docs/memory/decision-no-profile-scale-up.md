@@ -1,12 +1,12 @@
 ---
 name: decision-no-profile-scale-up
-description: 'No synthetic profiles for more training drugs: class facts predict structure like a constant'
+description: 'Synthetic profiles for more training drugs are deprioritised: class facts add little over a constant'
 type: decision
 updated: 2026-10-17
 ---
-The class-information ceiling (ChEMBL_37, 1,786 drugs) shows that nearest-neighbour prediction from ATC, mechanism, target and indication reaches mean Tanimoto 0.201 against 0.169 for a constant once neighbours respect the split rule (+0.032; +0.001 for Train-like drugs, +0.002 for drugs approved from 2015). More neighbours raise only the oracle (0.30 to 0.35). Scaling training drugs with LLM-written profiles was therefore dropped.
+Two retrieval rules (1-NN and 5-medoid) over coarsened ChEMBL class facts reach mean Tanimoto 0.201 against 0.169 for the best constant when only direct pairs are excluded (+0.032), but 0.163 (-0.006, interval up to +0.001) once the target's whole connected component is excluded as the real split does (Train targets -0.014). More neighbours raise only the oracle (0.30 to 0.35). Generating profiles for more training drugs was therefore deprioritised.
 
-**Why:** a held-out drug has no close analogue by construction, and class-level information does not carry structure beyond a constant; profile-specific similarity needs recall of the specific drug (identification then SMILES). Source: results/class_ceiling.json, scripts/class_ceiling.py.
-**How to apply:** do not spend generation budget on more profiles; scale model size (zero-RL sweep) rather than data; revisit only if free-text profiles are shown to carry structural cues beyond the structured facts.
+**Why:** this does NOT bound learned predictors, richer facts or free-text profiles, and failing to reject zero is not equivalence (pairwise Train interval up to +0.014); the nearest-profile copy control still shows lift +0.022. It only says the cheap structured-fact signal is small. Source: results/class_ceiling.json, scripts/class_ceiling.py.
+**How to apply:** do not spend generation budget on more profiles until a free-text or learned predictor shows more than the TF-IDF control; scale model size (zero-RL sweep) first; never write that a profile-specific signal "requires recall of the drug".
 
 Related: [[gotcha-core-endpoint-low-power]]

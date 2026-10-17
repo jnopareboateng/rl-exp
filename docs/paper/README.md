@@ -1,14 +1,14 @@
 # Paper scaffold
 
-Working title: *Does online RL help small language models recover drug structures from pharmacology? A controls-first, pre-registered evaluation on a temporal cohort.*
+Working title: *How much of a drug's structure can language models recover from its pharmacology profile? A controls-first evaluation with deployable and profile-association metrics, and a bounded RL case study.*
 The paper is written from this repository: every number in it must trace to a file in `results/` produced by a command in the README, at a recorded git revision and data hash. Write the plan section from `docs/plan.md` as frozen at tag `prereg-v1`, and list every later deviation.
 
 ## Research question and hypotheses
 
 Question: beyond cheaper alternatives, does online RL (GRPO-family, verifiable similarity reward) improve held-out structure recovery at matched inference cost?
-- H1 (confirmatory, Test-T, core@1): the Val-selected RL checkpoint beats the best non-RL arm. Decided by the exact sign-flip test at alpha 0.05.
+- H1 (confirmatory, Test-T, fv_tanimoto): the Val-selected RL checkpoint beats the best non-RL arm in delivered similarity (Tanimoto of the first valid answer of up to 8 samples) at a stated cost. Decided by the exact cluster-level sign-flip test at alpha 0.05. Profile language needs a positive lift above the nearest-profile control and a matched shuffled-profile comparison.
 - H2 (exploratory): any gain persists on Test-R and is not concentrated in the high-exposure tercile (PubChem creation year, PubMed count).
-- H3 (exploratory): zero-RL baselines improve with model size and generation (4B, 9B, 3.5-27B, 3.8-27B); RL gain, if any, shrinks with baseline strength.
+- H3 (exploratory): zero-RL baselines improve with model size (4B, 9B, 3.5-27B, 3.8-27B) in validity, delivered similarity and lift; identification of the drug (profile to name) is the part that grows most; RL gain, if any, shrinks with baseline strength.
 - Null is a result: if H1 fails, the contribution is the benchmark, the controls, the SFT/RFT results and the measured limits of RL at this data scale (about 240 training molecules).
 
 ## Claims and evidence (update as results land; status: planned, running, done, refuted)
@@ -17,10 +17,12 @@ Question: beyond cheaper alternatives, does online RL (GRPO-family, verifiable s
 |---|---|---|---|
 | The reference answer in the SFT data is the real drug (98-99%) | `data/processed/refs.jsonl`, `split_report.json` | `scripts/resolve_refs.py`, `rlexp.data_prep` | done (rerun pending) |
 | Splits are leakage-safe (no pair at Tanimoto >= 0.4 or shared scaffold across splits) | `split_report.json` | `rlexp.data_prep` | in progress |
-| Constant and copy-nearest controls set the do-nothing bar | `results/controls/` | `rlexp.controls`, `rlexp.metrics` | planned |
-| Base model zero-shot level (thinking on/off), by size | `results/baselines/` | `gpu/sample_vllm.py`, `rlexp.metrics` | planned |
-| In-context retrieval, answer-only SFT, trace SFT, RFT levels | `results/arms/` | training scripts, `rlexp.metrics` | planned |
-| H1: RL vs best non-RL arm on Test-T | `results/confirmatory.json` | `rlexp.metrics report --vs` | planned |
+| Constant and copy-nearest controls set the do-nothing bar (C1 has lift +0.022 at constant-level Tanimoto on Val) | `results/val_baselines.json` | `rlexp.controls`, `rlexp.metrics`, `scripts/val_table.py` | done on Val |
+| Class facts (ATC, mechanism, target, indication) predict structure little beyond a constant once neighbours respect the split | `results/class_ceiling.json` | `scripts/class_ceiling.py` | done; component-matched: class facts do not beat a constant |
+| Identification (profile to name) grows with size: 1.0% (4B), 2.1% (9B), 8.1% / 4.2% (Qwen3.5 / 3.8 27B-FP8) on Val | `runs/colab-s1/ident-*` | `rlexp.ident` | done on Val |
+| Base model zero-shot level by size (no model recovers a structure; lift grows from +0.005 at 4B to +0.027 at 27B) | `results/val_baselines.json` | `gpu/sample_vllm.py`, `rlexp.metrics` | done on Val (Test after the lock) |
+| In-context retrieval, answer-only SFT, trace SFT levels (A1 trace SFT: 33% valid at 2,500 tokens per answer; A2: 56% valid) | `results/val_baselines.json` | training scripts, `rlexp.metrics` | done on Val; RFT planned |
+| H1: RL vs best non-RL arm on Test-T (fv_tanimoto) | `results/confirmatory.json` | `rlexp.metrics report --vs` | planned |
 | Reward extraction is reliable (fixtures plus real-rollout disagreement rate) | `tests/fixtures/answer_formats.json`, `results/extractor_audit.json` | tests, audit script | planned |
 
 ## Methods outline

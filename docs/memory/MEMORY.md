@@ -20,7 +20,8 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 ## Decisions
 - [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers
 - [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint (core@1), one confirmatory contrast, sign-flip test, prereg tag
-- [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — No synthetic profiles for more training drugs: class facts predict structure like a constant
+- [decision-endpoint-fv-tanimoto](decision-endpoint-fv-tanimoto.md) — Confirmatory endpoint is fv_tanimoto: Tanimoto of the first valid answer of 8; lift is a diagnostic
+- [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — Synthetic profiles for more training drugs are deprioritised: class facts add little over a constant
 - [decision-reward-v2](decision-reward-v2.md) — Reward: 1.0 on connectivity match, else 0.05+0.6*Tanimoto+0.3*scaffold match; no similarity floor
 - [decision-split-design](decision-split-design.md) — Splits by components (Tanimoto>=0.4 or same scaffold); Test-T = approved 2025-26, a temporal cohort
 - [decision-task-framing](decision-task-framing.md) — SFT answers equal the real approved drug (98-99%): task is structure recovery, scored exactly
@@ -34,7 +35,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
 
 ## Environment
-- [env-colab-a100-runtime](env-colab-a100-runtime.md) — Colab A100-40GB on Google account index 1: install 57 s, 2k tok/s batched; kill -9 stuck engines
+- [env-colab-a100-runtime](env-colab-a100-runtime.md) — Colab A100-40GB (account 1): stack, throughput, disk traps, 27B FP8 needs memory fraction 0.93
 - [env-compute-supply](env-compute-supply.md) — Kaggle: 2 x T4, 6 GPU-h/week, batch runs only; Colab is primary and needs a browser accept
 
 ## References
