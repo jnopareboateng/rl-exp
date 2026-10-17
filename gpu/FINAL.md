@@ -16,6 +16,9 @@ Run only after the git tag `prereg-v1` exists. Nothing here chooses an arm, a de
    (fails without CUDA in both venvs; refuses any `test_` file under data/).
 2. Upload, after the bootstrap and never inside the bundle: `results/frozen_arms.json`, `results/selection.json`, `data/MANIFEST.sha256`, `data/processed/test_t.jsonl`, `test_r.jsonl`
    and `data/processed/arms/{a4,name,ident,shuffle,blank}/test_{t,r}.jsonl`; `cd data && sha256sum -c` on those paths against the manifest must pass.
+Steps 3 to 5 are scripted: `python gpu/run_final.py --drive /content/drive/MyDrive/rl-exp` (`--dry-run` prints the plan; to resume after a stop add `--skip-sanity --from-stage <stage name> [--keep-cache]`).
+It stops before anything runs if a spec arm belongs to no stage, and stops after the sanity step if a merged model does not reproduce its Val score. What it does:
+
 3. Adapters from Drive to the paths the spec names (`adapter.path`); `gpu/prepare_final.py` checks both adapter files against the frozen hashes before merging:
    `python gpu/prepare_final.py --spec results/frozen_arms.json --spec-sha256 <hex> --selection results/selection.json --models final_models --only A2,RL-full`.
    A merged 4B model is 9 GB: delete it after its Test samples exist.
