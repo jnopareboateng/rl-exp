@@ -27,8 +27,10 @@ Change a contract only through the orchestrator, and update this file in the sam
 
 - standardize(smiles) -> Mol | None: parse, keep the largest fragment (`LargestFragmentChooser`), neutralise (`Uncharger`). None if unparseable.
 - canonical = `Chem.MolToSmiles(mol)` (isomeric). conn = tautomer-tolerant identity: formula plus heavy-atom skeleton (the InChI layers before hydrogens, charge, stereo and isotopes), sha1-hashed to 14 hex characters;
-  five reference drugs differ from their ChEMBL entry only in hydrogen placement, which the standard InChIKey first block would score as a miss. inchikey = the full standard InChIKey (stereo and hydrogen-placement sensitive), used for stereo_match only.
-- scaffold = canonical SMILES of the Murcko scaffold; empty string for acyclic molecules. A scaffold match requires both non-empty and equal.
+  five reference drugs differ from their ChEMBL entry only in hydrogen placement, which the standard InChIKey first block would score as a miss.
+  Known limit: the key also equates non-tautomer isomers that differ only in where a double bond sits (1-butene and 2-butene; no two drugs in the data collide). Sensitivity: recompute a strict key (standard InChIKey first block) from the stored answers after the fact. inchikey = the full standard InChIKey (stereo and hydrogen-placement sensitive), used for stereo_match only.
+- scaffold = canonical non-isomeric SMILES of the Murcko scaffold (stereo is scored separately); empty string for acyclic molecules. A scaffold match requires both non-empty and equal.
+- Cost guards for generated text: answers over 1,500 characters or 400 heavy atoms are invalid (`chem.MAX_LEN`, `chem.MAX_ATOMS`; longest reference 715 characters, 295 atoms).
 - tanimoto = Morgan radius 2, 2048 bits, `rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)`.
 - extract_answer(text) -> str | None: text after the last `</think>`; scan whitespace tokens from the end, stripping `` ` * . , ; : `` from each token, after replacing the literal `<|im_end|>` with a space;
   first token with length >= 8 containing one of `=()[]@` or a digit that RDKit parses. None if the text has no `</think>`.
@@ -40,7 +42,7 @@ Change a contract only through the orchestrator, and update this file in the sam
 
     score(solution_str: str, ref: dict) -> dict
     compute_score(data_source: str, solution_str: str, ground_truth, extra_info=None) -> float    # verl-style; ground_truth is a dict or JSON string
-    ref keys: ref_smiles, ref_conn, ref_scaffold, ref_inchikey      (ref_inchikey optional; derive from ref_smiles when missing)
+    ref keys: ref_smiles only is used; ref_conn, ref_scaffold and ref_inchikey are re-derived from it in the scoring process (stored copies are informational)
     score keys: closed, answer, valid, tanimoto (0..1, 0 if invalid), scaffold_match, conn_match, stereo_match (full InChIKey equal; reporting only, never rewarded), reward
 
     reward = 0                                              if not closed, or answer is None, or answer does not standardize

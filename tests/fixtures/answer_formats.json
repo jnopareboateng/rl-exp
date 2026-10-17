@@ -1,0 +1,541 @@
+[
+  {
+    "name": "clean_smiles_label",
+    "text": "<think>\nSalicylic acid acetylated on the phenol oxygen gives aspirin.\n</think>\n\nSMILES: CC(=O)Oc1ccccc1C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "Baseline: a SMILES label followed by the molecule on the final line."
+  },
+  {
+    "name": "bold_label_smiles",
+    "text": "<think>\nIbuprofen is 2-(4-isobutylphenyl)propanoic acid.\n</think>\n\n**SMILES:** CC(C)Cc1ccc(cc1)C(C)C(=O)O",
+    "expected": "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
+    "limitation": false,
+    "why": "The bold label is one token that fails the length gate, so the bare SMILES is returned."
+  },
+  {
+    "name": "markdown_heading_bare_smiles",
+    "text": "<think>\nCaffeine is 1,3,7-trimethylxanthine.\n</think>\n\n## Final answer\n\nCN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "expected": "CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "limitation": false,
+    "why": "The heading tokens are too short to pass the length gate, leaving the bare SMILES line."
+  },
+  {
+    "name": "code_fence_untagged",
+    "text": "<think>\nParacetamol is N-(4-hydroxyphenyl)acetamide.\n</think>\n\n```\nCC(=O)Nc1ccc(O)cc1\n```",
+    "expected": "CC(=O)Nc1ccc(O)cc1",
+    "limitation": false,
+    "why": "Backtick-only fence lines strip to nothing, so the SMILES line is returned."
+  },
+  {
+    "name": "code_fence_language_tag",
+    "text": "<think>\nThe acetyl ester of salicylic acid is aspirin.\n</think>\n\n```smiles\nOC(=O)c1ccccc1OC(C)=O\n```",
+    "expected": "OC(=O)c1ccccc1OC(C)=O",
+    "limitation": false,
+    "why": "The language tag strips to six letters with no hint character, so it cannot win."
+  },
+  {
+    "name": "inline_backticks",
+    "text": "<think>\nAspirin is the acetyl ester of salicylic acid.\n</think>\n\nThe answer is `CC(=O)Oc1ccccc1C(=O)O`.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "Backticks and the trailing period are stripped from the token edges."
+  },
+  {
+    "name": "trailing_period_bare",
+    "text": "<think>\nAcetic anhydride acetylates the phenol.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "A trailing period is stripped from the SMILES token."
+  },
+  {
+    "name": "trailing_comma_with_clause",
+    "text": "<think>\nThe carboxylic acid is retained.\n</think>\n\nThe product is CC(=O)Oc1ccccc1C(=O)O, an aspirin-type ester.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "The comma is stripped and the following words contain no hint character."
+  },
+  {
+    "name": "closing_sentence_after_smiles",
+    "text": "<think>\nCaffeine has a xanthine core with methyl groups on N1, N3 and N7.\n</think>\n\nFinal answer: CN1C=NC2=C1C(=O)N(C)C(=O)N2C\n\nThis is caffeine, a purine alkaloid with three methyl groups.",
+    "expected": "CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "limitation": false,
+    "why": "The plain-English closing sentence has no token that passes both gates."
+  },
+  {
+    "name": "bold_wrapped_smiles",
+    "text": "<think>\nIbuprofen has one stereocentre, and the question does not ask for an enantiomer.\n</think>\n\nAnswer: **CC(C)Cc1ccc(cc1)C(C)C(=O)O**",
+    "expected": "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
+    "limitation": false,
+    "why": "Asterisk emphasis is stripped from the token edges."
+  },
+  {
+    "name": "bullet_list_item",
+    "text": "<think>\nParacetamol matches the description.\n</think>\n\n- CC(=O)Nc1ccc(O)cc1",
+    "expected": "CC(=O)Nc1ccc(O)cc1",
+    "limitation": false,
+    "why": "The bullet marker is a one-character token and fails the length gate."
+  },
+  {
+    "name": "non_canonical_smiles",
+    "text": "<think>\nWriting the same molecule starting from the carboxyl end.\n</think>\n\nAnswer: OC(=O)c1ccccc1OC(C)=O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "A non-canonical SMILES for aspirin is accepted because the comparison uses canonical forms."
+  },
+  {
+    "name": "reactant_then_product_last_wins",
+    "text": "<think>\nAcetic anhydride acetylates salicylic acid.\n</think>\n\nReactants: CC(=O)OC(C)=O and OC(=O)c1ccccc1O.\nProduct: CC(=O)Oc1ccccc1C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "Contract rule: the last candidate wins, and here the product is last."
+  },
+  {
+    "name": "a_or_b_last_wins",
+    "text": "<think>\nTwo candidates look plausible, so I will name both.\n</think>\n\nFinal answer: either CC(=O)Oc1ccccc1C(=O)O or CN1C=NC2=C1C(=O)N(C)C(=O)N2C.",
+    "expected": "CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "limitation": false,
+    "why": "Contract rule: with two candidates the last one is scored, so the hedged alternative is not used."
+  },
+  {
+    "name": "numbered_list_pointer_to_last_item",
+    "text": "<think>\nThree candidates; the third matches the spectrum best.\n</think>\n\nCandidates:\n1. CC(=O)Oc1ccccc1C(=O)O\n2. CC(C)Cc1ccc(cc1)C(C)C(=O)O\n3. CN1C=NC2=C1C(=O)N(C)C(=O)N2C\n\nFinal answer: 3",
+    "expected": "CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "limitation": false,
+    "why": "The final pointer agrees with the last list item, so the contract result is correct."
+  },
+  {
+    "name": "table_row_answer",
+    "text": "<think>\nParacetamol matches the target profile.\n</think>\n\n| Property | Value |\n|---|---|\n| Molecule | CC(=O)Nc1ccc(O)cc1 |\n| Confidence | 0.9 |",
+    "expected": "CC(=O)Nc1ccc(O)cc1",
+    "limitation": false,
+    "why": "Pipes and the 0.9 score fail the gates, so the molecule cell is returned."
+  },
+  {
+    "name": "salt_sodium_acetate_dot",
+    "text": "<think>\nThe sodium salt of acetic acid is the answer.\n</think>\n\nAnswer: CC(=O)[O-].[Na+]",
+    "expected": "CC(=O)[O-].[Na+]",
+    "limitation": false,
+    "why": "A dot-joined salt is one token, and standardise keeps the largest fragment for comparison."
+  },
+  {
+    "name": "salt_hcl_no_space",
+    "text": "<think>\nNicotine as the hydrochloride salt.\n</think>\n\nAnswer: CN1CCC[C@H]1c1cccnc1.Cl",
+    "expected": "CN1CCC[C@H]1c1cccnc1.Cl",
+    "limitation": false,
+    "why": "A dot-joined counter-ion with no spaces stays in one token, and the parent is the largest fragment."
+  },
+  {
+    "name": "salt_hcl_spaced_dot",
+    "text": "<think>\nNicotine as the hydrochloride salt.\n</think>\n\nAnswer: CN1CCC[C@H]1c1cccnc1 . Cl",
+    "expected": "CN1CCC[C@H]1c1cccnc1.Cl",
+    "limitation": false,
+    "why": "A spaced dot splits the salt so only the parent is returned, and the standardised forms still match."
+  },
+  {
+    "name": "solvate_dot_ethanol",
+    "text": "<think>\nAspirin was crystallised from ethanol.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O.CCO",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "Largest-fragment standardisation drops the solvent, leaving aspirin."
+  },
+  {
+    "name": "charged_quaternary_choline",
+    "text": "<think>\nThe target is the choline cation.\n</think>\n\nAnswer: C[N+](C)(C)CCO",
+    "expected": "C[N+](C)(C)CCO",
+    "limitation": false,
+    "why": "A permanent cation cannot be neutralised, and the charge is kept on both sides of the comparison."
+  },
+  {
+    "name": "charged_protonated_metoprolol",
+    "text": "<think>\nMetoprolol is a beta-blocker, written here as its protonated amine.\n</think>\n\nAnswer: COCCc1ccc(OCC(O)C[NH2+]C(C)C)cc1",
+    "expected": "COCCc1ccc(OCC(O)C[NH2+]C(C)C)cc1",
+    "limitation": false,
+    "why": "Uncharger neutralises the protonated amine, so it compares equal to neutral metoprolol."
+  },
+  {
+    "name": "zwitterion_glycine",
+    "text": "<think>\nGlycine is a zwitterion in the solid state.\n</think>\n\nAnswer: [NH3+]CC(=O)[O-]",
+    "expected": "[NH3+]CC(=O)[O-]",
+    "limitation": false,
+    "why": "Uncharger neutralises both charged ends, so the zwitterion matches neutral glycine."
+  },
+  {
+    "name": "stereo_l_alanine",
+    "text": "<think>\nThe answer is the L-enantiomer.\n</think>\n\nAnswer: C[C@H](N)C(=O)O",
+    "expected": "C[C@H](N)C(=O)O",
+    "limitation": false,
+    "why": "Single @ stereo survives tokenisation and is kept in the isomeric canonical form."
+  },
+  {
+    "name": "stereo_l_threonine",
+    "text": "<think>\nL-threonine is (2S,3R).\n</think>\n\nAnswer: C[C@@H](O)[C@H](N)C(=O)O",
+    "expected": "C[C@@H](O)[C@H](N)C(=O)O",
+    "limitation": false,
+    "why": "Both @@ and @ tags survive tokenisation for a molecule with two stereocentres."
+  },
+  {
+    "name": "stereo_e_slash",
+    "text": "<think>\nThe double bond is trans.\n</think>\n\nAnswer: C/C=C/C(=O)O",
+    "expected": "C/C=C/C(=O)O",
+    "limitation": false,
+    "why": "Slash bond symbols are not stripped and the E configuration is preserved."
+  },
+  {
+    "name": "stereo_z_backslash",
+    "text": "<think>\nThe double bond is cis.\n</think>\n\nAnswer: C/C=C\\C(=O)O",
+    "expected": "C/C=C\\C(=O)O",
+    "limitation": false,
+    "why": "Backslash bond symbols are not stripped, so the Z isomer is not confused with E."
+  },
+  {
+    "name": "isotope_deuterium_caffeine_d9",
+    "text": "<think>\nAll three N-methyl groups are CD3.\n</think>\n\nAnswer: [2H]C([2H])([2H])n1cnc2c1c(=O)n(C([2H])([2H])[2H])c(=O)n2C([2H])([2H])[2H]",
+    "expected": "[2H]C([2H])([2H])n1cnc2c1c(=O)n(C([2H])([2H])[2H])c(=O)n2C([2H])([2H])[2H]",
+    "limitation": false,
+    "why": "Bracket isotopes stay in one token, and the canonical form keeps the labels."
+  },
+  {
+    "name": "isotope_13c_methyl_aspirin",
+    "text": "<think>\nThe acetyl carbon carries the label.\n</think>\n\nAnswer: [13CH3]C(=O)Oc1ccccc1C(=O)O",
+    "expected": "[13CH3]C(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "A labelled bracket atom with an explicit hydrogen count parses and keeps its isotope."
+  },
+  {
+    "name": "macrocycle_lactone",
+    "text": "<think>\nA 16-membered macrolactone with one ring oxygen (exaltolide).\n</think>\n\nAnswer: O=C1CCCCCCCCCCCCCCO1",
+    "expected": "O=C1CCCCCCCCCCCCCCO1",
+    "limitation": false,
+    "why": "A 16-membered ring closed by one ring digit is still a short, valid token."
+  },
+  {
+    "name": "macrocycle_cyclo_gly4",
+    "text": "<think>\nFour glycines joined head to tail form a 12-membered cyclic tetrapeptide.\n</think>\n\nAnswer: O=C1CNC(=O)CNC(=O)CNC(=O)CN1",
+    "expected": "O=C1CNC(=O)CNC(=O)CNC(=O)CN1",
+    "limitation": false,
+    "why": "A 12-membered cyclic peptide with several branches stays in one token."
+  },
+  {
+    "name": "short_peptide_leu_enkephalin",
+    "text": "<think>\nThe sequence is Tyr-Gly-Gly-Phe-Leu, all L-amino acids (leu-enkephalin).\n</think>\n\nAnswer: N[C@@H](Cc1ccc(O)cc1)C(=O)NCC(=O)NCC(=O)N[C@@H](Cc1ccccc1)C(=O)N[C@@H](CC(C)C)C(=O)O",
+    "expected": "N[C@@H](Cc1ccc(O)cc1)C(=O)NCC(=O)NCC(=O)N[C@@H](Cc1ccccc1)C(=O)N[C@@H](CC(C)C)C(=O)O",
+    "limitation": false,
+    "why": "A five-residue peptide with three stereocentres is one long token that passes every gate."
+  },
+  {
+    "name": "very_long_peptide_20mer",
+    "text": "<think>\nTwenty L-alanine residues in one linear chain.\n</think>\n\nAnswer: N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)O",
+    "expected": "N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)O",
+    "limitation": false,
+    "why": "A roughly 300-character linear SMILES with 20 stereocentres is still one valid token."
+  },
+  {
+    "name": "no_think_tags_at_all",
+    "text": "The product is aspirin, CC(=O)Oc1ccccc1C(=O)O.",
+    "expected": null,
+    "limitation": false,
+    "why": "Without a closing think tag the contract returns None by design, and reward.py scores closed=False as 0."
+  },
+  {
+    "name": "think_closed_nothing_after",
+    "text": "<think>\nAspirin would be the product, but I still need to check the stoichiometry and the solvent.\n</think>",
+    "expected": null,
+    "limitation": false,
+    "why": "Nothing follows the closing tag, so there is no answer."
+  },
+  {
+    "name": "two_think_final_after_second",
+    "text": "<think>\nFirst pass: acetylation of the phenol.\n</think>\n<think>\nSecond pass: the carboxylic acid should be untouched.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "The last closing tag is the boundary, and the final answer comes after it."
+  },
+  {
+    "name": "two_think_answer_before_second",
+    "text": "<think>\nAcetylation of the phenol OH; the carboxylic acid is untouched.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n</think>\n\nLet me double-check the regiochemistry.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "The contract reads only after the last closing tag, so a stray second tag hides the answer and nothing is returned."
+  },
+  {
+    "name": "unclosed_think_block",
+    "text": "<think>\nThe starting material is salicylic acid, OC(=O)c1ccccc1O. Acetylation should give CC(=O)Oc1ccccc1C(=O)O, but I have not finished checking the regiochemistry.",
+    "expected": null,
+    "limitation": false,
+    "why": "Without a closing tag the contract returns None by design (closed=False)."
+  },
+  {
+    "name": "closing_tag_variant_thinking",
+    "text": "<thinking>\nAcetylation of the phenol gives aspirin.\n</thinking>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O",
+    "expected": null,
+    "limitation": false,
+    "why": "The contract keys on the literal closing tag, so a thinking variant is treated as unclosed."
+  },
+  {
+    "name": "answer_inside_think_nothing_after",
+    "text": "<think>\nAcetylation of salicylic acid gives the answer CC(=O)Oc1ccccc1C(=O)O.</think>",
+    "expected": null,
+    "limitation": false,
+    "why": "An answer inside the reasoning block, with nothing after the closing tag, is not a final answer."
+  },
+  {
+    "name": "reasoning_only_candidates_no_final",
+    "text": "<think>\nCould it be CCOC(=O)c1ccccc1 or CC(=O)Oc1ccccc1C(=O)O? I am not sure which.\n</think>\n\nI could not determine a final structure with confidence.",
+    "expected": null,
+    "limitation": false,
+    "why": "Candidates inside the closed reasoning are never scanned, and the closing sentence has no parseable token."
+  },
+  {
+    "name": "empty_answer",
+    "text": "<think>\nWorking through the acetylation step by step.\n</think>\n\n",
+    "expected": null,
+    "limitation": false,
+    "why": "No tokens follow the closing tag."
+  },
+  {
+    "name": "na_answer",
+    "text": "<think>\nThe question does not specify enough detail.\n</think>\n\nN/A",
+    "expected": null,
+    "limitation": false,
+    "why": "N/A is three characters and fails the length gate."
+  },
+  {
+    "name": "molecular_formula_only",
+    "text": "<think>\nThe question gives only a formula.\n</think>\n\nThe formula is C24H28F3N3O3.",
+    "expected": null,
+    "limitation": false,
+    "why": "A bare molecular formula has H outside brackets, which is not a SMILES atom, so nothing parses."
+  },
+  {
+    "name": "iupac_name_only",
+    "text": "<think>\nIbuprofen is the target.\n</think>\n\n**Answer:** 2-(4-isobutylphenyl)propanoic acid",
+    "expected": null,
+    "limitation": false,
+    "why": "An IUPAC name has letters that are not SMILES atoms, so nothing parses."
+  },
+  {
+    "name": "iupac_name_with_locants",
+    "text": "<think>\nThe amino acid with the phenyl side chain.\n</think>\n\nAnswer: (2S)-2-amino-3-phenylpropanoic acid",
+    "expected": null,
+    "limitation": false,
+    "why": "Locant brackets and digits do not rescue a name: the leading parenthesis and the letters fail RDKit."
+  },
+  {
+    "name": "confidence_tail_cyp",
+    "text": "<think>\nAspirin is hydrolysed by esterases; CYP2C9 is a minor route.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\nConfidence: high (CYP3A4)",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "The parenthetical (CYP3A4) fails RDKit, so the answer before it is returned."
+  },
+  {
+    "name": "url_in_closing_line",
+    "text": "<think>\nAspirin is well documented in public databases.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\nSource: https://pubchem.ncbi.nlm.nih.gov/compound/2244",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "A URL with digits has a hint character but RDKit rejects it, so the answer is returned."
+  },
+  {
+    "name": "im_end_glued_to_answer",
+    "text": "<think>\nAcetylation of the phenol.\n</think>\n\nCC(=O)Oc1ccccc1C(=O)O<|im_end|>",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "The literal end-of-turn marker is replaced by a space before tokenising."
+  },
+  {
+    "name": "nbsp_separated_answer",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "U+00A0 is whitespace to Python str.split, so the label and the SMILES separate."
+  },
+  {
+    "name": "ideographic_space_separated",
+    "text": "<think>\nAspirin.\n</think>\n\n答案：　CC(=O)Oc1ccccc1C(=O)O。",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "U+3000 is whitespace to str.split, and RDKit accepts the trailing ideographic full stop."
+  },
+  {
+    "name": "cjk_label_and_full_stop_glued",
+    "text": "<think>\nAspirin.\n</think>\n\n最终答案：CC(=O)Oc1ccccc1C(=O)O。",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "RDKit ignores non-ASCII text before and after a valid SMILES, so the glued label and full stop still parse."
+  },
+  {
+    "name": "cjk_sentence_glued_no_space",
+    "text": "<think>\nAspirin.\n</think>\n\n答案是CC(=O)Oc1ccccc1C(=O)O，它是阿司匹林。",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "The SMILES is followed only by CJK text, which RDKit ignores, so the molecule parses."
+  },
+  {
+    "name": "cjk_ascii_name_in_parentheses",
+    "text": "<think>\nAspirin.\n</think>\n\n答案：CC(=O)Oc1ccccc1C(=O)O（aspirin）",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "RDKit rejects a SMILES followed by mixed ASCII and non-ASCII text, so the answer is lost."
+  },
+  {
+    "name": "zero_width_space_inside",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1​C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "U+200B is not whitespace to str.split and RDKit rejects it mid-token, so nothing is returned."
+  },
+  {
+    "name": "full_width_parentheses_inside",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC（=O）Oc1ccccc1C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "Full-width parentheses inside the SMILES are rejected mid-token, so the answer is lost."
+  },
+  {
+    "name": "unicode_minus_charge",
+    "text": "<think>\nThe acetate anion.\n</think>\n\nAnswer: CC(=O)[O−]",
+    "expected": "CC(=O)[O-]",
+    "limitation": true,
+    "why": "A Unicode minus (U+2212) in a charge bracket is not a SMILES symbol, so the token fails."
+  },
+  {
+    "name": "full_width_comma_between_candidates",
+    "text": "<think>\nTwo candidates; the second is final.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O，CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "expected": "CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
+    "limitation": true,
+    "why": "A full-width comma with no space between two SMILES is rejected mid-token, so the last candidate is lost."
+  },
+  {
+    "name": "smiles_in_parentheses",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: (CC(=O)Oc1ccccc1C(=O)O)",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "The leading parenthesis makes the token unparseable, so a correct answer in parentheses is dropped."
+  },
+  {
+    "name": "smiles_in_double_quotes",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: \"CC(=O)Oc1ccccc1C(=O)O\"",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "The contract does not strip double quotes and RDKit rejects the leading quote, so nothing is returned."
+  },
+  {
+    "name": "quoted_answer_falls_back_to_earlier_molecule",
+    "text": "<think>\nEthyl benzoate is the starting material.\n</think>\n\nStarting material: CCOC(=O)c1ccccc1.\nProduct: \"CC(=O)Oc1ccccc1C(=O)O\"",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "The quoted product fails to parse, so the scan falls back to the starting-material SMILES and returns ethyl benzoate."
+  },
+  {
+    "name": "latex_boxed_answer",
+    "text": "<think>\nAspirin.\n</think>\n\nFinal answer: $\\boxed{CC(=O)Oc1ccccc1C(=O)O}$",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A LaTeX boxed wrapper is glued to the SMILES, so the token starts with a backslash and fails RDKit."
+  },
+  {
+    "name": "latex_inline_spaced_works",
+    "text": "<think>\nAspirin.\n</think>\n\nFinal answer: \\( CC(=O)Oc1ccccc1C(=O)O \\)",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": false,
+    "why": "Spaced LaTeX delimiters become tokens that fail the length gate, so the SMILES is returned."
+  },
+  {
+    "name": "smiles_split_across_lines_middle",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1\nC(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A SMILES wrapped onto a second line is split into two tokens, and the first fragment (phenyl acetate) is returned."
+  },
+  {
+    "name": "smiles_split_across_lines_tail",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)\nO",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "The one-character last line is dropped, so a truncated aldehyde SMILES is returned."
+  },
+  {
+    "name": "prose_benzene_in_closing_sentence",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n\nNote: the aromatic ring in this molecule is c1ccccc1 (benzene).",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A closing sentence that quotes the benzene ring as c1ccccc1 is the last token that parses, so benzene is returned."
+  },
+  {
+    "name": "closing_substructure_in_backticks",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n\nThe ester at `C(=O)Oc1ccccc1` is the group that hydrolyses in the stomach.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A backticked substructure in the closing sentence parses as phenyl formate and wins."
+  },
+  {
+    "name": "analogue_smiles_in_closing_sentence",
+    "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n\nThe methyl ester analogue COC(=O)c1ccccc1O is less potent.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A related compound's SMILES in a closing remark is the last parseable token and overrides the answer."
+  },
+  {
+    "name": "cjk_prose_benzene_suffix",
+    "text": "<think>\nAspirin.\n</think>\n\n答案：CC(=O)Oc1ccccc1C(=O)O\n\n苯环为c1ccccc1。",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "RDKit ignores the CJK text around c1ccccc1, so a Chinese closing sentence makes benzene win."
+  },
+  {
+    "name": "product_then_byproduct_last_wins",
+    "text": "<think>\nAcetylation gives aspirin and the byproduct is removed.\n</think>\n\nProduct: CC(=O)Oc1ccccc1C(=O)O\nByproduct: CC(=O)OCC, removed during workup.",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A byproduct listed after the product is the last SMILES, so the contract returns ethyl acetate."
+  },
+  {
+    "name": "reaction_smiles_arrow",
+    "text": "<think>\nEsterification of acetic acid with ethanol.\n</think>\n\nReaction: CC(=O)O.CCO>>CC(=O)OCC.O",
+    "expected": "CC(=O)OCC",
+    "limitation": true,
+    "why": "A reaction SMILES with >> is one token that RDKit rejects, so the product is lost."
+  },
+  {
+    "name": "numbered_list_final_pointer_to_first_item",
+    "text": "<think>\nAspirin is my first choice and ibuprofen is second.\n</think>\n\nCandidates:\n1. CC(=O)Oc1ccccc1C(=O)O\n2. CC(C)Cc1ccc(cc1)C(C)C(=O)O\n\nFinal answer: 1",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "The final pointer says 1, but the contract returns the last SMILES in the list, which is item 2."
+  },
+  {
+    "name": "short_answer_below_8_chars",
+    "text": "<think>\nAcetic acid is the only product.\n</think>\n\nAnswer: CC(=O)O",
+    "expected": "CC(=O)O",
+    "limitation": true,
+    "why": "Acetic acid is seven characters, below the length-8 gate, so a valid small molecule is dropped."
+  },
+  {
+    "name": "short_answer_falls_back_to_earlier_molecule",
+    "text": "<think>\nAcetic acid is the product.\n</think>\n\nReactant: c1ccccc1C(=O)O (benzoic acid).\nProduct: CC(=O)O (acetic acid).",
+    "expected": "CC(=O)O",
+    "limitation": true,
+    "why": "The correct short product fails the length gate, so the scan falls back to the reactant and returns benzoic acid."
+  },
+  {
+    "name": "linear_chain_no_hint_char",
+    "text": "<think>\nThe alcohol is a straight eight-carbon chain.\n</think>\n\nAnswer: CCCCCCCCO (1-octanol)",
+    "expected": "CCCCCCCCO",
+    "limitation": true,
+    "why": "A nine-character linear chain has no ring, bond, branch or digit, so it fails the hint gate."
+  },
+  {
+    "name": "wildcard_star_endpoints_stripped",
+    "text": "<think>\nThe repeat unit has two attachment points.\n</think>\n\nAnswer: *CC(*)c1ccccc1",
+    "expected": "*CC(*)c1ccccc1",
+    "limitation": true,
+    "why": "The asterisk is in the strip set, so a dummy atom on the token edge is removed and a different molecule is returned."
+  },
+  {
+    "name": "glued_label_no_space",
+    "text": "<think>\nAspirin.\n</think>\n\nSMILES:CC(=O)Oc1ccccc1C(=O)O",
+    "expected": "CC(=O)Oc1ccccc1C(=O)O",
+    "limitation": true,
+    "why": "A label with no space after the colon makes the token start with letters that are not SMILES atoms."
+  }
+]

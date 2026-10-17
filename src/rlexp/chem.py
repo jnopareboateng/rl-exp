@@ -15,6 +15,9 @@ _UNCHARGE = rdMolStandardize.Uncharger()
 _FP = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
 _STRIP = "`*.,;:"
 _HINT = re.compile(r"[=()\[\]@\d]")
+# Cost guards for generated text: scaffold extraction is cubic in heavy atoms (143 s at 3,750), so one runaway answer could
+# stall a reward worker. Longest reference: 715 characters, 295 heavy atoms.
+MAX_LEN, MAX_ATOMS = 1500, 400
 _LAYER = re.compile(r"/[hqpbtmsifr]")  # first InChI layer after formula and /c
 
 
@@ -41,23 +44,30 @@ def inchikey(mol):
 
 
 def scaffold(mol):
-    """Murcko scaffold SMILES; empty string for acyclic molecules."""
+    """Murcko scaffold SMILES without stereo; empty string for acyclic molecules."""
     scaf = MurckoScaffold.GetScaffoldForMol(mol)
-    return Chem.MolToSmiles(scaf) if scaf.GetNumAtoms() else ""
+    return Chem.MolToSmiles(scaf, isomericSmiles=False) if scaf.GetNumAtoms() else ""   # stereo is scored separately
 
 
 def tanimoto(a, b):
     return DataStructs.TanimotoSimilarity(_FP.GetFingerprint(a), _FP.GetFingerprint(b))
 
 
+def _parses(token):
+    try:  # a lone surrogate or another malformed generated string must not crash a reward worker
+        return Chem.MolFromSmiles(token) is not None
+    except Exception:
+        return False
+
+
 def extract_answer(text):
     """Last SMILES-like token after the last </think>; None if think is not closed or nothing parses."""
-    if "</think>" not in text:
+    if not isinstance(text, str) or "</think>" not in text:
         return None
     tail = text.rsplit("</think>", 1)[1].replace("<|im_end|>", " ")
     for tok in reversed(tail.split()):
         tok = tok.strip(_STRIP)
         # length and a ring/branch/bond/stereo/digit char keep words like "CCO" or "NO" out
-        if len(tok) >= 8 and _HINT.search(tok) and Chem.MolFromSmiles(tok) is not None:
+        if 8 <= len(tok) <= MAX_LEN and _HINT.search(tok) and _parses(tok):
             return tok
     return None
