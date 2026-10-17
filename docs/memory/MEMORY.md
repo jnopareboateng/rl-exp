@@ -15,7 +15,7 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — Val phase done; Colab A100 runtime lost 2026-10-17 20:35; Test evaluation and the tag wait on a GPU
+- [status-main](status-main.md) — Val phase done and committed; RL replicate R5 training on runtime 2; freeze, tag and Test run next
 
 ## Decisions
 - [decision-comparator-c3-registered](decision-comparator-c3-registered.md) — C3 joins the comparator set and A1 leaves it; prereg deviations D1 and D2, before any Test sample

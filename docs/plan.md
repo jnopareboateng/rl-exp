@@ -1,6 +1,6 @@
 # Plan v5: does online RL add value for structure recovery? A controls-first study (Qwen3.5-4B, 9B, Qwen3.8-27B)
 
-Status: v5, 2026-10-17 (v4 plus the first measured baselines, sections 5 and 6, and the endpoint and decoding decisions of section 2 (a) to (c)); the protocol itself is `prereg-v1.md`. Supersedes v3 after two independent reviews (Fable 5.1, Codex GPT-6.1 Sol). Freeze point: git tag `prereg-v1`, set before any Test-split sampling.
+Status: v5, 2026-10-17 (v4 plus the first measured baselines, sections 5 and 6, and the endpoint and decoding decisions of section 2 (a) to (c); the Val phase is complete, section 11); the protocol itself is `prereg-v1.md`. Supersedes v3 after two independent reviews (Fable 5.1, Codex GPT-6.1 Sol). Freeze point: git tag `prereg-v1`, set before any Test-split sampling.
 Labels: **measured** (scripts in `scripts/`), **recalled** (papers from memory), **inferred** (reasoning, untested). Contracts for every file: `contracts.md`.
 
 ## 0. Review log
@@ -20,7 +20,11 @@ Labels: **measured** (scripts in `scripts/`), **recalled** (papers from memory),
 | Codex (plan v5) | Valid-only Tanimoto is selectable; decoding tuning is fair if frozen; missing controls (validity-only RL, profile-free RL, continued SFT, dense RFT, shuffled profile); collapse score needs diagnostics; claims language | Endpoint fv_tanimoto, per-arm temperature grid, controls added, diagnostics logged, claim rules (section 2) |
 | Codex (metrics v3, class ceiling) | Lift is not constant-invariant when completion depends on the drug; NaN silently dropped drugs; partial cluster maps could flip p-values; pairwise "split-matched" neighbours are weaker than the real component split; claims overreached | Lift demoted to a diagnostic, input checks, component-matched ceiling with component bootstrap, wording corrected (round 2) |
 | Codex (RL pack) | Contrastive reward paid for abstention; resume identity did not pin the objective; Val did not measure the endpoint; six mutations survived; odd min-groups threshold | Reward floored at 0, objective hash, fv metrics and patience on fv_tanimoto, tests and mutants, ceiling threshold (round 3) |
-| Opus 5.5 (SFT fixes, metrics v3 round 2, RL pack) | Cross-vendor credits exhausted 2026-10-17; same-vendor independent reviews from here | Reports in `.agent-runs/reviews/opus_*.md`; findings and responses added below as they land |
+| Opus 5.5 (SFT fixes) | A resume could mix objectives; RL step exports unlocked and unhashed; a local `--model` carried no pin; six mutants survived | Round 3: objective and length fingerprints in the identity, `merge_lora.py` exports RL steps under the shared lock, local pin, run-lock helper; 88 mutants, all killed |
+| Opus 5.5 (metrics v3, round 2) | The random-donor shuffle could pair prompts of different task type and length; "matched cost" overclaimed | Round 3: stratified shuffle (task type, length tercile, exact assignment), "at a stated cost", blank-profile control, fsum fix; 63 mutants killed |
+| Opus 5.5 (RL pack, round 1) | No P1. Resume identity missed the reward code and rdkit; the smoke gate could not fail a broken optimizer restore; six surviving mutants; Val k 4 against the endpoint's 8 | Round 4: objective hash over ten reward functions, rdkit and numpy in the identity, exact post-load restore check (A100 PASS), tests, EVAL_K 8; 241 mutants, 240 killed |
+| Opus 5.5 (RL pack, round 4 delta) | No P1. The hash still omits the update and sampling code; a resume keeps no session history; R1 ran round-2 code (patience on Val reward, no objective hash); stop set now includes the endoftext id | Recorded as limits (section 6); R5, the replicate, runs the reviewed files byte for byte (objective hash 8f4d26b5); R1 to R5 comparable on steps 0 to 40 only |
+| Opus 5.5 (evaluation pipeline) | Three P1: the comparator set is not the registered one (C3 added, A1 absent); nothing links the selection to the frozen spec; selection compares fv_tanimoto with mean_tanimoto. P2: confirmatory driver checks nothing about its inputs, manifest overwritten, split files unverified, extractor-audit filter drift, C3 pool unverified, merged exports unhashed, bootstrap and bundle guards weak | Protocol deviations D1 and D2 registered (prereg section 9); `check_against_selection` with reference, diagnostic and probe roles; fv_tanimoto only, k>=8 required; cohort, spec, selection, data-manifest and pool hashes checked; 138 mutants, all killed |
 
 ## 1. What the task is (measured, pooled train + val)
 
@@ -172,3 +176,14 @@ Cheapest-first ordering and the gates exist for this reason: nothing is spent on
 
 PD and combinations dropped; objective is held-out structure recovery; 0.8B/2B sweep is optional and last.
 Next: hand-resolution and exposure files land; `data_prep` re-run; reward v2 plus tests plus Codex review; CPU controls scored; first Kaggle GPU session (stack check + 4B probe).
+
+## 11. Val phase outcome and freeze state (2026-10-17, night)
+
+**Results on Val (20 drugs; `results/val_baselines.json`, `results/figures/table_val.md`; paper section 5).** No arm recovers a structure (exact@1 0 everywhere, core@1 at most 5%). Delivered similarity (fv_tanimoto, k=8): C3 0.187, C0 0.176, C1 0.174, C2 0.076;
+4B untrained 0.099, A4 0.160 (T=0.6), A2 0.156 (T=1.0), 9B 0.166, Qwen3.5-27B 0.186, RL-full step 40 0.189 (T=0.6; sampler-seed replicates 0.189 and 0.186), RL-contrastive at most 0.123. RL's gain is validity (56% to 98% valid) plus convergence to a generic
+structure (between-drug similarity of answers 0.13 to 0.46; lift 0.008 [-0.014, 0.034]). The shuffled-profile control lowers valid-answer similarity by about 0.01 (A2 0.013, RL 0.009): a real but small profile signal.
+**Selection (`results/selection.json`, Val only).** Comparator C3 (0.1865); A5 = RL-full, the best of its Val grid (steps 10 to 40 by temperature 0.3, 0.6, 1.0; step 40, T=0.6 so far); A0n T=0.6, A4 T=0.6, A2 T=1.0.
+RL-contrastive was cut short by the loss of the first A100 runtime at step 28 (steps 10 and 20 exist) and is not selected; RL-validity and profile-free RL were lost with it and rerun after the replicate.
+**Protocol changes recorded in `prereg-v1.md` section 9:** D1 (C3 joins the comparator set), D2 (A1 and A3 leave Test), D3 (RL candidates), D4 (27B references on Test-T only), D5 (stratified shuffle).
+**Open before the tag:** the replicate RL-full run R5 (seed 1, up to 100 steps; checkpoints from step 40 are added to the RL-full candidates, Val-selected as before), the final `selection.json`, `frozen_arms.json`, the manifest and the Opus round-2 review of the evaluation pipeline.
+**Compute so far:** `docs/paper/compute_budget.md` (generated by `scripts/compute_budget.py`).

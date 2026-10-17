@@ -4,7 +4,7 @@
    "label": "C0 constant (best Train reference)",
    "candidates": [
     {
-     "run": "val-control_constant"
+     "run": "val8-control_constant"
     }
    ]
   },
@@ -12,7 +12,7 @@
    "label": "C1 copy the nearest Train profile's structure",
    "candidates": [
     {
-     "run": "val-control_copy_nearest"
+     "run": "val8-control_copy_nearest"
     }
    ]
   },
@@ -20,12 +20,18 @@
    "label": "C3 reward-optimal constant (Train + pool)",
    "candidates": [
     {
-     "run": "val-control_constant_pool"
+     "run": "val8-control_constant_pool"
     }
    ]
   },
   "A0n": {
    "label": "4B untrained, no-think",
+   "spec": {
+    "mode": "nothink",
+    "max_tokens": 256,
+    "data": "direct",
+    "system": "direct"
+   },
    "candidates": [
     {
      "run": "a-direct",
@@ -43,62 +49,168 @@
   },
   "A2": {
    "label": "4B answer-only SFT (epoch 1)",
+   "spec": {
+    "mode": "think",
+    "max_tokens": 256,
+    "data": "direct",
+    "system": "direct"
+   },
    "candidates": [
     {
      "run": "a2-val",
-     "temperature": 1.0
+     "temperature": 1.0,
+     "adapter_sha256": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd"
     },
     {
      "run": "a2-t0.6",
-     "temperature": 0.6
+     "temperature": 0.6,
+     "adapter_sha256": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd"
     },
     {
      "run": "a2-t0.3",
-     "temperature": 0.3
+     "temperature": 0.3,
+     "adapter_sha256": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd"
     }
    ]
   },
   "A4": {
    "label": "4B + 3 retrieved examples",
+   "spec": {
+    "mode": "nothink",
+    "max_tokens": 256,
+    "data": "icl",
+    "system": "dataset"
+   },
    "candidates": [
     {
      "run": "a4-icl",
      "temperature": 1.0
+    },
+    {
+     "run": "a4-t0.6",
+     "temperature": 0.6
+    },
+    {
+     "run": "a4-t0.3",
+     "temperature": 0.3
     }
    ]
   },
   "RL-full": {
    "label": "4B RL, standard reward",
+   "spec": {
+    "mode": "think",
+    "max_tokens": 256,
+    "data": "direct",
+    "system": "direct"
+   },
    "candidates": [
+    {
+     "run": "rlfull-s10-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-10",
+     "adapter_sha256": "9a355947f16e9bad458f5ffbba4878a60d0ac12e9410d5cac405dc06e9841c7a"
+    },
+    {
+     "run": "rlfull-s10-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-10",
+     "adapter_sha256": "9a355947f16e9bad458f5ffbba4878a60d0ac12e9410d5cac405dc06e9841c7a"
+    },
+    {
+     "run": "rlfull-s10-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-10",
+     "adapter_sha256": "9a355947f16e9bad458f5ffbba4878a60d0ac12e9410d5cac405dc06e9841c7a"
+    },
+    {
+     "run": "rlfull-s20-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-20",
+     "adapter_sha256": "8abcf8938d8d3fa58160fae49014da2534ed9af3660a57c8f3a9285b89c1369c"
+    },
     {
      "run": "rlfull-s20-t0.6",
      "temperature": 0.6,
-     "checkpoint": "step-20"
+     "checkpoint": "step-20",
+     "adapter_sha256": "8abcf8938d8d3fa58160fae49014da2534ed9af3660a57c8f3a9285b89c1369c"
     },
     {
      "run": "rlfull-s20-t1.0",
      "temperature": 1.0,
-     "checkpoint": "step-20"
+     "checkpoint": "step-20",
+     "adapter_sha256": "8abcf8938d8d3fa58160fae49014da2534ed9af3660a57c8f3a9285b89c1369c"
+    },
+    {
+     "run": "rlfull-s30-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-30",
+     "adapter_sha256": "cc7ffcebc8f958bbe16a7621e32516f066302e252179a648b0a74a857671ab17"
     },
     {
      "run": "rlfull-s30-t0.6",
      "temperature": 0.6,
-     "checkpoint": "step-30"
+     "checkpoint": "step-30",
+     "adapter_sha256": "cc7ffcebc8f958bbe16a7621e32516f066302e252179a648b0a74a857671ab17"
     },
     {
      "run": "rlfull-s30-t1.0",
      "temperature": 1.0,
-     "checkpoint": "step-30"
+     "checkpoint": "step-30",
+     "adapter_sha256": "cc7ffcebc8f958bbe16a7621e32516f066302e252179a648b0a74a857671ab17"
+    },
+    {
+     "run": "rlfull-s40-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-40",
+     "adapter_sha256": "3372769983acc45731ca1c7561d7cf15c51c6940c22529760fff6673d2abdcb7"
     },
     {
      "run": "rlfull-s40-t0.6",
      "temperature": 0.6,
-     "checkpoint": "step-40"
+     "checkpoint": "step-40",
+     "adapter_sha256": "3372769983acc45731ca1c7561d7cf15c51c6940c22529760fff6673d2abdcb7"
     },
     {
      "run": "rlfull-s40-t1.0",
      "temperature": 1.0,
-     "checkpoint": "step-40"
+     "checkpoint": "step-40",
+     "adapter_sha256": "3372769983acc45731ca1c7561d7cf15c51c6940c22529760fff6673d2abdcb7"
+    }
+   ]
+  },
+  "RL-contrastive": {
+   "label": "4B RL, contrastive reward (run cut short at step 28 of 40)",
+   "spec": {
+    "mode": "think",
+    "max_tokens": 256,
+    "data": "direct",
+    "system": "direct"
+   },
+   "candidates": [
+    {
+     "run": "r3s10-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-10",
+     "adapter_sha256": "f249fc7abcc0683c2ec0cf71fb99cf5f254ece28c2f29921b5eefc75bfefe911"
+    },
+    {
+     "run": "r3s10-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-10",
+     "adapter_sha256": "f249fc7abcc0683c2ec0cf71fb99cf5f254ece28c2f29921b5eefc75bfefe911"
+    },
+    {
+     "run": "r3s20-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-20",
+     "adapter_sha256": "ac53a2983b2479ddab6440f8cd7a0e13012abbb153c2ef0c9f92afbb4d6e0262"
+    },
+    {
+     "run": "r3s20-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-20",
+     "adapter_sha256": "ac53a2983b2479ddab6440f8cd7a0e13012abbb153c2ef0c9f92afbb4d6e0262"
     }
    ]
   }
@@ -112,6 +224,7 @@
   "A4"
  ],
  "rl_set": [
-  "RL-full"
+  "RL-full",
+  "RL-contrastive"
  ]
 }

@@ -9,23 +9,23 @@ The aim is a reproducible record that can be written up as a paper whether or no
 | Phase | State |
 |---|---|
 | Data foundation (references, approval dates, leakage-safe splits) | built and audited |
-| Reward v2, metrics v3 (first-valid policy, profile-specific lift, component-level sign-flip), independent reviews | built; review fixes landing |
-| CPU controls (constant, nearest-profile copy, reward-optimal constant), class-information ceiling (ChEMBL) | scored by the CLI on every split before the lock, reported on Val only |
+| Reward v2, metrics v3 (first-valid policy, profile-specific lift, component-level sign-flip), independent reviews | built; reviews resolved |
+| CPU controls (constant, nearest-profile copy, constant scaffold, reward-optimal constant C3), class-information ceiling (ChEMBL) | C0 to C2 scored by the CLI on every split before the lock, reported on Val only; C3 from Train alone |
 | Zero-RL baselines on Val (4B, 9B, Qwen3.5-27B-FP8, Qwen3.8-27B-FP8), identification and name-given diagnostics | done on Val |
-| Arms A1 (trace SFT), A2 (answer-only SFT), A4 (in-context retrieval) on Val | done |
-| A5 RL (own HF-generate GRPO loop, reward modes full / contrastive / validity-only) | gates passed on the A100; pilot running |
-| Locked Test evaluation | not started; the protocol is [docs/prereg-v1.md](docs/prereg-v1.md), frozen by git tag `prereg-v1` before any Test sampling |
+| Arms A1 (trace SFT), A2 (answer-only SFT), A4 (in-context retrieval) on Val, with the temperature grid | done |
+| A5 RL (own HF-generate GRPO loop, reward modes full / contrastive / validity-only) | RL-full pilot (40 steps) done, RL-contrastive cut short, a seed-1 replicate (up to 100 steps) running; Val checkpoint selection pending |
+| Locked Test evaluation | not started; the protocol is [docs/prereg-v1.md](docs/prereg-v1.md), frozen by git tag `prereg-v1` before any Test sampling; procedure in [gpu/FINAL.md](gpu/FINAL.md) |
 
-Headline so far (Val, 20 drugs): no arm recovers a structure (exact@1 is 0, core@1 at most 5%); the best constant answer scores mean Tanimoto 0.176; only the untrained 27B with first-valid-of-8 decoding clears it (0.186). Details: [docs/plan.md](docs/plan.md) section 5 and `results/val_baselines.json`.
+Headline so far (Val, 20 drugs): no arm recovers a structure (exact@1 is 0, core@1 at most 5%). The reward-optimal constant answer delivers first-valid similarity 0.187; only the untrained Qwen3.5-27B (0.186) and the RL arm (0.189) reach it, and RL got there by making answers valid and generic, not by using the profile (lift 0.008, shuffled-profile drop about 0.01). Details: [docs/plan.md](docs/plan.md) sections 5 and 11, `results/val_baselines.json`, `results/figures/`.
 
 Plan and review log: [docs/plan.md](docs/plan.md). Protocol: [docs/prereg-v1.md](docs/prereg-v1.md). File and schema contracts: [docs/contracts.md](docs/contracts.md). Durable project facts: [docs/memory/MEMORY.md](docs/memory/MEMORY.md). Paper scaffold: [docs/paper/README.md](docs/paper/README.md).
 
 ## Layout
 
     src/rlexp/     chem, reward, data_prep, metrics, controls, arms, ident, shuffle, grpo   (import as `from rlexp import chem`)
-    scripts/       data audit, ChEMBL/openFDA resolution, offline reward checks, ChEMBL pool and class ceiling, Val table
+    scripts/       data audit, ChEMBL/openFDA resolution, offline reward checks, ChEMBL pool and class ceiling, Val table, arm selection, locked-run scoring and tables, figures
     gpu/           Colab/Kaggle packs: vLLM sampler, LoRA SFT + merge, answer-only RL (RL.md, SFT.md, STACK.md)
-    tests/         pytest (about 900 tests, including 77 answer-format fixtures); torch-dependent tests skip without torch
+    tests/         pytest (about 1,450 tests, including 77 answer-format fixtures); torch-dependent tests skip without torch
     data/raw/      original row files and the ChEMBL cache (not in git)      data/curated/   hand-resolved inputs (in git)
     data/processed/ refs.jsonl and split_report.json (in git); prompt files (not in git)
     runs/          sampling and scoring outputs (not in git)      results/   small tracked summaries used by the paper
@@ -54,6 +54,15 @@ Plan and review log: [docs/plan.md](docs/plan.md). Protocol: [docs/prereg-v1.md]
     .venv/bin/python -m rlexp.metrics report --scored runs/X/scored.jsonl --data data/processed [--vs runs/Y/scored.jsonl]
     .venv/bin/python scripts/val_table.py                      # results/val_baselines.json
     .venv/bin/python scripts/class_ceiling.py                  # results/class_ceiling.json (needs the ChEMBL cache)
+    .venv/bin/python scripts/make_figures.py --split val       # results/figures: F1 to F4 and the Val table
+    .venv/bin/python scripts/answer_diversity.py --constant val8-control_constant_pool --names a2-val,rlfull-s40-t0.6 --json results/answer_diversity.json
+    .venv/bin/python scripts/compute_budget.py                 # results/compute_budget.json, docs/paper/compute_budget.md
+
+    # locked evaluation (after the tag prereg-v1): gpu/FINAL.md has the whole procedure
+    .venv/bin/python scripts/select_arms.py --candidates results/arm_candidates.json --runs runs/colab-s1 --out results/selection.json   # Val only
+    python gpu/run_final.py --drive <drive dir>                # Colab A100: merge, Val sanity gate, sample every frozen arm
+    .venv/bin/python scripts/final_controls.py --final runs/final   # C0 to C3 on the Test rows
+    .venv/bin/python scripts/confirmatory.py --selection results/selection.json --spec-sha256 <hex> --final runs/final --out results/confirmatory.json
 
 ## Provenance
 
