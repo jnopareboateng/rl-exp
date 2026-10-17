@@ -180,6 +180,60 @@
      "temperature": 1.0,
      "checkpoint": "step-40",
      "adapter_sha256": "3372769983acc45731ca1c7561d7cf15c51c6940c22529760fff6673d2abdcb7"
+    },
+    {
+     "run": "rlfull5-s40-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-40",
+     "adapter_sha256": "80c8497f1dc61a645062b45417bafea91026c752b0655bb0f8a52ad9e5922d6e"
+    },
+    {
+     "run": "rlfull5-s40-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-40",
+     "adapter_sha256": "80c8497f1dc61a645062b45417bafea91026c752b0655bb0f8a52ad9e5922d6e"
+    },
+    {
+     "run": "rlfull5-s40-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-40",
+     "adapter_sha256": "80c8497f1dc61a645062b45417bafea91026c752b0655bb0f8a52ad9e5922d6e"
+    },
+    {
+     "run": "rlfull5-s50-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-50",
+     "adapter_sha256": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9"
+    },
+    {
+     "run": "rlfull5-s50-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-50",
+     "adapter_sha256": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9"
+    },
+    {
+     "run": "rlfull5-s50-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-50",
+     "adapter_sha256": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9"
+    },
+    {
+     "run": "rlfull5-s60-t0.3",
+     "temperature": 0.3,
+     "checkpoint": "step-60",
+     "adapter_sha256": "04c5d5f27bf9be1eeeed87b3f84543da498eb45b31d8dc2326486229dfcd3918"
+    },
+    {
+     "run": "rlfull5-s60-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-60",
+     "adapter_sha256": "04c5d5f27bf9be1eeeed87b3f84543da498eb45b31d8dc2326486229dfcd3918"
+    },
+    {
+     "run": "rlfull5-s60-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-60",
+     "adapter_sha256": "04c5d5f27bf9be1eeeed87b3f84543da498eb45b31d8dc2326486229dfcd3918"
     }
    ]
   },
