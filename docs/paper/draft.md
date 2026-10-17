@@ -111,7 +111,9 @@ Two sources of noise matter for reading differences. Re-sampling the same adapte
 
 ### 5.2 What RL changed
 
-RL started from A2 (56% valid, delivered similarity 0.156) and, over the 40 steps of the pilot run (24 drugs per step, eight samples each), made the answers valid within 20 steps (98%) and raised the delivered similarity at steps 10, 20, 30 and 40 to 0.163, 0.175, 0.178 and 0.186 at T=0.3 (0.150, 0.168, 0.180 and 0.189 at T=0.6; Figure 3). The gain is not knowledge of the drug: lift stayed at 0.008 [-0.014, 0.034], and the answers converged. The mean similarity between the answers given to different drugs rose from 0.13 (A2) to 0.46 (RL, step 40), the most common structure grew from 0.4% to 14% of the valid answers, and the mean similarity of the answers to the C3 constant rose from 0.17 to 0.27 (Table 3). RL learned to write a valid, generic structure that is well chosen for the reward, and that is what a constant does. <!-- results/answer_diversity.json; results/figures/f3_rl_training.png -->
+RL started from A2 (56% valid, delivered similarity 0.156). In the pilot run (R1: 24 drugs per step, eight samples each, 40 steps) the answers became valid within 20 steps (98%) and the delivered similarity at steps 10, 20, 30 and 40 rose to 0.163, 0.175, 0.178 and 0.186 at T=0.3 (0.150, 0.168, 0.180 and 0.189 at T=0.6; Figure 3). Because that curve was still rising, a replicate with another seed (R5, up to 100 steps) was added before any Test sample. It followed the same path to step 40 (0.183 at T=0.3 and T=0.6, 0.187 at T=1.0), reached its best at step 50 (0.195 at T=0.3, 0.193 at T=0.6) and held it at step 60 (0.193), then stopped itself at step 63 on its collapse rule. The Val-selected checkpoint is therefore R5 step 50 at T=0.3, with delivered similarity 0.195 against 0.187 for the best constant C3 and 0.195 for the best constant that any candidate of our pool could have been on Val (the oracle constant, from reference structures only). <!-- results/val_baselines.json (rlfull5-* rows); results/selection.json; results/constant_ceiling.json; runs/rl/R5/summary.json (status stopped_collapse, step 63) -->
+
+The gain is not knowledge of the drug. Lift stays near zero (R5 step 50: fv_lift 0.009, interval [-0.013, 0.034]) and the answers converge: the mean similarity between the answers given to different drugs rises from 0.13 (A2) to 0.46 (pilot, step 40) and 0.51 (R5 step 50), the most common structure grows from 0.4% to 14% and 20% of the usable answers, and the mean similarity of the answers to the C3 constant rises from 0.17 to 0.27 and 0.30 (Table 3). No answer is the C3 molecule itself. RL learned to write a valid, generic structure close to the one that is best for the reward, which is what a constant does; when it collapsed further (R5 step 63: a single structure in 12% of a training batch, collapse score 0.54 to 0.62), the Val gain stopped. <!-- results/answer_diversity.json; results/figures/f3_rl_training.png -->
 
 **Table 3.** How concentrated the usable answers are on Val (valid, closed, finished answers pooled over the eight samples of every prompt; aggregates only).
 
@@ -121,13 +123,15 @@ RL started from A2 (56% valid, delivered similarity 0.156) and, over the 40 step
 | A4 (T=1.0) | 205 | 187 | 0.039 | 0.159 | 0.132 |
 | Untrained 9B (T=0.6) | 288 | 287 | 0.007 | 0.212 | 0.192 |
 | Untrained 27B (T=1.0) | 302 | 298 | 0.010 | 0.185 | 0.150 |
-| RL-full step 20 (T=0.6) | 457 | 335 | 0.048 | 0.246 | 0.297 |
-| RL-full step 40 (T=0.6) | 454 | 132 | 0.141 | 0.265 | 0.461 |
+| RL-full pilot, step 20 (T=0.6) | 457 | 335 | 0.048 | 0.246 | 0.297 |
+| RL-full pilot, step 40 (T=0.6) | 454 | 132 | 0.141 | 0.265 | 0.461 |
+| RL-full replicate, step 50 (T=0.3), the Val-selected checkpoint | 464 | 82 | 0.200 | 0.296 | 0.512 |
+| RL-full replicate, step 60 (T=0.3) | 464 | 121 | 0.134 | 0.307 | 0.571 |
 | RL-contrastive step 10 (T=0.6) | 446 | 408 | 0.027 | 0.150 | 0.143 |
 
 <!-- Table 3: results/answer_diversity.json (scripts/answer_diversity.py) -->
 
-The contrastive reward, which pays only for similarity beyond what an answer would score against the other drugs' references, did worse: 0.113 to 0.123 at steps 10 and 20, below its A2 start. Its run was cut short by the loss of the compute runtime at about step 28 of 40, so no later checkpoint exists. [TBD: second RL-full run, seed 1, longer: Val curve, collapse, best checkpoint, from the Colab run R5.] <!-- results/val_baselines.json (r3s* rows); docs/memory/status-main.md -->
+The contrastive reward, which pays only for similarity beyond what an answer would score against the other drugs' references, did worse: 0.113 to 0.123 at steps 10 and 20, below its A2 start. Its run was cut short by the loss of the compute runtime at about step 28 of 40, so no later checkpoint exists. [TBD: the validity-only and profile-free RL runs on Val, from the Colab runs R2 and R4, if they finish.] <!-- results/val_baselines.json (r3s* rows); docs/memory/status-main.md -->
 
 ### 5.3 Does any arm use the profile?
 
