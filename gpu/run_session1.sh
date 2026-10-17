@@ -74,8 +74,13 @@ PY=gpu/.venv/bin/python
 step stack-install $UV pip install --python "$PY" \
     'https://github.com/vllm-project/vllm/releases/download/v0.31.0/vllm-0.31.0+cu129-cp38-abi3-manylinux_2_28_x86_64.whl' \
     'torch==2.13.0+cu129' 'transformers==5.17.0' \
-    --extra-index-url https://download.pytorch.org/whl/cu129 || exit 1
+    --extra-index-url https://download.pytorch.org/whl/cu129 --index-strategy unsafe-best-match || exit 1   # uv otherwise stops at the PyTorch index, whose packaging is too old for flashinfer
 step pip-check $UV pip check --python "$PY" || exit 1
+# torchcodec (pulled in for video) needs FFmpeg shared libraries this runtime may lack; text-only sampling does not use it.
+step torchcodec-check "$PY" -c 'import torchcodec' || log 'torchcodec does not import; removing it (text-only runs do not need it).'
+step torchcodec-remove $UV pip uninstall --python "$PY" torchcodec || log 'torchcodec was not installed or could not be removed.'
+step import-check "$PY" -c 'import torch, vllm; print("torch", torch.__version__, "cuda", torch.cuda.is_available(), torch.cuda.device_count(), "vllm", vllm.__version__)' || exit 1
+export SAMPLER_VERBOSE_ERRORS=1   # print full tracebacks in this private run log (the sampler hides them by default)
 step installed-inventory "$PY" gpu/env_check.py || exit 1
 cp "$scratch/installed-inventory.log" "$scratch/after.json" || exit 1
 step prepare "$PY" gpu/session1.py prepare "$scratch" || exit 1

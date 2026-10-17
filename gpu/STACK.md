@@ -10,7 +10,7 @@
 - **inferred, UNTESTED install recipe:** Create a fresh environment. These commands select matching CUDA 12.9 binaries. Run scripts with its interpreter; an already imported notebook torch will not change. Bootstrap `uv==0.13.1` with `python -m pip install uv==0.13.1` if needed. Sources: [uv release](https://pypi.org/project/uv/0.13.1/), [vLLM ABI guidance](https://docs.vllm.ai/en/v0.31.0/getting_started/installation/gpu.html), [torch wheel index](https://download.pytorch.org/whl/cu129/torch/).
 ```sh
 uv venv gpu/.venv --python 3.12 --seed
-uv pip install --python gpu/.venv/bin/python 'https://github.com/vllm-project/vllm/releases/download/v0.31.0/vllm-0.31.0+cu129-cp38-abi3-manylinux_2_28_x86_64.whl' 'torch==2.13.0+cu129' 'transformers==5.17.0' --extra-index-url https://download.pytorch.org/whl/cu129
+uv pip install --python gpu/.venv/bin/python 'https://github.com/vllm-project/vllm/releases/download/v0.31.0/vllm-0.31.0+cu129-cp38-abi3-manylinux_2_28_x86_64.whl' 'torch==2.13.0+cu129' 'transformers==5.17.0' --extra-index-url https://download.pytorch.org/whl/cu129 --index-strategy unsafe-best-match
 uv pip check --python gpu/.venv/bin/python
 ```
 - **inferred:** On an R580+ runtime, the shorter CUDA 13 alternative is `uv pip install --python gpu/.venv/bin/python vllm==0.31.0 torch==2.13.0 transformers==5.17.0`. Both recipes require a GPU import/load probe before being called working. Transitive dependencies are resolver-selected, so these are core pins, not a full reproducibility lock. Sources: [release](https://github.com/vllm-project/vllm/releases/tag/v0.31.0), [requirements](https://github.com/vllm-project/vllm/blob/v0.31.0/requirements/cuda.txt).

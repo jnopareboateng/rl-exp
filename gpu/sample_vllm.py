@@ -356,6 +356,8 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
+        if os.environ.get("SAMPLER_VERBOSE_ERRORS") == "1":  # opt-in: tracebacks can carry data, so off by default
+            traceback.print_exc()
         reason = next((label for word, label in (("memory", "memory/KV allocation"), ("driver", "GPU driver"),
                       ("quant", "quantization"), ("lora", "adapter"), ("dtype", "dtype"))
                        if word in str(error).lower()), "runtime")
