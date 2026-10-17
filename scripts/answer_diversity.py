@@ -53,6 +53,7 @@ def diversity(answers, constant):
         per_drug.setdefault(d, Counter())[keys[s]] += 1
     modal = {d: c.most_common(1)[0][0] for d, c in per_drug.items()}
     ref = chem.standardize(constant)
+    const_key = chem.conn(ref) if ref is not None else None
     to_const = [chem.tanimoto(mols[s], ref) for _, s in usable]
     # one representative per (drug, structure) keeps the cross-drug pair count small and weights every drug's distinct answers once
     reps = {}
@@ -65,6 +66,7 @@ def diversity(answers, constant):
         cross.append(statistics.fmean(chem.tanimoto(mols[x], mols[y]) for x in by_drug[a] for y in by_drug[b]))
     return {"n_usable": len(usable), "n_drugs": len(per_drug), "distinct_structures": len(by_key), "top_structure_share": top_n / len(usable),
             "drugs_with_top_structure_as_mode": sum(1 for d in modal if modal[d] == top_key) / len(modal),
+            "share_equal_to_constant": sum(1 for _, s in usable if keys[s] == const_key) / len(usable),
             "mean_tanimoto_to_constant": statistics.fmean(to_const),
             "mean_tanimoto_between_drugs": statistics.fmean(cross) if cross else None}
 
@@ -81,7 +83,7 @@ def main(argv=None):
     result = {"split": args.split, "constant_run": args.constant, "runs": {}}
     for name in args.names.split(","):
         result["runs"][name] = diversity(usable_answers(args.runs / name / "scored.v3.jsonl", args.split), constant)
-    cols = ("n_usable", "distinct_structures", "top_structure_share", "drugs_with_top_structure_as_mode", "mean_tanimoto_to_constant", "mean_tanimoto_between_drugs")
+    cols = ("n_usable", "distinct_structures", "top_structure_share", "drugs_with_top_structure_as_mode", "share_equal_to_constant", "mean_tanimoto_to_constant", "mean_tanimoto_between_drugs")
     print("run".ljust(26) + "".join(c[:14].rjust(16) for c in cols))
     for name, agg in result["runs"].items():
         print(name.ljust(26) + "".join(("n/a" if agg.get(c) is None else f"{agg[c]:.3f}" if isinstance(agg[c], float) else str(agg[c])).rjust(16) for c in cols))

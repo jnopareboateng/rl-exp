@@ -30,6 +30,12 @@ def test_one_answer_for_everything_is_fully_concentrated():
     assert agg["mean_tanimoto_to_constant"] == pytest.approx(1.0) and agg["mean_tanimoto_between_drugs"] == pytest.approx(1.0)
 
 
+def test_share_of_answers_equal_to_the_constant():
+    agg = ad.diversity([("a", ASPIRIN), ("a", ASPIRIN), ("b", CAFFEINE), ("b", ASPIRIN)], ASPIRIN)
+    assert agg["share_equal_to_constant"] == 0.75
+    assert ad.diversity([("a", CAFFEINE)], ASPIRIN)["share_equal_to_constant"] == 0.0
+
+
 def test_distinct_answers_per_drug_lower_the_concentration():
     agg = ad.diversity([("a", ASPIRIN), ("a", ASPIRIN), ("b", CAFFEINE), ("b", CAFFEINE)], ASPIRIN)
     assert agg["distinct_structures"] == 2 and agg["top_structure_share"] == 0.5

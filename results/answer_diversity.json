@@ -8,26 +8,9 @@
    "distinct_structures": 1,
    "top_structure_share": 1.0,
    "drugs_with_top_structure_as_mode": 1.0,
+   "share_equal_to_constant": 0.0,
    "mean_tanimoto_to_constant": 0.25308641975308643,
    "mean_tanimoto_between_drugs": 1.0
-  },
-  "val8-control_copy_nearest": {
-   "n_usable": 464,
-   "n_drugs": 20,
-   "distinct_structures": 49,
-   "top_structure_share": 0.05172413793103448,
-   "drugs_with_top_structure_as_mode": 0.05,
-   "mean_tanimoto_to_constant": 0.20136112672847314,
-   "mean_tanimoto_between_drugs": 0.17123114311651452
-  },
-  "a-direct": {
-   "n_usable": 68,
-   "n_drugs": 18,
-   "distinct_structures": 68,
-   "top_structure_share": 0.014705882352941176,
-   "drugs_with_top_structure_as_mode": 0.05555555555555555,
-   "mean_tanimoto_to_constant": 0.15110740084030397,
-   "mean_tanimoto_between_drugs": 0.11466930927730294
   },
   "a2-val": {
    "n_usable": 256,
@@ -35,35 +18,9 @@
    "distinct_structures": 256,
    "top_structure_share": 0.00390625,
    "drugs_with_top_structure_as_mode": 0.05,
+   "share_equal_to_constant": 0.0,
    "mean_tanimoto_to_constant": 0.16708025766090162,
    "mean_tanimoto_between_drugs": 0.13044166560171275
-  },
-  "a2-t0.6": {
-   "n_usable": 347,
-   "n_drugs": 20,
-   "distinct_structures": 335,
-   "top_structure_share": 0.01729106628242075,
-   "drugs_with_top_structure_as_mode": 0.0,
-   "mean_tanimoto_to_constant": 0.1826126401567571,
-   "mean_tanimoto_between_drugs": 0.14422089683407918
-  },
-  "a4-icl": {
-   "n_usable": 205,
-   "n_drugs": 20,
-   "distinct_structures": 187,
-   "top_structure_share": 0.03902439024390244,
-   "drugs_with_top_structure_as_mode": 0.05,
-   "mean_tanimoto_to_constant": 0.15868564141224406,
-   "mean_tanimoto_between_drugs": 0.1316736549805877
-  },
-  "rlfull-s20-t0.6": {
-   "n_usable": 457,
-   "n_drugs": 20,
-   "distinct_structures": 335,
-   "top_structure_share": 0.04814004376367615,
-   "drugs_with_top_structure_as_mode": 0.25,
-   "mean_tanimoto_to_constant": 0.2462209701654902,
-   "mean_tanimoto_between_drugs": 0.2968407049905944
   },
   "rlfull-s40-t0.6": {
    "n_usable": 454,
@@ -71,17 +28,49 @@
    "distinct_structures": 132,
    "top_structure_share": 0.14096916299559473,
    "drugs_with_top_structure_as_mode": 0.35,
+   "share_equal_to_constant": 0.0,
    "mean_tanimoto_to_constant": 0.26492676331963466,
    "mean_tanimoto_between_drugs": 0.4605618658666581
   },
-  "rlfull-s40-t1.0": {
-   "n_usable": 458,
+  "rlfull5-s40-t0.6": {
+   "n_usable": 460,
    "n_drugs": 20,
-   "distinct_structures": 297,
-   "top_structure_share": 0.0851528384279476,
-   "drugs_with_top_structure_as_mode": 0.4,
-   "mean_tanimoto_to_constant": 0.2665367944404402,
-   "mean_tanimoto_between_drugs": 0.37362684746239544
+   "distinct_structures": 257,
+   "top_structure_share": 0.08043478260869565,
+   "drugs_with_top_structure_as_mode": 0.25,
+   "share_equal_to_constant": 0.0,
+   "mean_tanimoto_to_constant": 0.2590686801347657,
+   "mean_tanimoto_between_drugs": 0.40251062194139076
+  },
+  "rlfull5-s50-t0.3": {
+   "n_usable": 464,
+   "n_drugs": 20,
+   "distinct_structures": 82,
+   "top_structure_share": 0.20043103448275862,
+   "drugs_with_top_structure_as_mode": 0.25,
+   "share_equal_to_constant": 0.0,
+   "mean_tanimoto_to_constant": 0.29552347454945666,
+   "mean_tanimoto_between_drugs": 0.5121465774684099
+  },
+  "rlfull5-s50-t0.6": {
+   "n_usable": 462,
+   "n_drugs": 20,
+   "distinct_structures": 156,
+   "top_structure_share": 0.13203463203463203,
+   "drugs_with_top_structure_as_mode": 0.25,
+   "share_equal_to_constant": 0.0,
+   "mean_tanimoto_to_constant": 0.2923094764703457,
+   "mean_tanimoto_between_drugs": 0.45610339988768395
+  },
+  "rlfull5-s60-t0.3": {
+   "n_usable": 464,
+   "n_drugs": 20,
+   "distinct_structures": 121,
+   "top_structure_share": 0.1336206896551724,
+   "drugs_with_top_structure_as_mode": 0.3,
+   "share_equal_to_constant": 0.0,
+   "mean_tanimoto_to_constant": 0.30663542866646726,
+   "mean_tanimoto_between_drugs": 0.5710619832894426
   },
   "r3s10-t0.6": {
    "n_usable": 446,
@@ -89,26 +78,9 @@
    "distinct_structures": 408,
    "top_structure_share": 0.026905829596412557,
    "drugs_with_top_structure_as_mode": 0.2,
+   "share_equal_to_constant": 0.0,
    "mean_tanimoto_to_constant": 0.14970905152008118,
    "mean_tanimoto_between_drugs": 0.14251538001740088
-  },
-  "r3s20-t0.6": {
-   "n_usable": 461,
-   "n_drugs": 20,
-   "distinct_structures": 367,
-   "top_structure_share": 0.015184381778741865,
-   "drugs_with_top_structure_as_mode": 0.05,
-   "mean_tanimoto_to_constant": 0.12071146500137639,
-   "mean_tanimoto_between_drugs": 0.15976369030942478
-  },
-  "b9-t0.6": {
-   "n_usable": 288,
-   "n_drugs": 20,
-   "distinct_structures": 287,
-   "top_structure_share": 0.006944444444444444,
-   "drugs_with_top_structure_as_mode": 0.05,
-   "mean_tanimoto_to_constant": 0.21220060572390137,
-   "mean_tanimoto_between_drugs": 0.19175764232125184
   },
   "b27-direct": {
    "n_usable": 302,
@@ -116,6 +88,7 @@
    "distinct_structures": 298,
    "top_structure_share": 0.009933774834437087,
    "drugs_with_top_structure_as_mode": 0.05,
+   "share_equal_to_constant": 0.0,
    "mean_tanimoto_to_constant": 0.18476503401788494,
    "mean_tanimoto_between_drugs": 0.14968719224672666
   }
