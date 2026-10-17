@@ -6,7 +6,9 @@
 Reads the cache of scripts/fetch_chembl_pool.py (every file checked against manifest.json) and, from
 data/processed/{train,val,test_r,test_t}.jsonl, only group, ref_smiles and ref_alt_smiles (no prompt text is kept).
 Writes <cache>/pool.jsonl (one row per surviving drug) and <cache>/train_facts.jsonl (the same facts for the Train
-drugs ChEMBL knows, with the Train reference as `smiles`; input of scripts/class_ceiling.py). Prints counts only.
+drugs ChEMBL knows, with the Train reference as `smiles`; input of scripts/class_ceiling.py), and records their sha256, row
+counts and the sha256 of the four processed files it read under `derived` in <cache>/manifest.json (the raw `files` entries
+stay as fetch_chembl_pool.py wrote them). Prints counts only.
 
   1. A record's structure is its hierarchy parent's SMILES (the parent record's when it has one, else its own) through
      chem.standardize (largest fragment, neutral). Records with no SMILES or that do not standardise are counted and skipped.
@@ -173,6 +175,21 @@ def write_jsonl(path, rows):
     os.replace(tmp, path)
 
 
+def _sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def record_derived(cache, data_dir, manifest, n_pool, n_train):
+    """Add the `derived` record to manifest.json (same atomic, compact format fetch_chembl_pool.py writes it in)."""
+    manifest["derived"] = {
+        "built_by": "scripts/build_pool.py",
+        "files": {n: {"records": k, "sha256": _sha256(cache / n)} for n, k in (("pool.jsonl", n_pool), ("train_facts.jsonl", n_train))},
+        "inputs": {f"{s}.jsonl": _sha256(data_dir / f"{s}.jsonl") for s in SPLITS}}
+    tmp = cache / "manifest.json.tmp"
+    tmp.write_text(json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, cache / "manifest.json")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--cache", type=Path, default=ROOT / "data/raw/chembl_pool")
@@ -231,7 +248,9 @@ def main(argv=None):
           f"{sum(bool(r['mechanisms'] or r['atc']) for r in train.values())}")
     write_jsonl(a.cache / "pool.jsonl", pool)
     write_jsonl(a.cache / "train_facts.jsonl", [train[g] for g in sorted(train)])
-    print(f"wrote {a.cache / 'pool.jsonl'} ({len(pool)} rows) and {a.cache / 'train_facts.jsonl'} ({len(train)} rows)")
+    record_derived(a.cache, a.data, manifest, len(pool), len(train))
+    print(f"wrote {a.cache / 'pool.jsonl'} ({len(pool)} rows) and {a.cache / 'train_facts.jsonl'} ({len(train)} rows); "
+          f"their sha256 are in the manifest")
 
 
 if __name__ == "__main__":

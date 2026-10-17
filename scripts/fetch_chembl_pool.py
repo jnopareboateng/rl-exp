@@ -8,7 +8,7 @@ requests, and retries with backoff on throttling (429, 5xx) and network errors; 
 size is halved (down to 100). Pages of up to 1,000 records (ids in batches of 100) are trimmed to the fields the pool needs
 and written to <out>/<name>.json as soon as they arrive, so an interrupted run resumes at the first missing page and a
 complete cache needs no network. manifest.json is written last: ChEMBL release, record counts, and the sha256 of every
-cached file. Prints counts only.
+cached file (a `derived` record added by build_pool.py is kept while these hashes are unchanged). Prints counts only.
 
   molecule_NNNNNN.json    every small molecule with max_phase 4 (page starting at offset NNNNNN, molecule_chembl_id order)
   parent_NNN.json         hierarchy parents that are not themselves in that set (batches of 100 ids)
@@ -181,7 +181,12 @@ def fetch(out, pause=0.5):
         "records": {"molecule": len(mols), "molecule_api_total": n_mol, "parent": len(parents), "mechanism": len(mechs),
                     "mechanism_api_total": n_mec, "target": len(targets), "indication": len(inds), "indication_api_total": n_ind},
         "files": {n: {"records": r, "sha256": hashlib.sha256((out / n).read_bytes()).hexdigest()} for n, r in sorted(used)}}
-    save(out / "manifest.json", manifest)
+    path = out / "manifest.json"
+    if path.exists():  # build_pool.py's `derived` record stays while the raw pages are the very ones it was built from
+        prev = json.loads(path.read_text(encoding="utf-8"))
+        if "derived" in prev and prev.get("files") == manifest["files"]:
+            manifest["derived"] = prev["derived"]
+    save(path, manifest)
     return manifest
 
 
