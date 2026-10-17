@@ -1,0 +1,183 @@
+{
+ "arms": {
+  "C0": {
+   "label": "C0 constant (best Train reference)",
+   "run": "val-control_constant",
+   "temperature": null,
+   "checkpoint": null,
+   "score": 0.17607905275324157,
+   "metric": "mean_tanimoto",
+   "candidates": [
+    {
+     "run": "val-control_constant",
+     "temperature": null,
+     "checkpoint": null,
+     "score": 0.17607905275324157
+    }
+   ]
+  },
+  "C1": {
+   "label": "C1 copy the nearest Train profile's structure",
+   "run": "val-control_copy_nearest",
+   "temperature": null,
+   "checkpoint": null,
+   "score": 0.174031227335025,
+   "metric": "mean_tanimoto",
+   "candidates": [
+    {
+     "run": "val-control_copy_nearest",
+     "temperature": null,
+     "checkpoint": null,
+     "score": 0.174031227335025
+    }
+   ]
+  },
+  "C3": {
+   "label": "C3 reward-optimal constant (Train + pool)",
+   "run": "val-control_constant_pool",
+   "temperature": null,
+   "checkpoint": null,
+   "score": 0.1865340812492177,
+   "metric": "mean_tanimoto",
+   "candidates": [
+    {
+     "run": "val-control_constant_pool",
+     "temperature": null,
+     "checkpoint": null,
+     "score": 0.1865340812492177
+    }
+   ]
+  },
+  "A0n": {
+   "label": "4B untrained, no-think",
+   "run": "b4-t0.6",
+   "temperature": 0.6,
+   "checkpoint": null,
+   "score": 0.09946043000858322,
+   "metric": "fv_tanimoto",
+   "candidates": [
+    {
+     "run": "b4-t0.6",
+     "temperature": 0.6,
+     "checkpoint": null,
+     "score": 0.09946043000858322
+    },
+    {
+     "run": "b4-t0.3",
+     "temperature": 0.3,
+     "checkpoint": null,
+     "score": 0.09713175581295135
+    },
+    {
+     "run": "a-direct",
+     "temperature": 1.0,
+     "checkpoint": null,
+     "score": 0.08727651590293536
+    }
+   ]
+  },
+  "A2": {
+   "label": "4B answer-only SFT (epoch 1)",
+   "run": "a2-val",
+   "temperature": 1.0,
+   "checkpoint": null,
+   "score": 0.15567760756229113,
+   "metric": "fv_tanimoto",
+   "candidates": [
+    {
+     "run": "a2-val",
+     "temperature": 1.0,
+     "checkpoint": null,
+     "score": 0.15567760756229113
+    },
+    {
+     "run": "a2-t0.6",
+     "temperature": 0.6,
+     "checkpoint": null,
+     "score": 0.14430802829661027
+    },
+    {
+     "run": "a2-t0.3",
+     "temperature": 0.3,
+     "checkpoint": null,
+     "score": 0.13749774753232286
+    }
+   ]
+  },
+  "A4": {
+   "label": "4B + 3 retrieved examples",
+   "run": "a4-icl",
+   "temperature": 1.0,
+   "checkpoint": null,
+   "score": 0.13882176360686632,
+   "metric": "fv_tanimoto",
+   "candidates": [
+    {
+     "run": "a4-icl",
+     "temperature": 1.0,
+     "checkpoint": null,
+     "score": 0.13882176360686632
+    }
+   ]
+  },
+  "RL-full": {
+   "label": "4B RL, standard reward",
+   "run": "rlfull-s40-t0.6",
+   "temperature": 0.6,
+   "checkpoint": "step-40",
+   "score": 0.18870070121162735,
+   "metric": "fv_tanimoto",
+   "candidates": [
+    {
+     "run": "rlfull-s40-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-40",
+     "score": 0.18870070121162735
+    },
+    {
+     "run": "rlfull-s40-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-40",
+     "score": 0.18687868959315673
+    },
+    {
+     "run": "rlfull-s30-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-30",
+     "score": 0.18116426254100718
+    },
+    {
+     "run": "rlfull-s30-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-30",
+     "score": 0.17979460023637092
+    },
+    {
+     "run": "rlfull-s20-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-20",
+     "score": 0.1727943259879831
+    },
+    {
+     "run": "rlfull-s20-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-20",
+     "score": 0.1683730855662146
+    }
+   ]
+  }
+ },
+ "comparator": "C3",
+ "rl": "RL-full",
+ "comparator_set": [
+  "C0",
+  "C1",
+  "C3",
+  "A0n",
+  "A2",
+  "A4"
+ ],
+ "rl_set": [
+  "RL-full"
+ ]
+}

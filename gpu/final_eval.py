@@ -17,7 +17,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SPLITS = ("test_t", "test_r")
-TEMPERATURES = (0.01, 0.3, 0.6, 1.0)
+TEMPERATURES = (0.3, 0.6, 1.0)          # the selectable grid, chosen on Val by fv_tanimoto at k=8
+NEAR_GREEDY = 0.01                       # reported at k=1 only, never selected
 MODES = ("think", "nothink")
 DATA_VARIANTS = {"direct": "processed", "icl": "processed/arms/a4", "name": "processed/arms/name",
                  "ident": "processed/arms/ident", "shuffle": "processed/arms/shuffle"}   # directories under --data holding <split>.jsonl
@@ -56,7 +57,10 @@ def load_spec(path, expected_sha256):
         seen.add(arm["id"])
         if arm["mode"] not in MODES or arm["data"] not in DATA_VARIANTS or arm["system"] not in SYSTEM_TEXTS:
             raise SpecError(f"arm {arm['id']}: mode, data or system outside the frozen vocabulary")
-        if arm["temperature"] not in TEMPERATURES:
+        if arm["temperature"] == NEAR_GREEDY:
+            if arm.get("k") != 1:
+                raise SpecError(f"arm {arm['id']}: near-greedy decoding is a k=1 report, not a selectable temperature")
+        elif arm["temperature"] not in TEMPERATURES:
             raise SpecError(f"arm {arm['id']}: temperature {arm['temperature']} is outside the frozen grid {TEMPERATURES}")
         if not (isinstance(arm["k"], int) and 1 <= arm["k"] <= 8) or not (isinstance(arm["max_tokens"], int) and arm["max_tokens"] >= 1):
             raise SpecError(f"arm {arm['id']}: k must be an integer in 1..8 and max_tokens a positive integer")

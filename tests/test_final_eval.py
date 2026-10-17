@@ -37,11 +37,16 @@ def test_a_frozen_spec_with_the_right_hash_loads(fe, tmp_path):
     ({"frozen": False}, "not marked frozen"), ({"splits": ["val"]}, "splits must be"), ({"splits": ["test_t", "test_r", "val"]}, "splits must be"),
     ({"arms": []}, "no arms"), ({"arms": [arm(temperature=0.5)]}, "frozen grid"), ({"arms": [arm(mode="auto")]}, "frozen vocabulary"),
     ({"arms": [arm(data="train")]}, "frozen vocabulary"), ({"arms": [arm(k=9)]}, "k must be"), ({"arms": [arm(max_tokens=0)]}, "max_tokens"),
-    ({"arms": [arm(), arm()]}, "repeated"), ({"arms": [arm(id="../x")]}, "plain name"), ({"arms": [{"id": "x"}]}, "lacks")])
+    ({"arms": [arm(temperature=0.01)]}, "k=1 report"), ({"arms": [arm(), arm()]}, "repeated"), ({"arms": [arm(id="../x")]}, "plain name"), ({"arms": [{"id": "x"}]}, "lacks")])
 def test_invalid_specs_are_refused(fe, tmp_path, change, message):
     path, digest = write(tmp_path, **change)
     with pytest.raises(fe.SpecError, match=message):
         fe.load_spec(path, digest)
+
+
+def test_near_greedy_is_allowed_only_as_a_k1_report(fe, tmp_path):
+    path, digest = write(tmp_path, arms=[arm(temperature=0.01, k=1)])
+    assert fe.load_spec(path, digest)["arms"][0]["temperature"] == 0.01
 
 
 def test_a_changed_spec_is_refused_even_if_valid(fe, tmp_path):

@@ -1,0 +1,117 @@
+{
+ "arms": {
+  "C0": {
+   "label": "C0 constant (best Train reference)",
+   "candidates": [
+    {
+     "run": "val-control_constant"
+    }
+   ]
+  },
+  "C1": {
+   "label": "C1 copy the nearest Train profile's structure",
+   "candidates": [
+    {
+     "run": "val-control_copy_nearest"
+    }
+   ]
+  },
+  "C3": {
+   "label": "C3 reward-optimal constant (Train + pool)",
+   "candidates": [
+    {
+     "run": "val-control_constant_pool"
+    }
+   ]
+  },
+  "A0n": {
+   "label": "4B untrained, no-think",
+   "candidates": [
+    {
+     "run": "a-direct",
+     "temperature": 1.0
+    },
+    {
+     "run": "b4-t0.6",
+     "temperature": 0.6
+    },
+    {
+     "run": "b4-t0.3",
+     "temperature": 0.3
+    }
+   ]
+  },
+  "A2": {
+   "label": "4B answer-only SFT (epoch 1)",
+   "candidates": [
+    {
+     "run": "a2-val",
+     "temperature": 1.0
+    },
+    {
+     "run": "a2-t0.6",
+     "temperature": 0.6
+    },
+    {
+     "run": "a2-t0.3",
+     "temperature": 0.3
+    }
+   ]
+  },
+  "A4": {
+   "label": "4B + 3 retrieved examples",
+   "candidates": [
+    {
+     "run": "a4-icl",
+     "temperature": 1.0
+    }
+   ]
+  },
+  "RL-full": {
+   "label": "4B RL, standard reward",
+   "candidates": [
+    {
+     "run": "rlfull-s20-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-20"
+    },
+    {
+     "run": "rlfull-s20-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-20"
+    },
+    {
+     "run": "rlfull-s30-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-30"
+    },
+    {
+     "run": "rlfull-s30-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-30"
+    },
+    {
+     "run": "rlfull-s40-t0.6",
+     "temperature": 0.6,
+     "checkpoint": "step-40"
+    },
+    {
+     "run": "rlfull-s40-t1.0",
+     "temperature": 1.0,
+     "checkpoint": "step-40"
+    }
+   ]
+  }
+ },
+ "comparator_set": [
+  "C0",
+  "C1",
+  "C3",
+  "A0n",
+  "A2",
+  "A4"
+ ],
+ "rl_set": [
+  "RL-full"
+ ]
+}
