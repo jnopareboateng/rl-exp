@@ -61,7 +61,7 @@ Change a contract only through the orchestrator, and update this file in the sam
 `data/processed/{train,val,test_r,test_t}.jsonl`, one row per prompt row:
 
     id, group, task_type, split, cluster_id, prompt (= original prompt + "<think>\n"), completion (original minus leading "<think>\n"; train and val only),
-    ref_smiles, ref_conn, ref_scaffold, ref_inchikey, approval_year, n_prompt_tokens, n_completion_tokens
+    ref_smiles, ref_conn, ref_scaffold, ref_inchikey, n_heavy, approval_year, n_prompt_tokens, n_completion_tokens
 
 `data/processed/split_report.json`: counts per split (drugs, rows, task type, approval year), dropped sets with reasons (PD, combinations, each exclude_reason with group names), leakage numbers, component sizes, scaffold overlap between splits, seed, input hashes.
 Hand files in `data/curated/` (read by `data_prep`, never written by it):
