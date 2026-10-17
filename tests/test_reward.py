@@ -23,6 +23,14 @@ L_ALA, D_ALA = "N[C@@H](C)C(=O)O", "N[C@H](C)C(=O)O"
 TETRACYCLINE = "CC1(O)C2CC3C(N(C)C)C(O)=C(C(N)=O)C(=O)C3(O)C(O)=C2C(=O)c2c(O)cccc21"
 TETRACYCLINE_RING_A_SWAPPED = "CC1(O)C2CC3C(N(C)C)C(=O)C(C(N)=O)=C(O)C3(O)C(O)=C2C(=O)c2c(O)cccc21"
 PROPRANOLOL = "CC(C)NCC(O)COc1cccc2ccccc12"
+KETO, ENOL = "CC(=O)CC(C)=O", "CC(O)=CC(C)=O"                                     # acetylacetone tautomers
+THC_DELTA9 = "CCCCCc1cc(O)c2[C@@H]3C=C(C)CC[C@H]3C(C)(C)Oc2c1"
+THC_DELTA8 = "CCCCCc1cc(O)c2[C@@H]3CC(C)=CC[C@H]3C(C)(C)Oc2c1"                   # double bond moved by one position
+NORETHINDRONE = "C#C[C@]1(O)CC[C@H]2[C@@H]3CCC4=CC(=O)CC[C@@H]4[C@H]3CC[C@@]21C"
+NORETHYNODREL = "C#C[C@]1(O)CC[C@H]2[C@@H]3CCC4=C(CCC(=O)C4)[C@H]3CC[C@@]21C"
+# phenyl fatty acids of 16 and 108 heavy atoms
+PHENYL_ACID_16 = "c1ccccc1" + "C" * 7 + "C(=O)O"
+PHENYL_ACID_108 = "c1ccccc1" + "C" * 99 + "C(=O)O"
 OCTANOIC_ACID = "CCCCCCCC(=O)O"                      # acyclic: empty Murcko scaffold
 
 # Public approved drugs: name, SMILES, molecular formula (the formula guards the hard-coded SMILES against typos).
@@ -130,11 +138,68 @@ def test_stereo_only_difference_is_exact_but_not_stereo_exact(answer, ref):
     assert res["conn_match"] and not res["stereo_match"] and res["reward"] == 1.0 and res["tanimoto"] == 1.0
 
 
-@pytest.mark.parametrize("answer, ref", [("CC(O)=CC(C)=O", "CC(=O)CC(C)=O"), (TETRACYCLINE_RING_A_SWAPPED, TETRACYCLINE),
-                                         (CAFFEINE_D9, CAFFEINE)], ids=["keto-enol", "tetracycline", "isotopologue"])
-def test_tautomers_and_isotopologues_are_exact_matches_without_stereo_match(answer, ref):
-    res = run(answer, ref)
+def test_isotopologue_is_an_exact_match_without_stereo_match():
+    res = run(CAFFEINE_D9, CAFFEINE)
     assert res["conn_match"] and not res["stereo_match"] and res["reward"] == 1.0
+
+
+@pytest.mark.parametrize("answer, ref", [(ENOL, KETO), (TETRACYCLINE_RING_A_SWAPPED, TETRACYCLINE)],
+                         ids=["keto-enol", "tetracycline"])
+def test_a_tautomer_written_differently_is_not_an_exact_match_by_default(answer, ref):
+    res = run(answer, ref)
+    assert chem.skeleton(chem.standardize(answer)) == chem.skeleton(chem.standardize(ref))
+    assert res["valid"] and not res["conn_match"] and not res["stereo_match"] and res["reward"] < 1.0
+
+
+@pytest.mark.parametrize("answer, ref, alternate", [
+    (ENOL, KETO, ENOL), (KETO, ENOL, KETO), (TETRACYCLINE_RING_A_SWAPPED, TETRACYCLINE, TETRACYCLINE_RING_A_SWAPPED),
+], ids=["enol", "keto", "tetracycline"])
+def test_a_listed_alternate_is_an_exact_match_and_everything_else_is_judged_against_ref_smiles(answer, ref, alternate):
+    res, plain = run(answer, ref, ref_alt_smiles=[alternate]), run(answer, ref)
+    assert res["conn_match"] and res["reward"] == 1.0 and not plain["conn_match"]
+    assert (res["tanimoto"], res["scaffold_match"], res["stereo_match"]) == \
+           (plain["tanimoto"], plain["scaffold_match"], plain["stereo_match"])
+    assert not res["stereo_match"]
+
+
+def test_the_reference_still_matches_when_alternates_are_listed():
+    res = run(KETO, KETO, ref_alt_smiles=[ENOL])
+    assert res["conn_match"] and res["stereo_match"] and res["reward"] == 1.0
+
+
+def test_alternates_match_by_conn_so_their_stereoisomers_and_salts_match_too():
+    assert run(f"{D_ALA}.Cl", KETO, ref_alt_smiles=[L_ALA])["conn_match"] is True
+
+
+def test_an_alternate_does_not_open_the_door_to_other_isomers():
+    assert not run(THC_DELTA8, THC_DELTA9, ref_alt_smiles=[KETO, ENOL])["conn_match"]
+    assert not run(ENOL, KETO, ref_alt_smiles=[THC_DELTA8])["conn_match"]
+
+
+@pytest.mark.parametrize("alternates", [["", "nonsense", None, 42, "*CC", ["x"], {"a": 1}], "nonsense", None, [], ()],
+                         ids=["junk-list", "junk-string", "none", "empty-list", "empty-tuple"])
+def test_unusable_alternates_are_ignored(alternates):
+    res = run(ENOL, KETO, ref_alt_smiles=alternates)
+    assert res["valid"] and not res["conn_match"] and res == run(ENOL, KETO)
+
+
+def test_usable_alternates_count_next_to_unusable_ones_and_a_bare_string_is_one_alternate():
+    assert run(ENOL, KETO, ref_alt_smiles=["nonsense", None, 7, ENOL])["conn_match"]
+    assert run(ENOL, KETO, ref_alt_smiles=ENOL)["conn_match"]              # not iterated character by character
+
+
+def test_alternates_travel_through_compute_score_as_json():
+    ref = {"ref_smiles": KETO, "ref_alt_smiles": [ENOL]}
+    assert reward.compute_score("d", closed(ENOL), ref) == reward.compute_score("d", closed(ENOL), json.dumps(ref)) == 1.0
+    assert reward.compute_score("d", closed(ENOL), {"ref_smiles": KETO}) < 1.0
+
+
+@pytest.mark.parametrize("answer, ref", [(THC_DELTA8, THC_DELTA9), (THC_DELTA9, THC_DELTA8),
+                                         (NORETHYNODREL, NORETHINDRONE), (NORETHINDRONE, NORETHYNODREL)],
+                         ids=["8-vs-9", "9-vs-8", "norethynodrel-vs-norethindrone", "norethindrone-vs-norethynodrel"])
+def test_isomers_that_differ_only_in_where_a_double_bond_sits_are_not_exact_matches(answer, ref):
+    res = run(answer, ref)
+    assert res["valid"] and res["tanimoto"] > 0.5 and not res["conn_match"] and res["reward"] < 1.0
 
 
 # ---------------------------------------------------------------- the gate
@@ -144,7 +209,7 @@ def test_text_without_a_closing_think_tag_scores_zero(text):
     assert (res["closed"], res["answer"], res["valid"], res["reward"]) == (False, None, False, 0.0)
 
 
-@pytest.mark.parametrize("text", [None, "", " \n\t", " "])
+@pytest.mark.parametrize("text", [None, "", " \n\t", "\u00a0"])
 def test_empty_none_and_blank_text_score_zero(text):
     res = reward.score(text, {"ref_smiles": ASPIRIN})
     assert (res["closed"], res["answer"], res["valid"], res["reward"]) == (False, None, False, 0.0)
@@ -169,9 +234,9 @@ def test_literal_im_end_glued_to_the_answer_is_removed(tail):
 
 
 @pytest.mark.parametrize("text", [
-    f"</think>  {ASPIRIN} ",                                      # non-breaking spaces
-    f"</think>　{ASPIRIN}　",                                            # ideographic spaces
-    f"思考结束</think>\n答案： {ASPIRIN}",           # Chinese label before the answer
+    f"</think>\u00a0\u00a0{ASPIRIN}\u00a0",                                      # non-breaking spaces
+    f"</think>\u3000{ASPIRIN}\u3000",                                            # ideographic spaces
+    f"\u601d\u8003\u7ed3\u675f</think>\n\u7b54\u6848\uff1a {ASPIRIN}",           # Chinese label before the answer
     f"</think>\n\U0001f9ea {ASPIRIN} \U0001f9ea",                                # emoji around it
     f"</think>\r\n\t{ASPIRIN}\r\n",
 ])
@@ -237,13 +302,48 @@ def test_garbage_after_a_valid_answer_does_not_hide_it():
     assert run(f"{ASPIRIN}\n{'(' * 5000}", ASPIRIN)["reward"] == 1.0
 
 
-@pytest.mark.parametrize("token", ["c1ccccc1" * 625, "C" * 399 + "(=O)O", "C1CC1" * 300, "O=C." * 400 + "O=C"],
-                         ids=["5000-chars", "400-atoms", "900-atoms", "400-fragments"])
+@pytest.mark.parametrize("token", ["c1ccccc1" * 625, "C" * (chem.MAX_ATOMS - 1) + "(=O)O", "C1CC1" * 300,
+                                   "O=C." * 374 + "O=C"], ids=["5000-chars", "401-atoms", "900-atoms", "375-fragments"])
 def test_valid_but_oversized_answer_is_invalid_and_cheap(token):
     start = time.perf_counter()
     res = run(token, ASPIRIN)
-    assert time.perf_counter() - start < 5          # chem.scaffold alone would need minutes on 3,750 atoms
-    assert res["answer"] in (token, None) and not res["valid"] and res["reward"] == 0.0   # over 1,500 characters is never extracted
+    assert time.perf_counter() - start < 1          # chem.scaffold alone would need minutes on 3,750 atoms
+    assert res["answer"] in (token, None) and not res["valid"] and res["reward"] == 0.0   # over MAX_LEN is never extracted
+
+
+def test_answer_with_exactly_max_atoms_is_scored_and_one_more_is_invalid():
+    at_limit = "C" * (chem.MAX_ATOMS - 2) + "(=O)O"
+    over = "C" * (chem.MAX_ATOMS - 1) + "(=O)O"
+    assert chem.standardize(at_limit).GetNumAtoms() == chem.MAX_ATOMS
+    assert run(at_limit, at_limit)["reward"] == 1.0                    # accepted as answer and as reference
+    wrong = run(at_limit, OCTANOIC_ACID)
+    assert wrong["valid"] and not wrong["conn_match"] and 0.05 <= wrong["reward"] < 1.0
+    res = run(over, OCTANOIC_ACID)
+    assert res["answer"] == over and not res["valid"] and res["reward"] == 0.0
+    with pytest.raises(ValueError):
+        run("", over)                                                   # a reference that big is a data bug: loud
+
+
+@pytest.mark.parametrize("answer", ["CC(*)c1ccccc1CCCC", "[*]CCCCCCCC(=O)O", "c1ccc(*)cc1CCCC(=O)O", f"{ASPIRIN}.[*]"],
+                         ids=["branch", "bracketed", "ring", "stray-fragment"])
+def test_dummy_atom_answers_are_invalid_and_cheap(answer):
+    start = time.perf_counter()
+    res = run(answer, ASPIRIN)
+    assert time.perf_counter() - start < 1
+    assert res["answer"] is not None and not res["valid"] and res["reward"] == 0.0
+
+
+def test_dummy_atom_reference_is_a_loud_error():
+    with pytest.raises(ValueError):
+        run("", "*CC(*)c1ccccc1")
+
+
+def test_the_reward_keeps_its_own_length_check_even_if_the_extractor_lets_a_long_answer_through(monkeypatch):
+    long_answer = "C([H])([H])" * 150                           # 1,650 characters but only 150 heavy atoms
+    assert len(long_answer) > reward.MAX_LEN and chem.standardize(long_answer) is not None
+    monkeypatch.setattr(chem, "extract_answer", lambda text: long_answer)
+    res = run("ignored", ASPIRIN)
+    assert res["answer"] == long_answer and not res["valid"] and res["reward"] == 0.0
 
 
 def test_a_molecule_as_large_as_the_largest_reference_is_still_scored():
@@ -346,11 +446,22 @@ def test_stored_reference_keys_are_ignored_and_rederived_from_ref_smiles():
     assert run("CC(C)Cc1ccc(cc1)C(C)C(=O)N", IBUPROFEN, ref_scaffold="")["scaffold_match"] is True   # stored "" is ignored
 
 
-def test_structures_inchi_cannot_encode_never_match_by_connectivity():
-    ref = "*CC(*)c1ccccc1"                                              # dummy atoms: chem.conn is None on both sides
-    assert chem.conn(chem.standardize(ref)) is None
-    res = run("*CCC(*)c1ccccc1", ref)
-    assert res["valid"] and not res["conn_match"] and not res["stereo_match"] and res["reward"] < 1.0
+def test_a_structure_inchi_cannot_encode_never_matches_by_connectivity(monkeypatch):
+    monkeypatch.setattr(chem, "conn", lambda mol: None)                    # no real standardized molecule fails InChI now
+    reward._features.cache_clear()
+    try:
+        res = run(ASPIRIN, ASPIRIN, ref_alt_smiles=[IBUPROFEN])
+        assert res["valid"] and not res["conn_match"] and res["reward"] < 1.0
+    finally:
+        reward._features.cache_clear()                                      # do not leave patched entries in the cache
+
+
+def test_a_long_repeat_of_the_reference_chain_does_not_look_identical():
+    res = run(PHENYL_ACID_108, PHENYL_ACID_16)                  # the bit Tanimoto of this pair is 1.0, i.e. reward 0.95
+    assert chem.tanimoto_bits(chem.standardize(PHENYL_ACID_108), chem.standardize(PHENYL_ACID_16)) == 1.0
+    assert res["scaffold_match"] and not res["conn_match"]
+    assert res["tanimoto"] < 0.2
+    assert res["reward"] == pytest.approx(0.05 + 0.6 * res["tanimoto"] + 0.3) and res["reward"] < 0.5
 
 
 @pytest.mark.parametrize("ref", [{}, {"ref_smiles": None}, {"ref_smiles": "nonsense"}, {"ref_smiles": "C" * 450}])
@@ -407,8 +518,33 @@ def test_lone_surrogate_in_the_answer_scores_zero_without_raising():
     assert res["closed"] and not res["valid"] and res["reward"] == 0.0
 
 
+def test_an_extractor_that_raises_cannot_break_scoring(monkeypatch):
+    def boom(text):
+        raise RuntimeError("extractor failure")
+    monkeypatch.setattr(chem, "extract_answer", boom)
+    res = run(ASPIRIN, ASPIRIN)
+    assert res["closed"] and res["answer"] is None and not res["valid"] and res["reward"] == 0.0
+
+
+def test_a_molecule_that_makes_rdkit_raise_is_an_invalid_answer_not_an_error(monkeypatch):
+    real, trouble = chem.standardize, "CCCCCCCC(=O)N"
+
+    def flaky(smiles):
+        if smiles == trouble:
+            raise RuntimeError("RDKit failure")
+        return real(smiles)
+    monkeypatch.setattr(chem, "standardize", flaky)
+    reward._features.cache_clear()
+    try:
+        res = run(trouble, ASPIRIN)
+        assert res["answer"] == trouble and not res["valid"] and res["reward"] == 0.0
+        assert run(ASPIRIN, ASPIRIN)["reward"] == 1.0                   # other answers are unaffected
+    finally:
+        reward._features.cache_clear()
+
+
 # ---------------------------------------------------------------- answer-format fixture (tests/fixtures/answer_formats.json)
-FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "answer_formats.json").read_text())
+FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "answer_formats.json").read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("case", FIXTURE, ids=[c["name"] for c in FIXTURE])
@@ -418,6 +554,7 @@ def test_answer_format_fixture(case):
     res = reward.score(text, {"ref_smiles": ASPIRIN})
     assert res["answer"] == answer
     if case["limitation"]:
+        assert answer == case["observed"], "the extractor's outcome for a known limitation changed"
         return
     assert norm(answer) == norm(expected), case["why"]
     if expected is None:
@@ -427,8 +564,12 @@ def test_answer_format_fixture(case):
 
 
 def test_fixture_is_the_documented_one():
-    assert len(FIXTURE) == 77
-    assert sum(c["limitation"] for c in FIXTURE) == 24 and sum(c["expected"] is None for c in FIXTURE) == 11
+    limitations = [c for c in FIXTURE if c["limitation"]]
+    assert len(FIXTURE) == 77 and len(limitations) == 24 and sum(c["expected"] is None for c in FIXTURE) == 11
+    assert all(("observed" in c) == c["limitation"] for c in FIXTURE)       # every known limitation pins its outcome
+    assert all(c["observed"] != c["expected"] for c in limitations)         # a flag whose case now agrees must be dropped
+    assert sum(c["observed"] is not None for c in limitations) == 11        # a wrong molecule instead of None (contracts.md)
+    assert sum(c["observed"] is None for c in limitations) == 13            # the answer is missed
 
 
 # ---------------------------------------------------------------- scripts/offline_reward_checks.py
@@ -440,6 +581,8 @@ def _load_checks():
 
 
 checks = _load_checks()
+CLOSED = "</think>\n"
+SMILES = {name: smiles for name, smiles, _ in DRUGS}
 
 
 def test_group_spread_counts_groups_with_enough_std():
@@ -476,31 +619,150 @@ def test_group_spread_on_real_scores_separates_format_noise_from_chemistry():
     assert checks.group_spread(rewards) == 1.0 and checks.group_spread(rewards, valid_only_flags=flags) == 0.0
 
 
-def _rows(split, names):
-    smiles = {n: s for n, s, _ in DRUGS}
-    out = []
+def _rows(split, names, completion=True, counts=None):
+    rows = []
     for name in names:
-        mol = chem.standardize(smiles[name])
-        row = {"id": f"{split}_{name}", "group": name, "split": split, "prompt": "p", "ref_smiles": smiles[name],
-               "ref_conn": chem.conn(mol), "ref_scaffold": chem.scaffold(mol), "ref_inchikey": chem.inchikey(mol)}
-        if split in ("train", "val"):
-            row["completion"] = f"thinking</think>\n{smiles[name]}<|im_end|>"
-        out.append(row)
-    return out
+        mol = chem.standardize(SMILES[name])
+        for i in range((counts or {}).get(name, 1)):
+            row = {"id": f"{split}_{name}_{i}", "group": name, "split": split, "prompt": "p", "ref_smiles": SMILES[name],
+                   "ref_conn": chem.conn(mol), "ref_scaffold": chem.scaffold(mol), "ref_inchikey": chem.inchikey(mol)}
+            if completion:
+                row["completion"] = f"thinking</think>\n{SMILES[name]}<|im_end|>"
+            rows.append(row)
+    return rows
 
 
-def test_offline_script_runs_end_to_end_and_flags_stale_reference_fields(tmp_path, capsys):
-    split_names = {"train": ["atorvastatin", "imatinib", "caffeine", "sildenafil", "morphine", "tamoxifen", "simvastatin"],
-                   "val": ["losartan", "omeprazole"], "test_r": ["sertraline", "tadalafil"],
-                   "test_t": ["nicotine", "diazepam"]}
-    data = {split: _rows(split, names) for split, names in split_names.items()}
-    for split, rows in data.items():
-        (tmp_path / f"{split}.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+def _write(directory, split, rows):
+    lines = "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n"
+    (directory / f"{split}.jsonl").write_text(lines, encoding="utf-8")
+
+
+def test_read_jsonl_splits_on_newlines_only(tmp_path):
+    rows = [{"id": "a", "text": "line\u2028separator\u2029and\x85nel inside a JSON string"}, {"id": "b", "text": "plain"}]
+    _write(tmp_path, "train", rows)
+    text = (tmp_path / "train.jsonl").read_text(encoding="utf-8")
+    assert len(text.splitlines()) > len(rows)                                # str.splitlines would have broken the rows
+    assert checks.read_jsonl(tmp_path / "train.jsonl") == rows
+
+
+def test_offline_script_reads_train_and_val_only_and_says_where_test_is_scored(tmp_path, capsys):
+    train = ["atorvastatin", "imatinib", "caffeine", "sildenafil", "morphine", "tamoxifen", "simvastatin"]
+    _write(tmp_path, "train", _rows("train", train))
+    _write(tmp_path, "val", _rows("val", ["losartan", "omeprazole"]))
+    for split in ("test_r", "test_t"):
+        (tmp_path / f"{split}.jsonl").write_text("this is not json {{{\n", encoding="utf-8")       # any read would crash
     assert checks.main(["--data", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     for name in ("REFS", "T1", "T2", "T3"):
         assert f"PASS {name}:" in out
-    assert "INFO BAR:" in out and "prompt" not in out and "thinking" not in out
-    stale = [dict(r, ref_conn="0123456789ABCD") for r in data["train"][:1]] + data["train"][1:]
-    ok, message = checks.check_refs(stale)
-    assert not ok and message.startswith("1 of 7 drugs")
+    assert "INFO BAR:" in out and "locked evaluation" in out and "prompt" not in out and "thinking" not in out
+    assert "train 7 rows, val 2 rows" in out
+
+
+def test_refs_check_flags_stale_stored_fields(tmp_path):
+    rows = _rows("train", ["atorvastatin", "imatinib", "caffeine"])
+    assert checks.check_refs(rows)[0] == "PASS"
+    for field in ("ref_conn", "ref_scaffold", "ref_inchikey"):
+        status, message = checks.check_refs([dict(rows[0], **{field: "stale"})] + rows[1:])
+        assert status == "FAIL" and message.startswith("1 of 3 drugs"), field
+
+
+@pytest.mark.parametrize("alternates, status", [([ENOL], "PASS"), ([], "PASS"), ([ENOL, THC_DELTA9], "FAIL"),
+                                                (["nonsense"], "FAIL"), ([IBUPROFEN], "FAIL")],
+                         ids=["tautomer", "none", "other-compound", "unparseable", "other-skeleton"])
+def test_refs_check_accepts_only_alternates_with_the_same_skeleton(alternates, status):
+    mol = chem.standardize(KETO)
+    row = {"id": "k", "group": "keto", "ref_smiles": KETO, "ref_alt_smiles": alternates, "ref_conn": chem.conn(mol),
+           "ref_scaffold": chem.scaffold(mol), "ref_inchikey": chem.inchikey(mol)}
+    assert checks.check_refs([row])[0] == status
+
+
+@pytest.mark.parametrize("n_wrong, status", [(0, "PASS"), (1, "PASS"), (3, "FAIL")])
+def test_t1_passes_at_98_percent_and_names_the_failing_ids(n_wrong, status):
+    rows = _rows("train", ["caffeine", "aspirin", "ibuprofen", "paracetamol"], counts={"caffeine": 97})
+    wrong = [r for r in rows if r["group"] == "caffeine"][:n_wrong]
+    for r in wrong:
+        r["completion"] = f"thinking</think>\n{IBUPROFEN}"
+    result, message = checks.check_t1(rows)
+    assert result == status and f"{len(wrong)} misses" in message and len(rows) == 100
+    assert all(r["id"] in message for r in wrong)
+
+
+def test_t3_fails_when_a_randomised_spelling_does_not_score_one(monkeypatch):
+    rows = _rows("train", ["caffeine", "aspirin", "ibuprofen"])
+    assert checks.check_t3(rows, random.Random(0), n=3)[0] == "PASS"
+    monkeypatch.setattr(checks.reward, "score", lambda text, row: {"reward": 0.5})
+    status, message = checks.check_t3(rows, random.Random(0), n=3)
+    assert status == "FAIL" and message.startswith("0 of 3 randomised spellings")
+
+
+def test_t2_ends_with_a_clear_skip_when_no_wrong_identity_pair_exists():
+    one_drug = [{"id": f"a{i}", "group": "a", "ref_smiles": ASPIRIN} for i in range(3)]
+    same_structure = one_drug + [{"id": "b", "group": "b", "ref_smiles": "OC(=O)c1ccccc1OC(C)=O"}]   # two names, one molecule
+    for rows in (one_drug, same_structure, []):
+        start = time.perf_counter()
+        status, message = checks.check_t2(rows, random.Random(0), n=20)
+        assert status == "SKIP" and "no wrong-identity pair" in message
+        assert time.perf_counter() - start < 5                              # the attempt cap, not an endless draw
+
+
+def test_t2_reports_what_it_drew_when_some_pairs_are_same_structure():
+    rows = [{"id": f"{g}", "group": g, "ref_smiles": s} for g, s in
+            [("a", ASPIRIN), ("b", "OC(=O)c1ccccc1OC(C)=O"), ("c", CAFFEINE), ("d", DRUGS[4][1])]]
+    status, message = checks.check_t2(rows, random.Random(0), n=50)
+    assert status == "PASS" and message.startswith("50 wrong-drug pairs") and "skipped 0" not in message
+
+
+def _brute_force_means(rows, leave_own_out=True):
+    """Mean reward of every distinct reference in rows as the answer to the rows, straight through reward.score."""
+    means = {}
+    for group, smiles in {r["group"]: r["ref_smiles"] for r in rows}.items():
+        targets = [r for r in rows if not (leave_own_out and r["group"] == group)]
+        means[group] = sum(reward.score(CLOSED + smiles, r)["reward"] for r in targets) / len(targets)
+    return means
+
+
+def test_best_constant_picks_the_maximum_and_leaves_its_own_drug_out():
+    names = ["aspirin", "ibuprofen", "paracetamol", "diclofenac", "lidocaine", "caffeine"]
+    rows = _rows("train", names, completion=False, counts={"caffeine": 12})        # caffeine: many rows, unlike the rest
+    means, with_own = _brute_force_means(rows), _brute_force_means(rows, leave_own_out=False)
+    assert max(with_own, key=with_own.get) == "caffeine"            # its own rows would make it win: the data discriminates
+    expected = max(means, key=means.get)
+    assert expected != "caffeine" and means[expected] > sorted(means.values())[0] + 0.05
+    group, mean = checks.best_constant(rows)
+    assert group == expected and mean == pytest.approx(means[expected])
+    assert group != min(means, key=means.get)                       # a reversed comparison would return the minimum
+
+
+def test_best_constant_needs_two_drugs():
+    assert checks.best_constant([]) is None
+    assert checks.best_constant(_rows("train", ["caffeine"], completion=False, counts={"caffeine": 3})) is None
+
+
+def test_the_constant_bar_is_chosen_on_train_and_reported_on_val_only():
+    train = _rows("train", ["aspirin", "ibuprofen", "paracetamol", "diclofenac", "lidocaine", "caffeine"], completion=False)
+    val = _rows("val", ["sildenafil", "ondansetron", "acyclovir", "metformin"], completion=False)
+    train_best = max((m, g) for g, m in _brute_force_means(train).items())[1]
+    val_means = {g: sum(reward.score(CLOSED + SMILES[g], r)["reward"] for r in val) / len(val) for g in SMILES if g in
+                 {r["group"] for r in train}}
+    val_best = max(val_means, key=val_means.get)
+    assert train_best != val_best                      # otherwise this test could not tell the two choices apart
+    status, message = checks.constant_bar({"train": train, "val": val, "test_r": _rows("test_r", ["nicotine"])})
+    assert status == "INFO" and f"is '{train_best}'" in message and f"'{val_best}'" not in message
+    assert f"row mean {val_means[train_best]:.4f}" in message and "locked evaluation" in message
+    assert "test_r" not in message and "nicotine" not in message
+
+
+def test_the_constant_bar_skips_without_val_rows_or_with_one_drug():
+    train = _rows("train", ["aspirin", "caffeine"], completion=False)
+    assert checks.constant_bar({"train": train, "val": []})[0] == "SKIP"
+    assert checks.constant_bar({"train": train[:1], "val": train[1:]})[0] == "SKIP"
+
+
+def test_degenerate_data_skips_instead_of_hanging(tmp_path, capsys):
+    _write(tmp_path, "train", _rows("train", ["caffeine"]))
+    _write(tmp_path, "val", _rows("val", ["caffeine"]))
+    start = time.perf_counter()
+    assert checks.main(["--data", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "SKIP T2:" in out and "SKIP BAR:" in out and time.perf_counter() - start < 10

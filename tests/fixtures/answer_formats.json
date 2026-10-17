@@ -256,6 +256,7 @@
     "text": "<think>\nAcetylation of the phenol OH; the carboxylic acid is untouched.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n</think>\n\nLet me double-check the regiochemistry.",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "The contract reads only after the last closing tag, so a stray second tag hides the answer and nothing is returned."
   },
   {
@@ -375,6 +376,7 @@
     "text": "<think>\nAspirin.\n</think>\n\n答案：CC(=O)Oc1ccccc1C(=O)O（aspirin）",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "RDKit rejects a SMILES followed by mixed ASCII and non-ASCII text, so the answer is lost."
   },
   {
@@ -382,6 +384,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1​C(=O)O",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "U+200B is not whitespace to str.split and RDKit rejects it mid-token, so nothing is returned."
   },
   {
@@ -389,6 +392,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC（=O）Oc1ccccc1C(=O)O",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "Full-width parentheses inside the SMILES are rejected mid-token, so the answer is lost."
   },
   {
@@ -396,6 +400,7 @@
     "text": "<think>\nThe acetate anion.\n</think>\n\nAnswer: CC(=O)[O−]",
     "expected": "CC(=O)[O-]",
     "limitation": true,
+    "observed": null,
     "why": "A Unicode minus (U+2212) in a charge bracket is not a SMILES symbol, so the token fails."
   },
   {
@@ -403,6 +408,7 @@
     "text": "<think>\nTwo candidates; the second is final.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O，CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
     "expected": "CN1C=NC2=C1C(=O)N(C)C(=O)N2C",
     "limitation": true,
+    "observed": null,
     "why": "A full-width comma with no space between two SMILES is rejected mid-token, so the last candidate is lost."
   },
   {
@@ -410,6 +416,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: (CC(=O)Oc1ccccc1C(=O)O)",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "The leading parenthesis makes the token unparseable, so a correct answer in parentheses is dropped."
   },
   {
@@ -417,6 +424,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: \"CC(=O)Oc1ccccc1C(=O)O\"",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "The contract does not strip double quotes and RDKit rejects the leading quote, so nothing is returned."
   },
   {
@@ -424,6 +432,7 @@
     "text": "<think>\nEthyl benzoate is the starting material.\n</think>\n\nStarting material: CCOC(=O)c1ccccc1.\nProduct: \"CC(=O)Oc1ccccc1C(=O)O\"",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "CCOC(=O)c1ccccc1",
     "why": "The quoted product fails to parse, so the scan falls back to the starting-material SMILES and returns ethyl benzoate."
   },
   {
@@ -431,6 +440,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nFinal answer: $\\boxed{CC(=O)Oc1ccccc1C(=O)O}$",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "A LaTeX boxed wrapper is glued to the SMILES, so the token starts with a backslash and fails RDKit."
   },
   {
@@ -445,6 +455,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1\nC(=O)O",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "CC(=O)Oc1ccccc1",
     "why": "A SMILES wrapped onto a second line is split into two tokens, and the first fragment (phenyl acetate) is returned."
   },
   {
@@ -452,6 +463,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)\nO",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "CC(=O)Oc1ccccc1C(=O)",
     "why": "The one-character last line is dropped, so a truncated aldehyde SMILES is returned."
   },
   {
@@ -459,6 +471,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n\nNote: the aromatic ring in this molecule is c1ccccc1 (benzene).",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "c1ccccc1",
     "why": "A closing sentence that quotes the benzene ring as c1ccccc1 is the last token that parses, so benzene is returned."
   },
   {
@@ -466,6 +479,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n\nThe ester at `C(=O)Oc1ccccc1` is the group that hydrolyses in the stomach.",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "C(=O)Oc1ccccc1",
     "why": "A backticked substructure in the closing sentence parses as phenyl formate and wins."
   },
   {
@@ -473,6 +487,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nAnswer: CC(=O)Oc1ccccc1C(=O)O\n\nThe methyl ester analogue COC(=O)c1ccccc1O is less potent.",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "COC(=O)c1ccccc1O",
     "why": "A related compound's SMILES in a closing remark is the last parseable token and overrides the answer."
   },
   {
@@ -480,6 +495,7 @@
     "text": "<think>\nAspirin.\n</think>\n\n答案：CC(=O)Oc1ccccc1C(=O)O\n\n苯环为c1ccccc1。",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "苯环为c1ccccc1。",
     "why": "RDKit ignores the CJK text around c1ccccc1, so a Chinese closing sentence makes benzene win."
   },
   {
@@ -487,6 +503,7 @@
     "text": "<think>\nAcetylation gives aspirin and the byproduct is removed.\n</think>\n\nProduct: CC(=O)Oc1ccccc1C(=O)O\nByproduct: CC(=O)OCC, removed during workup.",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "CC(=O)OCC",
     "why": "A byproduct listed after the product is the last SMILES, so the contract returns ethyl acetate."
   },
   {
@@ -494,6 +511,7 @@
     "text": "<think>\nEsterification of acetic acid with ethanol.\n</think>\n\nReaction: CC(=O)O.CCO>>CC(=O)OCC.O",
     "expected": "CC(=O)OCC",
     "limitation": true,
+    "observed": null,
     "why": "A reaction SMILES with >> is one token that RDKit rejects, so the product is lost."
   },
   {
@@ -501,6 +519,7 @@
     "text": "<think>\nAspirin is my first choice and ibuprofen is second.\n</think>\n\nCandidates:\n1. CC(=O)Oc1ccccc1C(=O)O\n2. CC(C)Cc1ccc(cc1)C(C)C(=O)O\n\nFinal answer: 1",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
     "why": "The final pointer says 1, but the contract returns the last SMILES in the list, which is item 2."
   },
   {
@@ -508,6 +527,7 @@
     "text": "<think>\nAcetic acid is the only product.\n</think>\n\nAnswer: CC(=O)O",
     "expected": "CC(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "Acetic acid is seven characters, below the length-8 gate, so a valid small molecule is dropped."
   },
   {
@@ -515,6 +535,7 @@
     "text": "<think>\nAcetic acid is the product.\n</think>\n\nReactant: c1ccccc1C(=O)O (benzoic acid).\nProduct: CC(=O)O (acetic acid).",
     "expected": "CC(=O)O",
     "limitation": true,
+    "observed": "c1ccccc1C(=O)O",
     "why": "The correct short product fails the length gate, so the scan falls back to the reactant and returns benzoic acid."
   },
   {
@@ -522,6 +543,7 @@
     "text": "<think>\nThe alcohol is a straight eight-carbon chain.\n</think>\n\nAnswer: CCCCCCCCO (1-octanol)",
     "expected": "CCCCCCCCO",
     "limitation": true,
+    "observed": null,
     "why": "A nine-character linear chain has no ring, bond, branch or digit, so it fails the hint gate."
   },
   {
@@ -529,6 +551,7 @@
     "text": "<think>\nThe repeat unit has two attachment points.\n</think>\n\nAnswer: *CC(*)c1ccccc1",
     "expected": "*CC(*)c1ccccc1",
     "limitation": true,
+    "observed": "CC(*)c1ccccc1",
     "why": "The asterisk is in the strip set, so a dummy atom on the token edge is removed and a different molecule is returned."
   },
   {
@@ -536,6 +559,7 @@
     "text": "<think>\nAspirin.\n</think>\n\nSMILES:CC(=O)Oc1ccccc1C(=O)O",
     "expected": "CC(=O)Oc1ccccc1C(=O)O",
     "limitation": true,
+    "observed": null,
     "why": "A label with no space after the colon makes the token start with letters that are not SMILES atoms."
   }
 ]

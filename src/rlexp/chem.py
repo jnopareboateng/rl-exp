@@ -22,9 +22,12 @@ _LAYER = re.compile(r"/[hqpbtmsifr]")  # first InChI layer after formula and /c
 
 
 def standardize(smiles):
-    """Largest fragment, neutralised. None if the string does not parse."""
+    """Largest fragment, neutralised. None if the string does not parse, has more than MAX_ATOMS atoms in total
+    (dummy atoms and extra fragments included, so the later steps stay cheap) or contains a dummy atom."""
     mol = Chem.MolFromSmiles(smiles) if isinstance(smiles, str) and smiles else None
-    return _UNCHARGE.uncharge(_LARGEST.choose(mol)) if mol is not None else None
+    if mol is None or mol.GetNumAtoms() > MAX_ATOMS or any(a.GetAtomicNum() == 0 for a in mol.GetAtoms()):
+        return None
+    return _UNCHARGE.uncharge(_LARGEST.choose(mol))
 
 
 def canonical(mol):
@@ -32,8 +35,16 @@ def canonical(mol):
 
 
 def conn(mol):
-    """Tautomer-tolerant identity: formula + heavy-atom skeleton (InChI layers before hydrogens, charge,
-    stereo and isotopes), hashed to 14 hex characters. None if InChI fails."""
+    """Identity key: first block of the standard InChIKey (formula, connectivity and hydrogen placement; no stereo).
+    None if InChI fails. A tautomer written differently is a different key; accepted alternates live in the data
+    (`ref_alt_smiles`) instead of in a looser key, which would equate real isomers such as delta-8 and delta-9 THC."""
+    key = Chem.MolToInchiKey(mol)
+    return key.split("-")[0] if key else None
+
+
+def skeleton(mol):
+    """Coarse key: formula plus heavy-atom skeleton (InChI layers before hydrogens, charge, stereo, isotopes), sha1 to 14 hex.
+    Never used to match answers; only to check that a registry alternate of a reference has the same skeleton."""
     inchi = Chem.MolToInchi(mol)
     return hashlib.sha1(_LAYER.split(inchi, 1)[0].encode()).hexdigest()[:14].upper() if inchi else None
 
@@ -50,6 +61,12 @@ def scaffold(mol):
 
 
 def tanimoto(a, b):
+    """Morgan radius 2 count-vector Tanimoto (repeated units change the score). The reward uses this one."""
+    return DataStructs.TanimotoSimilarity(_FP.GetCountFingerprint(a), _FP.GetCountFingerprint(b))
+
+
+def tanimoto_bits(a, b):
+    """Morgan radius 2, 2048-bit Tanimoto. Used for the leakage graph (threshold 0.4) and the controls."""
     return DataStructs.TanimotoSimilarity(_FP.GetFingerprint(a), _FP.GetFingerprint(b))
 
 
