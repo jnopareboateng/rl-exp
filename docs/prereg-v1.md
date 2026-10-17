@@ -89,7 +89,8 @@ whose Val run has fewer than 8 samples per row is not a candidate). Near-greedy 
 tokens for answer-only arms; mode (think/no-think) as trained. RL checkpoint: among the saved steps of RL-full (R1: 10, 20, 30, 40; R5: every saved step from 40 on, because the pilot's Val curve was still rising at step 40), the one with the highest Val
 fv_tanimoto when re-sampled with vLLM at k=8, at each grid temperature; an exact tie goes to the lower temperature, then the earlier step, then the run name (R1 before R5). RL runs evaluate Val at EVAL_K=8 in training from the second pilot on (the first used 4).
 The untrained size references are not tuned: 9B uses its Val-best grid temperature, the 27B models T=1.0. Merged exports are made from the adapters with `gpu/merge_lora.py`
-at the pinned base revision and checked against the adapter hashes in `results/frozen_arms.json`. Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
+at the pinned base revision and checked against the adapter hashes in `results/frozen_arms.json`; before any Test sampling, each merged adapter arm is sampled on Val at its frozen settings
+(seed 0) and must reproduce its Val fv_tanimoto in `results/selection.json` within 0.005 (the sanity gate of `gpu/run_final.py`; its result is recorded in `runs/final/sanity.json`). Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
 settings, 3 temperatures per arm (RL-contrastive was sampled at 0.6 and 1.0 only; it is not selected).
 
 ## 6. What is not allowed after the tag
