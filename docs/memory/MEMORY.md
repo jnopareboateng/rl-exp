@@ -15,7 +15,7 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — In flight: RL pilot on Colab; prereg-v1 not tagged, answer-reader decision open
+- [status-main](status-main.md) — Val phase done; Colab A100 runtime lost 2026-10-17 20:35; Test evaluation and the tag wait on a GPU
 
 ## Decisions
 - [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers

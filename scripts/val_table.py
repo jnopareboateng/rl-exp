@@ -12,10 +12,10 @@ from pathlib import Path
 
 # (directory under --runs, label, decoding note). Edit here when a run is added; the order is the table order.
 RUNS = [
-    ("val-control_constant", "C0 constant answer (best Train reference)", "none"),
-    ("val-control_copy_nearest", "C1 copy the structure of the nearest Train profile (TF-IDF)", "none"),
-    ("val-control_constant_scaffold", "C2 constant scaffold answer", "none"),
-    ("val-control_constant_pool", "C3 reward-optimal constant (chosen on Train from Train + ChEMBL pool)", "none"),
+    ("val8-control_constant", "C0 constant answer (best Train reference)", "none"),
+    ("val8-control_copy_nearest", "C1 copy the structure of the nearest Train profile (TF-IDF)", "none"),
+    ("val8-control_constant_scaffold", "C2 constant scaffold answer", "none"),
+    ("val8-control_constant_pool", "C3 reward-optimal constant (chosen on Train from Train + ChEMBL pool)", "none"),
     ("a-direct", "4B untrained", "T=1.0, k=8"),
     ("a4-icl", "4B + 3 retrieved examples (A4)", "T=1.0, k=8"),
     ("rlfull-s20-t0.6", "4B RL-full step 20", "T=0.6, k=8, think mode"),

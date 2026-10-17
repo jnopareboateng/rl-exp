@@ -55,6 +55,8 @@ def load_spec(path, expected_sha256):
         if arm["id"] in seen or not str(arm["id"]).replace("-", "").replace("_", "").replace(".", "").isalnum():
             raise SpecError(f"arm id {arm['id']!r} is repeated or not a plain name")
         seen.add(arm["id"])
+        if "splits" in arm and (not arm["splits"] or not set(arm["splits"]) <= set(SPLITS) or len(set(arm["splits"])) != len(arm["splits"])):
+            raise SpecError(f"arm {arm['id']}: splits must be a non-empty subset of {list(SPLITS)}")
         if arm["mode"] not in MODES or arm["data"] not in DATA_VARIANTS or arm["system"] not in SYSTEM_TEXTS:
             raise SpecError(f"arm {arm['id']}: mode, data or system outside the frozen vocabulary")
         if arm["temperature"] == NEAR_GREEDY:
@@ -70,9 +72,9 @@ def load_spec(path, expected_sha256):
 
 
 def command(arm, data_root, out_root):
-    """The sample_vllm.py command line of one arm over both Test splits."""
+    """The sample_vllm.py command line of one arm over both Test splits (or the subset its spec names, e.g. only test_t for a 27B reference)."""
     out = [sys.executable, str(HERE / "sample_vllm.py"), "--model", arm["model"], "--data", str(Path(data_root) / DATA_VARIANTS[arm["data"]]),
-           "--splits", ",".join(SPLITS), "--mode", arm["mode"], "--k", str(arm["k"]), "--max-tokens", str(arm["max_tokens"]),
+           "--splits", ",".join(arm.get("splits", SPLITS)), "--mode", arm["mode"], "--k", str(arm["k"]), "--max-tokens", str(arm["max_tokens"]),
            "--temperature", str(arm["temperature"]), "--prompts-per-batch", "auto", "--out", str(Path(out_root) / arm["id"])]
     if SYSTEM_TEXTS[arm["system"]] is not None:
         out += ["--system-text", SYSTEM_TEXTS[arm["system"]]]

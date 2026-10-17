@@ -49,6 +49,17 @@ def test_near_greedy_is_allowed_only_as_a_k1_report(fe, tmp_path):
     assert fe.load_spec(path, digest)["arms"][0]["temperature"] == 0.01
 
 
+def test_an_arm_may_restrict_itself_to_a_subset_of_the_test_splits(fe, tmp_path):
+    path, digest = write(tmp_path, arms=[arm(splits=["test_t"])])
+    spec = fe.load_spec(path, digest)
+    cmd = fe.command(spec["arms"][0], "data", "runs/final")
+    assert cmd[cmd.index("--splits") + 1] == "test_t"
+    for bad in ([], ["val"], ["test_t", "test_t"], ["test_t", "test_r", "test_x"]):
+        p2, d2 = write(tmp_path, arms=[arm(splits=bad)])
+        with pytest.raises(fe.SpecError, match="subset"):
+            fe.load_spec(p2, d2)
+
+
 def test_a_changed_spec_is_refused_even_if_valid(fe, tmp_path):
     path, digest = write(tmp_path)
     path.write_text(path.read_text().replace("0.6", "1.0"))
