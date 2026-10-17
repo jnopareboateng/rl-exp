@@ -39,15 +39,16 @@ def environment():
         pass
     try:
         proc = subprocess.run(
-            ["nvidia-smi", "--query-gpu=index,uuid,name,memory.total,driver_version",
+            ["nvidia-smi", "--query-gpu=index,uuid,name,memory.total,driver_version,compute_cap",
              "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=10,
         )
         if proc.returncode:
             raise OSError("GPU inventory unavailable")
-        for index, uuid, name, memory, driver in csv.reader(proc.stdout.splitlines()):
+        for index, uuid, name, memory, driver, capability in csv.reader(proc.stdout.splitlines()):
             result["gpus"].append({"index": int(index), "uuid": uuid.strip(),
                                    "name": name.strip(), "memory_mib": float(memory),
-                                   "driver_version": driver.strip()})
+                                   "driver_version": driver.strip(),
+                                   "compute_capability": [int(n) for n in capability.strip().split(".")]})
         proc = subprocess.run(["nvidia-smi"], capture_output=True, text=True, timeout=10)
         match = re.search(r"CUDA Version:\s*([\d.]+)", proc.stdout)
         result["cuda"]["driver_supported"] = match.group(1) if match else None
