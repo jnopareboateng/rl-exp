@@ -25,7 +25,7 @@ Labels: **measured** (scripts in `scripts/`), **recalled** (papers from memory),
 | Few independent examples | 354 single-drug groups, 62 with one view; about 300 structure components | The effective sample is the molecule. After buffer and exclusions Train has about 235-241 drugs (final after hand resolution). |
 | Low analog leakage | Nearest other drug: median Tanimoto 0.26; 11% have a neighbour of 0.5 or more | Component split is cheap insurance. |
 | Similarity landscape | Random pairs: mean 0.11, p99 0.21; best constant answer 0.14; random pairs share a Murcko scaffold 0.12% of the time | Raw Tanimoto carries rank signal; a scaffold hit is informative |
-| Approval years (drugs) | up to 2014: 55; 2015-21: 182; 2022: 15; 2023: 27; 2024: 29; 2025: 28; 2026: 16 | 43 single drugs (108 rows) approved 2025-26 form the temporal cohort |
+| Approval years (drugs) | up to 2014: 55; 2015-21: 182; 2022: 15; 2023: 27; 2024: 29; 2025: 28; 2026: 16 | 41 single drugs (100 rows) first approved anywhere in 2025-26 after a regulator audit (5 of 43 candidates had earlier approvals in Japan or China) form the temporal cohort |
 | Name leakage | 0 of 991 prompts contain the drug's own name | No trivial lookup |
 | Lengths | Retained completions p50 2.7k, p90 5.5k tokens (train+val); prompts p50 0.56k | Cap 8k tokens |
 | Models (config.json) | 4B, 9B, 3.5-27B, 3.8-27B are dense, 3:1 linear/full attention, vocab 248,320 | Cost scales with N; logits are the memory hazard |
@@ -46,7 +46,7 @@ The task is structure elucidation from a pharmacology profile, scored against a 
 | A2 | Answer-only SFT (LoRA; empty think block, then the SMILES) | small |
 | A1 | Trace SFT (LoRA; reference traces cut after the answer line) | small |
 | A3 | Rejection-sampling FT: keep self-generated Train rollouts that reach conn_match, SFT on them | sampling + small |
-| A5 | Online RL (GRPO-family, init from the best of A0/A1/A2 on Val) | large |
+| A5 | Online RL (GRPO-family, init from the best of A0/A1/A2 on Val), answer-only mode first (about 100 tokens per rollout); thinking-mode RL only if compute allows | large |
 
 **Endpoint (one, for every arm and size):** core@1 = conn_match or non-empty Murcko-scaffold match, mean over 8 samples, drug as the unit. Secondary and reported, never primary: exact@1, stereo_exact@1, mean Tanimoto, maj@8 (deployable plurality vote), pass@8 (oracle coverage, an upper bound that needs the answer to select).
 **Confirmatory contrast (one):** A5 at its Val-selected checkpoint versus the best non-RL arm by Val, on Test-T, decided by the exact two-sided sign-flip permutation test on per-drug differences at alpha 0.05, with wins, losses and ties shown. Test-R and every other comparison are exploratory, labelled so, with no adjustment claimed.
@@ -57,15 +57,15 @@ The task is structure elucidation from a pharmacology profile, scored against a 
 ## 3. Phase 0: data foundation (CPU)
 
 1. `rlexp.data_prep` on the pooled train+val rows: drop PD (155 rows) and the 11 combination rows; references from ChEMBL cross-checked against the SFT answers, hand-resolved where they disagree; final approval year = manual > audit > ChEMBL/openFDA.
-2. Splits (seed 0): Test-T = approved 2025-26 (43 drugs); buffer = their component neighbours; Test-R 30 and Val 20 drawn by whole components; Train = rest. Components join drugs with Tanimoto >= 0.4 or an identical non-empty scaffold. Exclusions: unresolved disagreement, no year, unextractable reference.
+2. Splits (seed 0, built): Test-T = first approved anywhere in 2025-26 (41 drugs, 100 rows); buffer = their component neighbours (19 drugs); Test-R 30 drugs (80 rows) and Val 20 (58 rows) drawn by whole components; Train = rest (241 drugs, 687 rows); 3 excluded. No pair across splits reaches Tanimoto 0.4 or shares a scaffold. Components join drugs with Tanimoto >= 0.4 or an identical non-empty scaffold. Exclusions: unresolved disagreement, no year, unextractable reference.
 3. Exposure covariates (PubChem creation year, PubMed count) per drug; Test-T results are also reported by exposure tercile. Approval date is not disclosure date, so Test-T is a temporal cohort, not proof of unseen molecules.
 4. Data manifest (sha256 of raw and processed files) recorded in every run.
 
 ## 4. Phase 1: reward v2 and its tests (CPU)
 
 Gate: `</think>` closed, a SMILES extracted and parseable, else 0. Reference and answer standardised identically.
-`r = 0.05 + 0.6 * Tanimoto + 0.3 * [same non-empty Murcko scaffold]`, `r = 1.0` on connectivity match; stereo reported only. Weights are provisional and tuned only on Train rollouts and Val.
-Offline tests before any GPU RL: T1 reference completion scores 1.0 on its own row for 98% or more (misses listed); T2 another drug's reference averages 0.2 or less; T3 randomised SMILES of the reference score identically;
+`r = 0.05 + 0.6 * Tanimoto + 0.3 * [same non-empty Murcko scaffold]` with Morgan count-vector Tanimoto, `r = 1.0` when the answer's identity key (InChIKey first block) equals the reference's or a curated alternate's (5 references have one); stereo reported only. Answers over 1,500 characters or 400 atoms, or with dummy atoms, are invalid. Weights are provisional and tuned only on Train rollouts and Val.
+Offline tests before any GPU RL (Train and Val only; measured: T1 745/745, T2 mean 0.136, T3 200/200, constant-answer bar 0.160 on Train and 0.147 on Val): T1 reference completion scores 1.0 on its own row for 98% or more (misses listed); T2 another drug's reference averages 0.2 or less; T3 randomised SMILES of the reference score identically;
 T4 the 77 answer-format fixtures behave as recorded; T5 on real Train rollouts at least 30% of groups show reward std of 0.05 or more **among valid completions only**. The extractor's 11 known silent-wrong cases are measured on real rollouts:
 if more than 1% of outputs differ between this extractor and "last SMILES-only line", switch to the latter before `prereg-v1`. Codex reviews `reward.py` before use.
 
@@ -94,7 +94,8 @@ Then decide on 9B and 27B per section 2. The measurable scaling result is the ze
 
 ## 8. Compute (measured and inferred)
 
-Supply: Kaggle 21,600 GPU-seconds per week, refresh Fridays 00:00 (next 2026-10-24), plus 72,000 TPU-seconds that the Gated-DeltaNet stack cannot use (inferred); no local GPU; Colab tier unknown until a tab connects.
+Supply: Kaggle 21,600 GPU-seconds per week, refresh 2026-10-24, of which 934 s were lost to stuck sessions on 2026-10-17; the hardware is **two Tesla T4 (15 GB each), driver R580**, not an A100 (the shape request was ignored); batch runs with a hard timeout are the only safe route. 72,000 TPU-seconds exist but the Gated-DeltaNet stack cannot use them (inferred). No local GPU. Colab is now the primary route (user decision 2026-10-17); its tier is unknown until a tab connects.
+Consequence (inferred): a T4 decodes a 4B model at roughly 1k tokens per second at best, so a thinking-mode RL step of about 1M tokens takes 15+ minutes and only about 15 steps fit in a Kaggle week. Answer-only RL (about 100 tokens per rollout, 256 rollouts per step) fits in about a minute per step on a T4, so it is the primary RL arm there; thinking-mode RL needs A100-class compute.
 Demand (inferred, plus or minus 3x): baselines at 4B and 9B 2-6 GPU-h; SFT arms under 4 h at 4B; RFT sampling about 5 h; 4B RL about 24 h for 65-240 steps; 9B and 27B RL multiples of that. Roughly 40-60 GPU-h for the 4B study alone, so Kaggle needs 7-10 weeks without Colab or other credit.
 Cheapest-first ordering and the gates exist for this reason: nothing is spent on a larger arm until the smaller one has earned it.
 

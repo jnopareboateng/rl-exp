@@ -30,7 +30,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
 
 ## Environment
-- [env-compute-supply](env-compute-supply.md) — Kaggle gives 6 GPU-hours/week (resets 2026-10-24); no local GPU; Colab needs a browser accept
+- [env-compute-supply](env-compute-supply.md) — Kaggle: 2 x T4, 6 GPU-h/week, batch runs only; Colab is primary and needs a browser accept
 
 ## References
 - [reference-gpu-stack](reference-gpu-stack.md) — gpu/STACK.md: sourced Qwen3.5/3.8 GPU stack memo (vLLM 0.31.0, torch 2.13.0, TRL first), untested
