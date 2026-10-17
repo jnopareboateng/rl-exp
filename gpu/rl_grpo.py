@@ -60,6 +60,8 @@ LOOP_KEYS = ("step", "global_step", "cursor", "collapse_streak", "skipped_update
 def config_from_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default="Qwen/Qwen3.5-4B")
+    parser.add_argument("--revision", help="base model revision (a Hub commit) to load. Required with --init-adapter none, where no adapter records "
+                                           "it (pass the 'revision' in the A2 adapter's revision.json); must agree with the init adapter's pin")
     parser.add_argument("--init-adapter", required=True,
                         help="PEFT adapter directory to continue (the A2 adapter), or 'none' for a fresh rank-32 LoRA (zero-RL ablation)")
     parser.add_argument("--train", type=Path, default=Path("data/processed/train.jsonl"))
@@ -72,12 +74,13 @@ def config_from_args(argv=None):
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--eval-every", type=int, default=10, help="steps between Val evals (0 turns them off)")
-    parser.add_argument("--eval-k", type=int, default=4)
+    parser.add_argument("--eval-k", type=int, default=8, help="Val samples per row; the endpoint (fv_tanimoto) is defined on 8")
     parser.add_argument("--save-every", type=int, default=10)
     parser.add_argument("--patience", type=int, default=3)
     parser.add_argument("--gen-batch", type=int, default=128, help="most sequences per generate call")
-    parser.add_argument("--gen-token-budget", type=int, default=98304,
-                        help="most prompt tokens (rows x longest prompt) per generate call; lower it on an out-of-memory error")
+    parser.add_argument("--gen-token-budget", type=int, default=49152,
+                        help="most prompt tokens (rows x longest prompt) per generate call. Prefill memory grows faster than this budget "
+                             "(R1 ran out of memory at 81920 on a 40 GB card and ran cleanly at 49152); lower it on an out-of-memory error")
     parser.add_argument("--max-tokens-per-batch", type=int, default=8192, help="train micro-batch token budget, padding included")
     parser.add_argument("--min-groups", type=int, default=16, help="retained groups wanted per update; half of it, rounded up, is the skip threshold")
     parser.add_argument("--reward-mode", choices=REWARD_MODES, default="full",
@@ -119,6 +122,9 @@ def validate_config(config):
     for key in ("train", "val"):
         refuse_test_file(Path(config[key]))
     source = init_source(config)
+    if source is None and not config["revision"]:
+        raise PackError("A zero-RL run (--init-adapter none) needs --revision: the base commit the SFT arms trained on, "
+                        "the 'revision' in the A2 adapter's revision.json. Without it the Hub's current revision would load")
     if source is not None:
         check_adapter_config(source)
 
@@ -236,7 +242,7 @@ def dry_plan(args, train, val):
     samples = args.prompts_per_step * args.group_size
     return dict(
         mode="dry_run", gate=args.gate, estimate="ceil(UTF-8 bytes / 4) per prompt; no tokenizer or model loaded",
-        init_adapter=str(args.init_adapter), steps=args.steps, reward_mode=args.reward_mode, profile_mode=args.profile_mode,
+        init_adapter=str(args.init_adapter), revision=args.revision, steps=args.steps, reward_mode=args.reward_mode, profile_mode=args.profile_mode,
         train=dict(rows=len(train), drugs=len(drugs), views_min=min(sizes), views_max=max(sizes), prompt_tokens=quantiles(train_tokens)),
         val=dict(rows=len(val), drugs=len({r["group"] for r in val}), prompt_tokens=quantiles(val_tokens)),
         schedule=dict(prompts_per_step=args.prompts_per_step, steps_per_pass=round(len(drugs) / args.prompts_per_step, 2),
@@ -272,9 +278,15 @@ def adapter_pin(source):
     return json.loads(pin.read_text(encoding="utf-8"))["revision"] if pin is not None and pin.is_file() else None
 
 
-def base_revision(existing, source):
-    """The base model revision to load: the checkpoint's when resuming, else the init adapter's pin (None: the Hub's current one)."""
-    return existing[1]["identity"]["revision"] if existing else adapter_pin(source)
+def base_revision(existing, source, requested=None):
+    """The base model revision to load: the checkpoint's when resuming, else --revision (which must agree with the init adapter's pin
+    when it records one), else the pin (None: the Hub's current one)."""
+    if existing:
+        return existing[1]["identity"]["revision"]
+    pin = adapter_pin(source)
+    if requested and pin and requested != pin:
+        raise PackError("--revision differs from the base revision the init adapter was trained on")
+    return requested or pin
 
 
 def runtime_versions():
@@ -289,15 +301,26 @@ def runtime_versions():
     return result
 
 
+# The functions of THIS file that are part of the objective, by name (looked up here when the hash is taken): the prompt, what ends a rollout
+# (stop_ids, trim_generated), the length rule and the validity reward (finished_score, score_completions), the contrastive assembly and the
+# similarity it reads (training_rewards, apply_contrast, similarities, _fingerprint) and the rewards that reach the update (plan_for). The
+# scorer's own code is in rlexp/reward.py and chem.py and the update maths in rlexp/grpo.py, hashed whole. Editing any of it, a comment
+# inside a function included, refuses a resume.
+OBJECTIVE_FUNCTIONS = ("rl_prompt", "stop_ids", "trim_generated", "finished_score", "score_completions", "training_rewards", "apply_contrast",
+                       "similarities", "_fingerprint", "plan_for")
+
+
 def objective_digest():
     """sha256 of everything that defines what the policy is shown and paid for: the scorer (rlexp/reward.py, rlexp/chem.py), the update
-    maths (rlexp/grpo.py), the direct-answer system turn, the profile-free user turn and the source of the prompt transformation
-    (arms.with_system, arms.split_prompt, rl_prompt). A resume under another value would mix two objectives in one run, so it is refused."""
+    maths (rlexp/grpo.py), the direct-answer system turn, the profile-free user turn, the source of the prompt transformation
+    (arms.with_system, arms.split_prompt) and of the functions of this file in OBJECTIVE_FUNCTIONS. A resume under another value would
+    mix two objectives in one run, so it is refused."""
     import inspect
     from rlexp import arms, chem, reward
     parts = [Path(module.__file__).read_bytes() for module in (reward, chem, grpo)]
     parts += [arms.DIRECT_SYSTEM.encode(), PROFILE_FREE_USER.encode()]
-    parts += [inspect.getsource(function).encode() for function in (arms.with_system, arms.split_prompt, rl_prompt)]
+    parts += [inspect.getsource(function).encode() for function in (arms.with_system, arms.split_prompt)]
+    parts += [inspect.getsource(globals()[name]).encode() for name in OBJECTIVE_FUNCTIONS]
     return hashlib.sha256("".join(hashlib.sha256(part).hexdigest() for part in parts).encode()).hexdigest()
 
 
@@ -307,12 +330,13 @@ def trainer_hashes():
 
 
 def make_identity(args, revision, dtype, versions):
-    """What a resume must match: options, model revision, Train/Val hashes, the init adapter's hash, the objective hash, dtype and core
-    versions."""
+    """What a resume must match: options, model revision, Train/Val hashes, the init adapter's hash, the objective hash, dtype and the
+    versions of torch, transformers, peft and of rdkit and numpy (a new RDKit can change standardisation or fingerprints, and with them the
+    reward)."""
     return dict(options={key: value for key, value in vars(args).items() if key not in OPERATIONAL},
                 revision=revision, train_sha256=file_sha256(args.train), val_sha256=file_sha256(args.val),
                 init_adapter_sha256=adapter_digest(init_source(vars(args))), objective_sha256=objective_digest(), dtype=str(dtype),
-                versions={name: versions[name] for name in ("torch", "transformers", "peft")})
+                versions={name: versions[name] for name in ("torch", "transformers", "peft", "rdkit", "numpy")})
 
 
 def check_resume(saved, identity, versions, trainer=None):
@@ -323,7 +347,9 @@ def check_resume(saved, identity, versions, trainer=None):
         raise PackError("The objective changed: use a new output directory (the objective is the reward, chemistry and update code and the "
                         "prompt text; a checkpoint that does not record it resumes only with the files that wrote it)")
     if saved["identity"] != identity:
-        raise PackError("Resume identity changed. Use a new output directory")
+        before = saved["identity"].get("versions") or {}
+        drift = [name for name, value in identity["versions"].items() if before.get(name) != value]
+        raise PackError("Resume identity changed" + (f" (versions: {', '.join(drift)})" if drift else "") + ". Use a new output directory")
     changed = [name for name, value in versions.items() if value != saved["versions"].get(name)]
     if changed:
         print(f"WARNING: These runtime versions changed since the checkpoint: {', '.join(changed)}. Numerical replay is UNTESTED.", flush=True)
@@ -515,33 +541,47 @@ def lift_of(samples):
 
 def batch_diagnostics(groups, train_keys):
     """Per-step diagnostics over all attempted groups, before the zero-variance filter (the arithmetic is in rlexp.grpo; here only the
-    chemistry): answer concentration, copies of a Train reference, the modal answers' similarity, the reward's terms and the
-    profile-specific lift against the other drugs of the batch."""
+    chemistry): answer concentration, copies of another Train drug's reference (an exact hit on the drug's own is not one), the modal
+    answers' similarity, the reward's terms and the profile-specific lift against the other drugs of the batch."""
     from rlexp import reward
     keys = [[s["key"] for s in g["samples"]] for g in groups]
     answers = [[s["answer"] for s in g["samples"]] for g in groups]
     lift_samples = [dict(drug=g["row"]["group"], ref=g["row"]["ref_smiles"], answer=s["answer"]) for g in groups for s in g["samples"]]
     return dict(top_answer_share=grpo.top_answer_share(keys), distinct_answer_share=grpo.distinct_answer_share(keys),
                 modal_pairwise_tanimoto=grpo.mean_pairwise(grpo.modal_answers(keys, answers), similarity),
-                train_copy_share=grpo.copy_share(keys, train_keys), collapse_all=grpo.collapse_all(keys),
+                train_copy_share=grpo.copy_share(keys, train_keys, [reference_keys([g["row"]]) for g in groups]),
+                collapse_all=grpo.collapse_all(keys),
                 lift_batch=lift_of(lift_samples),
                 **grpo.reward_components([s for g in groups for s in g["samples"]], reward.W_VALID, reward.W_TANI, reward.W_SCAF))
 
 
 # ---------------------------------------------------------------- generation (torch is passed in or imported on use)
-def trim_generated(ids, eos_id, max_new):
-    """The generated tokens up to and including the first EOS ("stop"); without one, all of them ("length")."""
-    if eos_id in ids:
-        return ids[:ids.index(eos_id) + 1], "stop"
+def stop_ids(im_end, tokenizer_eos, config_eos):
+    """Every token that ends a rollout, as vLLM stops: <|im_end|>, the model's generation_config eos_token_id (one id, a list or None)
+    and the tokenizer's eos, each once, in that order. Training rollouts and evaluation then agree on what a finished answer is."""
+    found = [im_end]
+    for value in (*(config_eos if isinstance(config_eos, (list, tuple)) else [config_eos]), tokenizer_eos):
+        if isinstance(value, int) and not isinstance(value, bool) and value not in found:
+            found.append(value)
+    return found
+
+
+def trim_generated(ids, stops, max_new):
+    """The generated tokens up to and including the first stop token ("stop"; `stops` is one id or a collection of ids); without one,
+    all of them ("length")."""
+    stops = {stops} if isinstance(stops, int) else set(stops)
+    for i, token in enumerate(ids):
+        if token in stops:
+            return ids[:i + 1], "stop"
     return ids[:max_new], "length"
 
 
-def generate_all(call, prompts, n, pad_id, eos_id, max_new, batch, torch, device, token_budget=None):
+def generate_all(call, prompts, n, pad_id, stops, max_new, batch, torch, device, token_budget=None):
     """n completions of each prompt through `call(input_ids, attention_mask) -> (sequences, logprobs or None)`. Sequences are
     left-padded and generated in sub-batches of at most `batch` sequences and, when `token_budget` is given, at most
-    token_budget // (longest prompt of the sub-batch) sequences (the prefill memory grows with rows x prompt length: 192 sequences
-    of 1.8k-token prompts ran out of memory on a 40 GB card), longest prompt first (less padding); results come back in prompt
-    order as {ids, finish[, logp]} per completion."""
+    token_budget // (longest prompt of the sub-batch) sequences (the prefill memory grows faster than rows x prompt length: 192
+    sequences of 1.8k-token prompts ran out of memory on a 40 GB card, and so did 81920 tokens), longest prompt first (less padding);
+    results come back in prompt order as {ids, finish[, logp]} per completion, cut at the first of the `stops` ids."""
     flat = [(k, list(p)) for k, p in enumerate(prompts) for _ in range(n)]
     if any(not p for _, p in flat):
         raise PackError("A prompt has no tokens")
@@ -558,7 +598,7 @@ def generate_all(call, prompts, n, pad_id, eos_id, max_new, batch, torch, device
         sequences, logp = call(ids, mask)
         new = sequences[:, longest:].tolist()
         for b, j in enumerate(chunk):
-            tokens, finish = trim_generated(new[b], eos_id, max_new)
+            tokens, finish = trim_generated(new[b], stops, max_new)
             out[j] = dict(ids=tokens, finish=finish)
             if logp is not None:
                 out[j]["logp"] = logp[b, :len(tokens)].tolist()
@@ -755,11 +795,13 @@ class Policy:
         base = model.get_base_model()
         base.config.use_cache = True                  # the training forward passes use_cache=False explicitly
         install_fp32_head(model)
+        # The checkpoint's generation config lists the model's stop tokens (vLLM stops on them): read it before it is replaced below.
+        self.stops = stop_ids(self.eos, tokenizer.eos_token_id, getattr(getattr(base, "generation_config", None), "eos_token_id", None))
         # Explicit sampling, and a clean generation config on the model: the checkpoint's own sets top_k, top_p and temperature, and
         # transformers fills every field left unset from it.
         self.sampling = dict(do_sample=True, temperature=args.temperature, top_k=0, top_p=1.0, repetition_penalty=1.0, typical_p=1.0,
                              no_repeat_ngram_size=0, epsilon_cutoff=0.0, eta_cutoff=0.0, num_beams=1, use_cache=True,
-                             max_new_tokens=args.max_new_tokens, eos_token_id=[self.eos], pad_token_id=self.pad)
+                             max_new_tokens=args.max_new_tokens, eos_token_id=list(self.stops), pad_token_id=self.pad)
         base.generation_config = GenerationConfig(**self.sampling)
         self.optimizer = torch.optim.AdamW(self.params, lr=args.lr, weight_decay=0.0)
         self.initial = None
@@ -793,7 +835,7 @@ class Policy:
         self.torch.manual_seed(seed)
         self.model.eval()
         with self.torch.no_grad(), self.autocast():
-            out = generate_all(lambda ids, mask: self._generate(logprobs, ids, mask), prompts, n, self.pad, self.eos,
+            out = generate_all(lambda ids, mask: self._generate(logprobs, ids, mask), prompts, n, self.pad, self.stops,
                                self.args.max_new_tokens, self.args.gen_batch, self.torch, self.device,
                                self.args.gen_token_budget)
         if self.device == "cuda":
@@ -848,13 +890,18 @@ class Policy:
         return math.sqrt(sum(float(((p.detach().cpu() - q) ** 2).sum()) for p, q in zip(self.params, self.initial)))
 
     def snapshot(self):
-        """CPU copies of the trainable parameters and the AdamW moments (flat float32, in parameter order) and the AdamW step counts: what the
-        smoke gate compares between a resumed and an uninterrupted run (a parameter without optimizer state has None moments)."""
+        """CPU copies of the trainable parameters and the AdamW moments (flat float32, in parameter order, with the parameter names), the
+        AdamW step counts and the python, numpy, torch (and cuda) RNG states: what the smoke gate compares (a parameter without optimizer
+        state has None moments)."""
+        import numpy as np
         flat = lambda tensor: None if tensor is None else tensor.detach().cpu().float().flatten().clone()
         states = [self.optimizer.state.get(p, {}) for p in self.params]
-        return dict(parameters=[flat(p) for p in self.params], exp_avg=[flat(s.get("exp_avg")) for s in states],
-                    exp_avg_sq=[flat(s.get("exp_avg_sq")) for s in states],
-                    step=[float(s["step"]) if "step" in s else 0.0 for s in states])
+        rng = dict(python=random.getstate(), numpy=np.random.get_state(), torch=self.torch.get_rng_state().clone())
+        if self.device == "cuda":
+            rng["cuda"] = [state.clone() for state in self.torch.cuda.get_rng_state_all()]
+        return dict(names=[name for name, p in self.model.named_parameters() if p.requires_grad], parameters=[flat(p) for p in self.params],
+                    exp_avg=[flat(s.get("exp_avg")) for s in states], exp_avg_sq=[flat(s.get("exp_avg_sq")) for s in states],
+                    step=[float(s["step"]) if "step" in s else 0.0 for s in states], rng=rng)
 
     def reset_peak(self):
         if self.device == "cuda":
@@ -926,7 +973,7 @@ def load_policy(args, existing=None):
     torch, dtype, kernels = prepare_runtime(args)
     from transformers import AutoTokenizer
     source = init_source(vars(args))
-    revision = base_revision(existing, source)
+    revision = base_revision(existing, source, args.revision)
     if revision is None and source is not None:
         print("WARNING: The init adapter records no base revision. The base model loads at the Hub's current one; "
               "compare identity.revision with the A2 run's.", flush=True)
@@ -937,7 +984,7 @@ def load_policy(args, existing=None):
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.enable_input_require_grads()
     policy = Policy(model, tokenizer, args, dtype, revision=revision)
-    return policy, dict(revision=revision, kernels=kernels, dtype=dtype, adapter_modules=len(modules),
+    return policy, dict(revision=revision, kernels=kernels, dtype=dtype, adapter_modules=len(modules), stop_ids=policy.stops,
                         trainable_parameters=sum(p.numel() for p in policy.params))
 
 
@@ -1017,7 +1064,8 @@ def format_step(m):
             f"trunc={m['truncation']:.2f} len={m['length_mean']:.0f}/{m['length_p90']:.0f} core={m['core']:.3f} "
             f"exact={m['exact']:.3f} tani={m['tanimoto']:.3f} gnorm={number(m['grad_norm'], '.3f')} loss={number(m['loss'], '.4f')} "
             f"lr={m['lr']:.1e} collapse={number(m['collapse_score'], '.2f')} lift={number(m['lift_batch'], '+.3f')} "
-            f"top={number(m['top_answer_share'], '.2f')} copy={number(m['train_copy_share'], '.2f')}{' SKIPPED' if m['skipped_update'] else ''} "
+            f"top={number(m['top_answer_share'], '.2f')} pair={number(m['modal_pairwise_tanimoto'], '.2f')} "
+            f"copy={number(m['train_copy_share'], '.2f')}{' SKIPPED' if m['skipped_update'] else ''} "
             f"gen/score/train={m['seconds_generate']:.0f}/{m['seconds_score']:.0f}/{m['seconds_train']:.0f}s "
             f"mem={m['peak_memory_bytes'] / 2 ** 30:.1f}GiB")
 
@@ -1072,6 +1120,7 @@ def run_steps(args, state, policy, drugs, val_rows, started, stopped, train_keys
         step = state["step"] + 1
         began = time.monotonic()
         metrics, cursor = run_step(args, state, policy, drugs, sizes, step, train_keys)
+        metrics["similar_streak"] = grpo.similarity_streak([*state["metrics"], metrics])
         state["metrics"].append(metrics)
         state.update(step=step, global_step=step, cursor=cursor,
                      collapse_streak=grpo.collapse_streak(state["collapse_streak"], metrics["collapse_score"]),
@@ -1080,6 +1129,10 @@ def run_steps(args, state, policy, drugs, val_rows, started, stopped, train_keys
                      peak_memory_bytes=max(state["peak_memory_bytes"], metrics["peak_memory_bytes"]))
         append_jsonl(args.out / "metrics.jsonl", metrics)
         print(format_step(metrics), flush=True)
+        if metrics["similar_streak"] >= grpo.SIMILAR_STEPS:        # a warning, never a stop
+            print(f"WARNING: The modal answers have been near duplicates (mean pairwise Tanimoto above {grpo.SIMILAR_ABOVE}) for "
+                  f"{metrics['similar_streak']} steps; the collapse score counts exact structures only. Read top_answer_share, lift_batch "
+                  "and the Val lift.", flush=True)
         status = grpo.stop_status(state["collapse_streak"], metrics["truncation"], state["evals"], args.patience, collapse_stop(args))
         evaluated = False
         if not status and args.eval_every and (step % args.eval_every == 0 or step == args.steps):
@@ -1108,9 +1161,10 @@ def install_signals():
     return lambda: flag[0]
 
 
-def run_training(args, train_rows, val_rows, started, loader=None):
+def run_training(args, train_rows, val_rows, started, loader=None, restored=None):
     """Train from the init adapter, or resume the run in args.out. Returns the final state. `loader` (default load_policy) is the
-    seam the CPU tests use to supply a tiny model."""
+    seam the CPU tests use to supply a tiny model; `restored(policy)` is called on a resume right after the checkpoint is loaded and
+    before any step (the smoke gate compares the restored state there)."""
     existing = sft.load_checkpoint(args.out)
     policy, info = (loader or load_policy)(args, existing)
     versions = runtime_versions()
@@ -1121,7 +1175,7 @@ def run_training(args, train_rows, val_rows, started, loader=None):
         git_revision = None
     state = new_state(identity, versions, gpu=policy.describe(), kernels=info["kernels"], git_revision=git_revision, command=sys.argv,
                       trainer_sha256=trainer_hashes(), adapter_modules=info["adapter_modules"], trainable_parameters=info["trainable_parameters"],
-                      train=dict(rows=len(train_rows), drugs=len(drug_table(train_rows))),
+                      stop_token_ids=info.get("stop_ids"), train=dict(rows=len(train_rows), drugs=len(drug_table(train_rows))),
                       val=dict(rows=len(val_rows), drugs=len({r["group"] for r in val_rows})))
     if existing:
         check_resume(existing[1], identity, versions, state["trainer_sha256"])
@@ -1129,9 +1183,12 @@ def run_training(args, train_rows, val_rows, started, loader=None):
             print("WARNING: The kernel path changed since the checkpoint. Numerical replay is UNTESTED.", flush=True)
         state = restore_state(existing[1], state)
         policy.load_training(existing[0])
+        if restored:
+            restored(policy)
         write_logs(args.out, state)               # drop the lines of steps that were logged but never committed
     print(json.dumps(dict(adapter_modules=info["adapter_modules"], trainable_parameters=info["trainable_parameters"],
-                          resumed_at_step=state["step"], train=state["train"], val=state["val"], dtype=str(info["dtype"]))), flush=True)
+                          resumed_at_step=state["step"], train=state["train"], val=state["val"], dtype=str(info["dtype"]),
+                          stop_token_ids=info.get("stop_ids"))), flush=True)
     policy.reset_peak()
     if not existing:
         policy.save(state)                        # the first checkpoint exists before any step can fail
@@ -1170,7 +1227,7 @@ def run_parity(args, train_rows, started):
     by_length = sorted(train_rows, key=lambda r: (len(policy.prompt_ids(r)), r["id"]))
     mixed_rows = by_length[:4] + by_length[-4:]
     shortest = mixed_rows[0]
-    print(json.dumps(dict(sampling={k: v for k, v in policy.sampling.items() if k != "eos_token_id"},
+    print(json.dumps(dict(sampling={k: v for k, v in policy.sampling.items() if k != "eos_token_id"}, stop_token_ids=policy.stops,
                           effective={k: getattr(policy.model.get_base_model().generation_config, k, None)
                                      for k in ("do_sample", "temperature", "top_k", "top_p", "min_p", "repetition_penalty")})), flush=True)
     report, ok = {}, True
@@ -1211,11 +1268,45 @@ def snapshot_distances(a, b):
     return out
 
 
-def smoke_checks(full, resumed, distances=None):
+def snapshot_difference(a, b):
+    """The exact comparison of two Policy.snapshot()s: the largest absolute difference of the parameters, of the AdamW exp_avg and
+    exp_avg_sq (a missing tensor reads as zeros) and of the step counts; `names` is 1.0 when the parameter names or their order differ
+    and `rng` counts the RNG states that differ. inf where the shapes or lengths disagree, NaN stays NaN. All zeros means identical."""
+    def worst(diffs):
+        return math.nan if any(d != d for d in diffs) else max(diffs, default=0.0)
+
+    out = {}
+    for key in ("parameters", "exp_avg", "exp_avg_sq"):
+        diffs = [math.inf] if len(a[key]) != len(b[key]) else []
+        for x, y in zip(a[key], b[key]):
+            if x is None and y is None:
+                continue
+            x, y = (y * 0 if x is None else x), (x * 0 if y is None else y)
+            diffs.append(math.inf if x.shape != y.shape else float((x.double() - y.double()).abs().max()) if x.numel() else 0.0)
+        out[key] = worst(diffs)
+    out["step"] = worst([math.inf] if len(a["step"]) != len(b["step"]) else [abs(p - q) for p, q in zip(a["step"], b["step"])])
+    out["names"] = float(a["names"] != b["names"])
+
+    def same(x, y):
+        if isinstance(x, list):
+            return isinstance(y, list) and len(x) == len(y) and all(same(i, j) for i, j in zip(x, y))
+        if hasattr(x, "shape"):
+            return hasattr(y, "shape") and x.shape == y.shape and not bool((x != y).any())
+        if isinstance(x, tuple) and len(x) == 5 and hasattr(x[1], "tolist"):         # numpy's state: name, keys, position, gauss, cached
+            return isinstance(y, tuple) and x[0] == y[0] and x[1].tolist() == y[1].tolist() and x[2:] == y[2:]
+        return x == y
+
+    out["rng"] = float(sum(not same(a["rng"].get(key), b["rng"].get(key)) for key in {*a["rng"], *b["rng"]}))
+    return out
+
+
+def smoke_checks(full, resumed, distances=None, restored=None):
     """Pass/fail checks (and informational lines) of the smoke gate from the final states of the uninterrupted run and the run that
-    was stopped after step 2, rebuilt from disk and finished. `distances` (snapshot_distances of the two runs' final parameters and AdamW
-    state, after the third update): PASS when all are within SMOKE_TOLERANCE; otherwise only an INFO line with the numbers, because
-    rollouts that differ bitwise (GPU nondeterminism) change the third update and are indistinguishable here from a restore defect."""
+    was stopped after step 2, rebuilt from disk and finished. `restored` (snapshot_difference between the state the interrupted run
+    ended with and the state of the resumed process right after the checkpoint was loaded, before any step: no sampling in between, so
+    no GPU noise) must be all zeros: a broken optimizer, RNG or parameter-order restore FAILS here. `distances` (snapshot_distances of
+    the two runs' final parameters and AdamW state, after the third update): PASS when all are within SMOKE_TOLERANCE; otherwise only an
+    INFO line with the numbers, because rollouts that differ bitwise (GPU nondeterminism) change the third update."""
     delta = full["first_update_delta_norm"]
     a, b = full["metrics"], resumed["metrics"]
     ran = len(a) == 3 and len(b) == 3
@@ -1231,6 +1322,9 @@ def smoke_checks(full, resumed, distances=None):
     }
     info = {"step 3 rollouts bitwise equal (GPU nondeterminism can break this)": same3("rollout_hash"),
             "step 3 loss (uninterrupted, resumed)": [a[2]["loss"], b[2]["loss"]] if ran else None}
+    if restored is not None:
+        checks["right after the load, the resumed weights, AdamW state and RNG states equal the checkpoint's "
+               f"(exact; max abs difference {restored})"] = all(value == 0 for value in restored.values())
     if distances is not None:
         if all(value <= SMOKE_TOLERANCE for value in distances.values()):
             checks[f"step 3 parameters and AdamW state equal the uninterrupted run (relative norm of difference <= {SMOKE_TOLERANCE:g})"] = True
@@ -1261,24 +1355,25 @@ def run_smoke(args, train_rows, val_rows, started, loader=None):
         gc.collect()
         torch.cuda.empty_cache()
 
-    def finish(name, steps, keep=True):
-        """Run to `steps`; return the final state and, if `keep`, a CPU snapshot of the final weights and AdamW state; free the model."""
+    def finish(name, steps, restored=None):
+        """Run to `steps`; return the final state and a CPU snapshot of the final weights, AdamW state and RNG states; free the model."""
         made = []
 
         def load(run_args, existing=None):
             made.append((loader or load_policy)(run_args, existing))
             return made[-1]
 
-        state = run_training(sub(name, steps), train_rows, val_rows, time.monotonic(), loader=load)
-        snapshot = made[0][0].snapshot() if keep else None
+        state = run_training(sub(name, steps), train_rows, val_rows, time.monotonic(), loader=load, restored=restored)
+        snapshot = made[0][0].snapshot()
         made.clear()
         settle()
         return state, snapshot
 
     full, snapshot_full = finish("a", 3)
-    finish("b", 2, keep=False)
-    resumed, snapshot_resumed = finish("b", 3)                                    # a fresh process image: everything from disk
-    checks, info = smoke_checks(full, resumed, snapshot_distances(snapshot_full, snapshot_resumed))
+    _, snapshot_saved = finish("b", 2)            # what the checkpoint of the interrupted run holds
+    exact = []
+    resumed, snapshot_resumed = finish("b", 3, restored=lambda policy: exact.append(snapshot_difference(snapshot_saved, policy.snapshot())))
+    checks, info = smoke_checks(full, resumed, snapshot_distances(snapshot_full, snapshot_resumed), exact[0] if exact else dict(restored=math.inf))
     for name, passed in checks.items():
         print(f"{'PASS' if passed else 'FAIL'} {name}", flush=True)
     for name, value in info.items():

@@ -23,7 +23,9 @@ scaffold it has, plus 1 - 0.05 - 0.6 T - 0.3 s for each drug it reproduces exact
 the floor adds. An answer specific to the profile earns more. It depends on the whole batch, so it is recomputed whenever the drug set changes.
 
 Diagnostics of a batch cover every attempted group, before the zero-variance filter: the share of valid answers that carry the most
-common key, the share of distinct keys, the share that copies a Train reference, the mean similarity between the groups' modal answers,
+common key, the share of distinct keys, the share that copies the reference of another Train drug (an exact hit on the drug's own
+reference is recall, not a copy), the mean similarity between the groups' modal answers (above 0.5 for 3 steps in a row is a warning:
+near-duplicate answers keep the collapse score, which counts exact structures, near 1),
 the batch means of the reward's terms, and the profile-specific lift of docs/plan.md section 2. The similarity is passed in, so none of
 it needs a chemistry library here. A Val sweep also reports the first-valid policy of metrics.py v3 (fv_tanimoto, fv_lift, fv_rate,
 fv_samples); fv_tanimoto, the endpoint, is what the patience rule follows, not the Val mean reward.
@@ -43,6 +45,7 @@ TOL, EPS = 1e-9, 1e-6             # zero-variance tolerance; added to the batch 
 WARMUP_STEPS = 5                  # linear learning-rate warmup, then constant
 COLLAPSE_BELOW, COLLAPSE_STEPS = 0.7, 3     # stop when the collapse score is below 0.7 for 3 consecutive steps
 TRUNCATION_ABOVE = 0.30           # stop when more than 30% of a step's samples hit the length cap
+SIMILAR_ABOVE, SIMILAR_STEPS = 0.5, 3       # WARN (never stop) when the modal answers' mean pairwise Tanimoto is above 0.5 for 3 steps in a row
 RULE_STOPS = ("stopped_collapse", "stopped_truncation", "stopped_patience")    # final: a resume does not override them
 
 
@@ -191,6 +194,19 @@ def mean_pairwise(items, similarity):
     return math.fsum(similarity(a, b) for a, b in pairs) / len(pairs) if pairs else None
 
 
+def similarity_streak(metrics):
+    """Consecutive trailing steps (the current one last) whose modal_pairwise_tanimoto is above SIMILAR_ABOVE; a step without one (fewer
+    than two modal answers) ends the streak. Near-duplicate modal answers (methyl or halogen variants of one molecule) are distinct
+    structures, so the collapse score stays near 1 while the policy has collapsed in substance: this is the second alarm, a warning."""
+    streak = 0
+    for m in reversed(metrics):
+        value = m.get("modal_pairwise_tanimoto")
+        if value is None or value <= SIMILAR_ABOVE:
+            break
+        streak += 1
+    return streak
+
+
 def top_answer_share(keys):
     """Share of the valid answers of the whole batch that carry its most common key; None without a valid answer."""
     valid = [k for group in keys for k in group if k is not None]
@@ -203,11 +219,12 @@ def distinct_answer_share(keys):
     return len(set(valid)) / len(valid) if valid else None
 
 
-def copy_share(keys, reference_keys):
-    """Share of the valid answers whose key is the key of a reference in `reference_keys` (a Train structure copied); None
-    without a valid answer."""
-    valid = [k for group in keys for k in group if k is not None]
-    return sum(k in reference_keys for k in valid) / len(valid) if valid else None
+def copy_share(keys, reference_keys, own=None):
+    """Share of the valid answers whose key is the key of a reference in `reference_keys` (a Train structure copied); None without a
+    valid answer. own[g] holds the keys of group g's own reference: an answer equal to it is recall, not a copy, so it counts in the
+    denominator and not in the numerator."""
+    valid = [(k, own[g] if own else ()) for g, group in enumerate(keys) for k in group if k is not None]
+    return sum(k in reference_keys and k not in mine for k, mine in valid) / len(valid) if valid else None
 
 
 def reward_components(samples, w_valid, w_tani, w_scaf):

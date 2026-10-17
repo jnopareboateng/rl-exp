@@ -250,6 +250,7 @@ def test_patience_needs_val_flat_for_the_window_while_train_rises():
     assert not grpo.patience_stop(base, 3)                                # only two evals since the best
     assert grpo.patience_stop(base + [ev(0.19, 0.16)], 3)                 # three evals without a new best, train 0.10 -> 0.16
     assert not grpo.patience_stop(base + [ev(0.19, 0.09)], 3)             # train did not rise: no memorisation signal
+    assert not grpo.patience_stop(base + [ev(0.19, 0.10)], 3)             # train back at the value of the best eval: a tie is no rise
     assert not grpo.patience_stop(base + [ev(0.21, 0.16)], 3)             # a new best resets the count
     assert grpo.patience_stop(base + [ev(0.20, 0.16)], 3)                 # equal to the best is not an improvement
     assert grpo.patience_stop([ev(0.2, None), ev(0.2, 0.1), ev(0.2, 0.2), ev(0.2, 0.3)], 3)    # ties never count as improvement
@@ -285,6 +286,28 @@ def test_answer_shares_over_the_whole_batch():
 def test_copy_share_counts_valid_answers_that_are_train_references():
     assert grpo.copy_share(KEYS, {"A", "C"}) == pytest.approx(4 / 5) and grpo.copy_share(KEYS, frozenset({"B"})) == pytest.approx(1 / 5)
     assert grpo.copy_share(KEYS, set()) == 0.0 and grpo.copy_share([[None]], {"A"}) is None
+
+
+def test_copy_share_leaves_out_an_answer_equal_to_the_drugs_own_reference():
+    keys = [["A", "A", "B"], ["A", None, "C"]]                           # 5 valid answers in two groups
+    refs = {"A", "B", "C"}                                               # the Train references
+    own = [{"A"}, {"C"}]                                                 # group 0's reference is A, group 1's is C
+    assert grpo.copy_share(keys, refs, own) == pytest.approx(2 / 5)      # B in group 0 and A in group 1 copy another drug; A, A and C are recall
+    assert grpo.copy_share(keys, refs) == pytest.approx(5 / 5) == grpo.copy_share(keys, refs, [set(), set()])     # without `own`: all five count
+    assert grpo.copy_share([["A"]], {"A"}, [{"A"}]) == 0.0               # the own hit stays in the denominator
+    assert grpo.copy_share([["A", "B"]], {"A", "B"}, [{"A", "B"}]) == 0.0           # a reference with alternates: each of them is the drug's own
+    assert grpo.copy_share([[None]], {"A"}, [{"A"}]) is None
+
+
+def test_similarity_streak_counts_trailing_steps_whose_modal_answers_are_near_duplicates():
+    step = lambda value: dict(modal_pairwise_tanimoto=value)
+    assert (grpo.SIMILAR_ABOVE, grpo.SIMILAR_STEPS) == (0.5, 3)
+    assert grpo.similarity_streak([]) == 0
+    assert grpo.similarity_streak([step(0.6), step(0.7), step(0.9)]) == 3
+    assert grpo.similarity_streak([step(0.9), step(0.4), step(0.6), step(0.7)]) == 2          # a low step ends the run of high ones
+    assert grpo.similarity_streak([step(0.6), step(0.7), step(0.5)]) == 0                      # exactly 0.5 is not above it
+    assert grpo.similarity_streak([step(0.6), step(None), step(0.7)]) == 1                     # a step without two modal answers ends it too
+    assert grpo.similarity_streak([step(0.51)] * 7) == 7 and grpo.similarity_streak([dict(step=1)]) == 0       # an older log row has no such key
 
 
 def test_modal_answers_and_mean_pairwise_similarity():

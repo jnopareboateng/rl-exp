@@ -2,7 +2,8 @@
 # Colab A100 answer-only RL (arm A5). GPU install and execution are UNTESTED here. See gpu/RL.md.
 # INIT_ADAPTER=.agent-runs/sft_A2/adapters/epoch-1 STOP_AFTER_SECONDS=3600 sh gpu/run_rl.sh
 # GATE=parity sh gpu/run_rl.sh      GATE=smoke sh gpu/run_rl.sh      DRY_RUN=1 sh gpu/run_rl.sh
-# REWARD_MODE=validity (validity-only RL control)   PROFILE_MODE=none (profile-free RL control)   INIT_ADAPTER=none (zero-RL ablation)
+# REWARD_MODE=validity (validity-only RL control)   PROFILE_MODE=none (profile-free RL control)
+# INIT_ADAPTER=none REVISION=<base commit of the A2 adapter's revision.json> (zero-RL ablation: no adapter records the base, so REVISION is required)
 set -u
 
 if [ ! -f gpu/rl_grpo.py ] || [ ! -f src/rlexp/grpo.py ]; then
@@ -25,13 +26,14 @@ MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-256}
 TEMPERATURE=${TEMPERATURE:-1.0}
 LR=${LR:-1e-5}
 EVAL_EVERY=${EVAL_EVERY:-10}
-EVAL_K=${EVAL_K:-4}
+EVAL_K=${EVAL_K:-8}
 SAVE_EVERY=${SAVE_EVERY:-10}
 PATIENCE=${PATIENCE:-3}
 GEN_BATCH=${GEN_BATCH:-128}
-GEN_TOKEN_BUDGET=${GEN_TOKEN_BUDGET:-98304}
+GEN_TOKEN_BUDGET=${GEN_TOKEN_BUDGET:-49152}
 MAX_TOKENS_PER_BATCH=${MAX_TOKENS_PER_BATCH:-8192}
 MIN_GROUPS=${MIN_GROUPS:-16}
+REVISION=${REVISION:-}
 REWARD_MODE=${REWARD_MODE:-full}
 PROFILE_MODE=${PROFILE_MODE:-real}
 SEED=${SEED:-0}
@@ -43,6 +45,10 @@ case "$GATE" in
     ''|parity|smoke) ;;
     *) printf '%s\n' 'GATE must be empty, parity or smoke.' >&2; exit 1 ;;
 esac
+if [ "$INIT_ADAPTER" = none ] && [ -z "$REVISION" ]; then
+    printf '%s\n' 'INIT_ADAPTER=none needs REVISION: the base commit of the A2 adapter (its revision.json). Without it the Hub'"'"'s current revision would load.' >&2
+    exit 1
+fi
 scratch=.agent-runs/rl-runner
 mkdir -p "$scratch" || exit 1
 exec 9> "$scratch/session.lock"
@@ -89,6 +95,7 @@ set -- gpu/rl_grpo.py --model "$MODEL" --init-adapter "$INIT_ADAPTER" --train "$
     --temperature "$TEMPERATURE" --lr "$LR" --eval-every "$EVAL_EVERY" --eval-k "$EVAL_K" --save-every "$SAVE_EVERY" \
     --patience "$PATIENCE" --gen-batch "$GEN_BATCH" --gen-token-budget "$GEN_TOKEN_BUDGET" --max-tokens-per-batch "$MAX_TOKENS_PER_BATCH" --min-groups "$MIN_GROUPS" \
     --reward-mode "$REWARD_MODE" --profile-mode "$PROFILE_MODE" --stop-after-seconds "$STOP_AFTER_SECONDS" --seed "$SEED"
+if [ -n "$REVISION" ]; then set -- "$@" --revision "$REVISION"; fi
 if [ "$ALLOW_SLOW_KERNELS" = 1 ]; then set -- "$@" --allow-slow-kernels; fi
 if [ -n "$GATE" ]; then set -- "$@" --gate "$GATE"; fi
 if [ "$DRY_RUN" = 1 ]; then
@@ -128,8 +135,9 @@ step fla-install "$UV" pip install --python "$PY" --only-binary :all: 'flash-lin
 step conv-install "$UV" pip install --python "$PY" --only-binary :all: \
     'https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.7.0/causal_conv1d-1.7.0%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl#sha256=8e81f8c76435ad31aa41edc6c0c9d26de971a293b190183d2816da71547614d7' \
     || log 'Convolution wheel install failed. On compute capability 8.0+ (A100) the train step stops at its kernel check unless ALLOW_SLOW_KERNELS=1 (--allow-slow-kernels) is set.'
-# The reward needs rdkit and numpy in the training venv (the SFT venv has neither).
-step rdkit-install "$UV" pip install --python "$PY" rdkit numpy || exit 1
+# The reward needs rdkit and numpy in the training venv (the SFT venv has neither). rdkit is pinned: a new release can change standardisation
+# or fingerprints and with them the reward (2026.9.1 scored the baselines); rdkit and numpy versions are part of the resume identity.
+step rdkit-install "$UV" pip install --python "$PY" 'rdkit==2026.9.1' numpy || exit 1
 step pip-check "$UV" pip check --python "$PY" || exit 1
 log "COMMAND $*"
 step plan "$PY" "$@" --dry-run || exit 1

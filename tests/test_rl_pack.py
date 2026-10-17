@@ -64,13 +64,17 @@ def write_rows(path, rows):
     return path
 
 
+PIN = ["--revision", "base-rev"]            # a zero-RL run must name its base revision
+
+
 def make_args(rl, tmp_path, *extra, adapter="none"):
-    return rl.config_from_args(["--init-adapter", adapter, "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
+    pin = PIN if adapter == "none" and "--revision" not in extra else []
+    return rl.config_from_args(["--init-adapter", adapter, *pin, "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
                                 "--out", str(tmp_path / "out"), *extra])
 
 
 def loop_args(rl, tmp_path, *extra):
-    base = ["--eval-every", "0", "--steps", "5", "--prompts-per-step", "6", "--group-size", "4", "--min-groups", "2", "--seed", "3"]
+    base = ["--eval-every", "0", "--eval-k", "4", "--steps", "5", "--prompts-per-step", "6", "--group-size", "4", "--min-groups", "2", "--seed", "3"]
     return make_args(rl, tmp_path, *base, *extra)
 
 
@@ -86,6 +90,8 @@ def text_for(kind, row):
         return "\n</think>\n\n" + PLAIN
     if kind == "bad":
         return "\n</think>\n\nnot a molecule"
+    if kind == "analog":                                        # near duplicates: one chain length per drug, Tanimoto about 0.75 between them
+        return "\n</think>\n\n" + "C" * (7 + int(row["group"][-2:]) % 12) + "C(=O)O"
     return "CCO is the answer"                                  # "open": no closed think block
 
 
@@ -248,8 +254,9 @@ def test_train_and_val_must_be_separate_files_ids_and_drugs(rl, tmp_path):
 def test_defaults_follow_the_brief(rl, tmp_path):
     a = make_args(rl, tmp_path)
     assert (a.prompts_per_step, a.group_size, a.max_new_tokens, a.temperature, a.lr) == (32, 8, 256, 1.0, 1e-5)
-    assert (a.eval_every, a.eval_k, a.save_every, a.patience, a.gen_batch) == (10, 4, 10, 3, 128)
+    assert (a.eval_every, a.eval_k, a.save_every, a.patience, a.gen_batch) == (10, 8, 10, 3, 128)       # k = 8: the endpoint is defined on 8 samples
     assert (a.max_tokens_per_batch, a.min_groups, a.seed, a.gate, a.dry_run) == (8192, 16, 0, None, False)
+    assert (a.gen_token_budget, a.revision) == (49152, "base-rev")        # 49152: 81920 ran out of memory in prefill on a 40 GB card
     assert grpo.skip_below(a.min_groups) == 8
     with pytest.raises(SystemExit):
         rl.config_from_args(["--train", "a", "--val", "b"])                  # --init-adapter is required
@@ -312,6 +319,24 @@ def test_the_init_adapter_must_be_a_plain_lora_directory(rl, tmp_path):
             make_args(rl, tmp_path, adapter=str(adapter))
 
 
+def test_a_zero_rl_run_must_name_its_base_revision_and_an_adapter_run_may(rl, tmp_path):
+    files = ["--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl")]
+    for flags in ([], ["--revision", ""]):                                    # an empty value is no value
+        with pytest.raises(rl.PackError, match="needs --revision"):
+            rl.config_from_args(["--init-adapter", "none", *files, *flags])
+    assert rl.config_from_args(["--init-adapter", "none", *files, "--revision", "abc123"]).revision == "abc123"
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_model.safetensors").write_bytes(b"x")
+    (adapter / "adapter_config.json").write_text(json.dumps(dict(peft_type="LORA", r=32, lora_alpha=64)))
+    assert rl.config_from_args(["--init-adapter", str(adapter), *files]).revision is None          # the adapter's pin is the base: no flag needed
+    assert rl.config_from_args(["--init-adapter", str(adapter), *files, "--revision", "abc123"]).revision == "abc123"
+    write_rows(tmp_path / "train.jsonl", make_rows(8))
+    write_rows(tmp_path / "val.jsonl", make_rows(3, "val", offset=8))
+    with pytest.raises(rl.PackError, match="needs --revision"):                # the dry run (the runner's plan step) refuses it too
+        rl.main(["--init-adapter", "none", *files, "--out", str(tmp_path / "out"), "--prompts-per-step", "4", "--dry-run"])
+
+
 def run_cli(tmp_path, code):
     return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=ROOT, timeout=120)
 
@@ -320,15 +345,15 @@ def test_dry_run_prints_counts_only_and_imports_no_torch(rl, tmp_path):
     write_rows(tmp_path / "train.jsonl", make_rows(8))
     write_rows(tmp_path / "val.jsonl", make_rows(3, "val", offset=8))
     code = (f"import sys; sys.path.insert(0, {str(GPU)!r}); import rl_grpo; "
-            f"rl_grpo.main(['--init-adapter', 'none', '--train', {str(tmp_path / 'train.jsonl')!r}, '--val', {str(tmp_path / 'val.jsonl')!r}, "
+            f"rl_grpo.main(['--init-adapter', 'none', '--revision', 'base-rev', '--train', {str(tmp_path / 'train.jsonl')!r}, '--val', {str(tmp_path / 'val.jsonl')!r}, "
             f"'--out', {str(tmp_path / 'out')!r}, '--prompts-per-step', '4', '--dry-run']); print('TORCH', 'torch' in sys.modules)")
     done = run_cli(tmp_path, code)
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip().splitlines()[-1] == "TORCH False"
     plan = json.loads(done.stdout[:done.stdout.rindex("TORCH")])
-    assert plan["mode"] == "dry_run" and plan["train"]["rows"] == len(make_rows(8)) and plan["train"]["drugs"] == 8
+    assert plan["mode"] == "dry_run" and plan["train"]["rows"] == len(make_rows(8)) and plan["train"]["drugs"] == 8 and plan["revision"] == "base-rev"
     assert plan["val"]["rows"] == len(make_rows(3, "val")) and plan["step"]["samples"] == 4 * 8
-    assert plan["step"]["skip_below"] == 8 and plan["eval"]["samples"] == len(make_rows(3, "val")) * 4
+    assert plan["step"]["skip_below"] == 8 and plan["eval"]["samples"] == len(make_rows(3, "val")) * 8     # eval-k defaults to 8
     assert not (tmp_path / "out").exists()                                     # a dry run writes nothing
     assert all(piece not in done.stdout for piece in SMILES + ["case notes", "dataset system turn"])
 
@@ -338,7 +363,7 @@ def test_the_plan_prints_both_modes_and_whether_the_collapse_rule_applies(rl, tm
     write_rows(tmp_path / "val.jsonl", make_rows(3, "val", offset=8))
 
     def plan(*flags):
-        assert rl.main(["--init-adapter", "none", "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
+        assert rl.main(["--init-adapter", "none", *PIN, "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
                         "--out", str(tmp_path / "out"), "--prompts-per-step", "4", "--dry-run", *flags]) == 0
         return json.loads(capsys.readouterr().out)
 
@@ -346,8 +371,8 @@ def test_the_plan_prints_both_modes_and_whether_the_collapse_rule_applies(rl, tm
     assert (real["reward_mode"], real["profile_mode"], real["stop_rules"]["collapse_stop"]) == ("full", "real", True)
     assert (free["reward_mode"], free["profile_mode"], free["stop_rules"]["collapse_stop"]) == ("validity", "none", False)
     assert len(set(free["train"]["prompt_tokens"].values())) == 1                                # one fixed prompt: p50 = p90 = max
-    assert rl.collapse_stop(rl.config_from_args(["--init-adapter", "none"])) and not rl.collapse_stop(
-        rl.config_from_args(["--init-adapter", "none", "--profile-mode", "none"]))
+    assert rl.collapse_stop(rl.config_from_args(["--init-adapter", "none", *PIN])) and not rl.collapse_stop(
+        rl.config_from_args(["--init-adapter", "none", *PIN, "--profile-mode", "none"]))
     assert [plan("--min-groups", m)["step"]["skip_below"] for m in ("3", "4", "5", "16")] == [2, 2, 3, 8]      # half, rounded up
 
 
@@ -355,6 +380,49 @@ def test_the_cli_reports_a_refusal_and_exits_nonzero(rl, tmp_path):
     done = subprocess.run([sys.executable, str(GPU / "rl_grpo.py"), "--init-adapter", "none", "--train", str(tmp_path / "test_t.jsonl"),
                            "--val", str(tmp_path / "val.jsonl"), "--dry-run"], capture_output=True, text=True, cwd=ROOT, timeout=120)
     assert done.returncode == 1 and "RL failed (PackError)" in done.stderr and "test split" in done.stderr
+
+
+def test_a_second_trainer_on_the_same_output_directory_is_refused_by_the_run_lock(rl, tmp_path):
+    import fcntl
+    write_rows(tmp_path / "train.jsonl", make_rows(8))
+    write_rows(tmp_path / "val.jsonl", make_rows(3, "val", offset=8))
+    out = tmp_path / "out"
+    out.mkdir()
+    command = [sys.executable, str(GPU / "rl_grpo.py"), "--init-adapter", "none", *PIN, "--train", str(tmp_path / "train.jsonl"),
+               "--val", str(tmp_path / "val.jsonl"), "--out", str(out), "--prompts-per-step", "4"]
+    with (out / "run.lock").open("w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)                          # another trainer is running in this directory
+        refused = subprocess.run(command, capture_output=True, text=True, cwd=ROOT, timeout=120)
+    assert refused.returncode == 1 and "RL failed (BlockingIOError)" in refused.stderr
+    free = subprocess.run(command, capture_output=True, text=True, cwd=ROOT, timeout=120)       # released: it gets past the lock and fails later (no GPU here)
+    assert free.returncode == 1 and "BlockingIOError" not in free.stderr
+
+
+def test_sigterm_and_sigint_set_the_stop_flag_instead_of_killing_the_trainer(rl, tmp_path):
+    code = (f"import sys, os, signal, json; sys.path.insert(0, {str(GPU)!r}); import rl_grpo as rl; "
+            "term = rl.install_signals(); before = term(); os.kill(os.getpid(), signal.SIGTERM); after = term(); "
+            "interrupt = rl.install_signals(); os.kill(os.getpid(), signal.SIGINT); print(json.dumps([before, after, interrupt()]))")
+    done = run_cli(tmp_path, code)                       # a subprocess: without a handler the signal would end the process (SIGINT: raise in it)
+    assert done.returncode == 0, (done.returncode, done.stderr)
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == [False, True, True]
+
+
+def test_main_removes_the_temporary_directories_a_killed_run_left_and_nothing_else(rl, tmp_path, monkeypatch, capsys):
+    write_rows(tmp_path / "train.jsonl", make_rows(8))
+    write_rows(tmp_path / "val.jsonl", make_rows(3, "val", offset=8))
+    out = tmp_path / "out"
+    for leftover in ("checkpoints/.pending-aaa", "adapters/.pending-bbb", "adapters/.pending-replaced-ccc"):
+        (out / leftover).mkdir(parents=True)
+        (out / leftover / "partial").write_text("half written")
+    for kept in ("checkpoints/step-00000002-abc", "adapters/step-2"):
+        (out / kept).mkdir(parents=True)
+        (out / kept / "state").write_text("committed")
+    monkeypatch.setattr(rl, "run_training", lambda *a, **k: dict(status="complete", step=2, evals=[], skipped_updates=0))
+    assert rl.main(["--init-adapter", "none", *PIN, "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
+                    "--out", str(out), "--prompts-per-step", "4"]) == 0
+    assert not list(out.glob("*/.pending-*")) and (out / "checkpoints/step-00000002-abc/state").read_text() == "committed"
+    assert (out / "adapters/step-2/state").read_text() == "committed" and (out / "run.lock").exists()
+    assert json.loads(capsys.readouterr().out.strip().splitlines()[-1]) == dict(status="complete", step=2, evals=0, skipped_updates=0)
 
 
 @pytest.mark.skipif(not (ROOT / "data/processed/train.jsonl").exists() or not (ROOT / "data/processed/val.jsonl").exists(),
@@ -373,7 +441,7 @@ def runner_skeleton(tmp_path):
     (tmp_path / "data").mkdir()
     write_rows(tmp_path / "data/train.jsonl", make_rows(40))
     write_rows(tmp_path / "data/val.jsonl", make_rows(3, "val", offset=8))
-    return {**os.environ, "DRY_RUN": "1", "INIT_ADAPTER": "none", "PLAN_PYTHON": sys.executable,
+    return {**os.environ, "DRY_RUN": "1", "INIT_ADAPTER": "none", "REVISION": "base-rev", "PLAN_PYTHON": sys.executable,
             "TRAIN_FILE": "data/train.jsonl", "VAL_FILE": "data/val.jsonl"}
 
 
@@ -392,18 +460,36 @@ def test_the_runner_passes_the_trainer_its_own_defaults_and_every_override(rl, t
         assert words[0] == "gpu/rl_grpo.py"
         return rl.config_from_args(words[1:]), done
 
-    defaults = rl.config_from_args(["--init-adapter", "none"])
+    defaults = rl.config_from_args(["--init-adapter", "none", *PIN])
     got, done = command()
     assert {key for key in vars(defaults) if getattr(got, key) != getattr(defaults, key)} == {"train", "val"}   # only the data paths differ
     assert json.loads(done.stdout[done.stdout.index("{"):done.stdout.rindex("}") + 1])["train"]["rows"] == len(make_rows(40))
     tuned, _ = command(STEPS="7", LR="3e-5", GROUP_SIZE="4", MIN_GROUPS="8", GEN_BATCH="16", SEED="5", ALLOW_SLOW_KERNELS="1", GATE="smoke",
                        TEMPERATURE="0.9", EVAL_K="2", PATIENCE="2", STOP_AFTER_SECONDS="99", MAX_NEW_TOKENS="64", PROMPTS_PER_STEP="8",
-                       REWARD_MODE="validity", PROFILE_MODE="none")
+                       REWARD_MODE="validity", PROFILE_MODE="none", REVISION="r9", GEN_TOKEN_BUDGET="1000")
     assert (tuned.steps, tuned.lr, tuned.group_size, tuned.min_groups, tuned.gen_batch, tuned.seed) == (7, 3e-5, 4, 8, 16, 5)
     assert (tuned.allow_slow_kernels, tuned.gate, tuned.temperature, tuned.eval_k, tuned.patience) == (True, "smoke", 0.9, 2, 2)
     assert (tuned.stop_after_seconds, tuned.max_new_tokens, tuned.prompts_per_step) == (99, 64, 8)
     assert (tuned.reward_mode, tuned.profile_mode) == ("validity", "none")
+    assert (tuned.revision, tuned.gen_token_budget) == ("r9", 1000)
     assert command(REWARD_MODE="contrastive")[0].reward_mode == "contrastive"
+    assert (got.eval_k, got.gen_token_budget, got.revision) == (8, 49152, "base-rev")        # the runner's defaults are the trainer's: k = 8 and 49152
+
+
+def test_the_runner_requires_a_revision_for_a_zero_rl_run_and_pins_rdkit(rl, tmp_path):
+    env = runner_skeleton(tmp_path)
+    done = run_runner(tmp_path, env, REVISION="")
+    assert done.returncode == 1 and "INIT_ADAPTER=none needs REVISION" in done.stderr and "Hub" in done.stderr
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_model.safetensors").write_bytes(b"x")
+    (adapter / "adapter_config.json").write_text(json.dumps(dict(peft_type="LORA", r=32, lora_alpha=64)))
+    done = run_runner(tmp_path, env, REVISION="", INIT_ADAPTER=str(adapter))                 # an adapter run needs none, and passes none
+    assert done.returncode == 0 and "--revision" not in done.stdout.split(" COMMAND ", 1)[1].splitlines()[0]
+    text = (GPU / "run_rl.sh").read_text(encoding="utf-8")
+    from importlib.metadata import version
+    pinned = re.findall(r"pip install --python \"\$PY\" 'rdkit==([0-9.]+)' numpy", text)
+    assert pinned == [version("rdkit")]                    # the rdkit that scored the baselines: change the pin on purpose, with the baselines
 
 
 def test_the_runner_stops_early_on_a_bad_gate_missing_data_or_adapter(rl, tmp_path):
@@ -422,14 +508,19 @@ def test_the_docs_name_the_pilot_runs_and_defaults(rl):
                    "OUT=.agent-runs/rl_zero", "Drug: unknown.", "collapse_all", "lift_batch", "train_copy_share",
                    # round 3: the floor, the first-valid endpoint, the objective hash, the gates' thresholds and the known scorer behaviour
                    "max(0, reward_v2", "the floor only adds", "`fv_tanimoto`", "`val_reward`", "`objective_sha256`", "objective changed: use a new output directory",
-                   "`trainer_sha256`", "rounded up", "Known scorer behaviour", "leading or trailing `*`", "mean |diff| <= 0.03", "15% of tokens",
-                   "within 2% of 1", "Measured, then chosen", "0.015-0.018", "8-11%", "0.994-1.000", "`EVAL_K=8`"):
+                   "`trainer_sha256`", "rounded up", "Known scorer behaviour", "mean |diff| <= 0.03", "15% of tokens",
+                   "within 2% of 1", "Measured, then chosen", "0.015-0.018", "8-11%", "0.994-1.000",
+                   # round 4: the exact smoke check, the stop tokens, the revision pin, k = 8, the budget, the hash scope, the new diagnostics
+                   "right after the checkpoint loads", "max abs difference 0", "stop_token_ids", "`generation_config` eos list", "`--revision`",
+                   "REVISION=", "EVAL_K=8", "49152", "faster than `--gen-token-budget`", "does not replay", "rdkit", "`OBJECTIVE_FUNCTIONS`",
+                   "`similar_streak`", "ANOTHER Train drug", "markdown emphasis", "accepted leniency", "`--eval-k` (8"):
         assert needle in " ".join(text.split()), needle                              # whatever the line breaks
     assert len(text.splitlines()) <= 100
     assert rl.PROFILE_FREE_USER == "Drug: unknown."
     runner = (GPU / "run_rl.sh").read_text(encoding="utf-8")                        # the defaults stay as they were: the pilot overrides them
     for default in ("PROMPTS_PER_STEP=${PROMPTS_PER_STEP:-32}", "MIN_GROUPS=${MIN_GROUPS:-16}", "STEPS=${STEPS:-100}", "LR=${LR:-1e-5}",
-                    "EVAL_EVERY=${EVAL_EVERY:-10}", "REWARD_MODE=${REWARD_MODE:-full}", "PROFILE_MODE=${PROFILE_MODE:-real}"):
+                    "EVAL_EVERY=${EVAL_EVERY:-10}", "REWARD_MODE=${REWARD_MODE:-full}", "PROFILE_MODE=${PROFILE_MODE:-real}",
+                    "EVAL_K=${EVAL_K:-8}", "GEN_TOKEN_BUDGET=${GEN_TOKEN_BUDGET:-49152}"):
         assert default in runner, default
 
 
@@ -437,7 +528,7 @@ def test_the_docs_name_the_pilot_runs_and_defaults(rl):
 def test_resume_identity_is_options_data_adapter_dtype_and_core_versions_only(rl, tmp_path, capsys):
     write_rows(tmp_path / "train.jsonl", make_rows(3))
     write_rows(tmp_path / "val.jsonl", make_rows(2, "val"))
-    versions = dict(python="3.12", torch="2.10", transformers="5.17", peft="0.21", numpy="2.0")
+    versions = dict(python="3.12", torch="2.10", transformers="5.17", peft="0.21", rdkit="2026.9.1", numpy="2.5.4", safetensors="0.5")
 
     def identity(*flags, revision="r1", dtype="bf16", versions=versions, adapter="none"):
         return rl.make_identity(make_args(rl, tmp_path, *flags, adapter=adapter), revision, dtype, versions)
@@ -446,32 +537,49 @@ def test_resume_identity_is_options_data_adapter_dtype_and_core_versions_only(rl
     assert base == identity()
     for flags in (["--lr", "2e-5"], ["--seed", "1"], ["--group-size", "4"], ["--temperature", "0.9"], ["--prompts-per-step", "8"],
                   ["--max-new-tokens", "128"], ["--eval-k", "2"], ["--eval-every", "5"], ["--patience", "2"], ["--min-groups", "8"],
-                  ["--model", "other"], ["--reward-mode", "validity"], ["--reward-mode", "contrastive"], ["--profile-mode", "none"]):
+                  ["--model", "other"], ["--reward-mode", "validity"], ["--reward-mode", "contrastive"], ["--profile-mode", "none"],
+                  ["--revision", "other-rev"]):
         assert identity(*flags) != base, flags
     # performance and stop settings do not change what the run is
-    for flags in (["--steps", "7"], ["--gen-batch", "16"], ["--save-every", "3"], ["--max-tokens-per-batch", "4096"], ["--stop-after-seconds", "5"],
-                  ["--out", str(tmp_path / "elsewhere")], ["--allow-slow-kernels"]):
+    for flags in (["--steps", "7"], ["--gen-batch", "16"], ["--gen-token-budget", "4096"], ["--save-every", "3"], ["--max-tokens-per-batch", "4096"],
+                  ["--stop-after-seconds", "5"], ["--out", str(tmp_path / "elsewhere")], ["--allow-slow-kernels"]):
         assert identity(*flags) == base, flags
     assert identity(revision="r2") != base and identity(dtype="fp16") != base
-    assert identity(versions=dict(versions, torch="2.11")) != base and identity(versions=dict(versions, peft="0.22")) != base
-    assert identity(versions=dict(versions, numpy="2.1", python="3.13")) == base
+    # torch, transformers, peft, and rdkit and numpy (a new RDKit can change the reward) are pinned; the other versions are not
+    for name, other in (("torch", "2.11"), ("transformers", "5.18"), ("peft", "0.22"), ("rdkit", "2027.3.1"), ("numpy", "2.6.0")):
+        assert identity(versions=dict(versions, **{name: other})) != base, name
+    assert identity(versions=dict(versions, python="3.13", safetensors="0.6")) == base
+    # the data is hashed: the Val file as well as the Train file
+    (tmp_path / "val.jsonl").write_text("changed\n")
+    assert identity() != base
+    write_rows(tmp_path / "val.jsonl", make_rows(2, "val"))
+    assert identity() == base
     (tmp_path / "train.jsonl").write_text("changed\n")
     assert identity() != base
+    # the init adapter is hashed: its weights and its config
     adapter = tmp_path / "adapter"
     adapter.mkdir()
     (adapter / "adapter_model.safetensors").write_bytes(b"weights-1")
-    (adapter / "adapter_config.json").write_text(json.dumps(dict(peft_type="LORA", r=32, lora_alpha=64)))
+    config = dict(peft_type="LORA", r=32, lora_alpha=64)
+    (adapter / "adapter_config.json").write_text(json.dumps(config))
     with_adapter = identity(adapter=str(adapter))
     assert with_adapter != base and with_adapter["init_adapter_sha256"] == rl.adapter_digest(adapter)
     (adapter / "adapter_model.safetensors").write_bytes(b"weights-2")
-    assert identity(adapter=str(adapter)) != with_adapter
-    # check_resume: a core mismatch refuses, any other version change only warns
+    with_weights = identity(adapter=str(adapter))
+    assert with_weights != with_adapter
+    (adapter / "adapter_config.json").write_text(json.dumps(dict(config, lora_alpha=128)))
+    assert identity(adapter=str(adapter)) != with_weights
+    # check_resume: a core mismatch refuses (naming a version drift), any other version change only warns
     saved = dict(identity=base, versions=versions)
     rl.check_resume(saved, base, versions)
     with pytest.raises(rl.PackError, match="identity changed"):
         rl.check_resume(saved, identity("--lr", "3e-5"), versions)
-    rl.check_resume(saved, base, dict(versions, numpy="2.1"))
-    assert "numpy" in capsys.readouterr().out
+    for name, other in (("rdkit", "2027.3.1"), ("numpy", "2.6.0")):
+        drifted = dict(versions, **{name: other})
+        with pytest.raises(rl.PackError, match=rf"identity changed \(versions: {name}\). Use a new output directory"):
+            rl.check_resume(saved, identity(versions=drifted), drifted)
+    rl.check_resume(saved, base, dict(versions, safetensors="0.6"))
+    assert "safetensors" in capsys.readouterr().out
 
 
 def test_the_objective_hash_covers_the_scorer_the_update_code_the_system_turn_and_the_prompt_source(rl, tmp_path, monkeypatch):
@@ -519,12 +627,60 @@ def test_the_objective_hash_covers_the_scorer_the_update_code_the_system_turn_an
             assert rl.objective_digest() != base, name
     assert rl.objective_digest() == base                                      # everything above was undone
     assert rl.rl_prompt(PROMPT.format(n=1), "real") == arms.with_system(PROMPT.format(n=1), arms.DIRECT_SYSTEM)
+    # the reward code that lives in the trainer file: each function of OBJECTIVE_FUNCTIONS counts, and the list is exactly this one
+    assert set(rl.OBJECTIVE_FUNCTIONS) == {"rl_prompt", "stop_ids", "trim_generated", "finished_score", "score_completions", "training_rewards",
+                                           "apply_contrast", "similarities", "_fingerprint", "plan_for"}
+    elsewhere = lambda *args, **kwargs: None                                  # its source is on this line, not in any trainer function
+    for name in rl.OBJECTIVE_FUNCTIONS:
+        with monkeypatch.context() as patch:
+            patch.setattr(rl, name, elsewhere)
+            assert rl.objective_digest() != base, name
+    assert rl.objective_digest() == base
+
+
+def load_variant(path, source, name):
+    """rl_grpo.py with `source` as its text, loaded as another module (the objective digest reads the functions of the module it runs in)."""
+    path.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_editing_the_length_rule_or_the_validity_reward_in_the_trainer_file_changes_the_objective_hash(rl, tmp_path):
+    source = (GPU / "rl_grpo.py").read_text(encoding="utf-8")
+    edits = {"length rule off": ("    if finished:\n        return scored\n", "    if True:\n        return scored\n"),
+             "validity reward is closed only": ('binary = float(bool(scored["valid"] and scored["closed"] and finished))', 'binary = float(bool(scored["closed"]))'),
+             "contrastive assembly treats every sample as usable": ("    usable = [grpo.usable(s) for s in samples]\n", "    usable = [True for s in samples]\n"),
+             "stop token dropped": ("    found = [im_end]\n", "    found = []\n")}
+    base, loaded = rl.objective_digest(), []
+    try:
+        copy = load_variant(tmp_path / "rl_grpo_same.py", source, "rl_grpo_same")
+        loaded.append("rl_grpo_same")
+        assert copy.objective_digest() == base                                 # the same text elsewhere: the same hash (the path does not count)
+        for label, (old, new) in edits.items():
+            assert source.count(old) == 1, label
+            variant = load_variant(tmp_path / "rl_grpo_variant.py", source.replace(old, new), "rl_grpo_variant")
+            loaded.append("rl_grpo_variant")
+            assert variant.objective_digest() != base, label
+        # the probe of the review: with the length rule off, a capped exact answer is paid in full, and the hash says the objective changed
+        off = load_variant(tmp_path / "rl_grpo_off.py", source.replace(*edits["length rule off"]), "rl_grpo_off")
+        loaded.append("rl_grpo_off")
+        row, texts, decode = scoring_fixture()
+        capped = [dict(ids=[10], finish="length")]
+        assert rl.score_completions(decode, capped, row)[0]["reward"] == 0.0 and off.score_completions(decode, capped, row)[0]["reward"] == 1.0
+        assert off.objective_digest() != rl.objective_digest()
+    finally:
+        for name in loaded:
+            sys.modules.pop(name, None)
+        sys.path[:] = [entry for entry in sys.path if entry not in (str(tmp_path), str(tmp_path.parent / "src"))]
 
 
 def test_a_resume_under_another_objective_is_refused_and_a_changed_trainer_only_warns(rl, tmp_path, capsys, monkeypatch):
     write_rows(tmp_path / "train.jsonl", make_rows(3))
     write_rows(tmp_path / "val.jsonl", make_rows(2, "val"))
-    versions = dict(python="3.12", torch="2.10", transformers="5.17", peft="0.21")
+    versions = dict(python="3.12", torch="2.10", transformers="5.17", peft="0.21", rdkit="2026.9.1", numpy="2.5.4")
     trainer = {"rl_grpo.py": "a" * 64, "sft_lora.py": "b" * 64}
     base = rl.make_identity(make_args(rl, tmp_path), "r1", "bf16", versions)
     assert base["objective_sha256"] == rl.objective_digest()
@@ -562,6 +718,12 @@ def test_the_base_revision_comes_from_the_checkpoint_or_the_init_adapter_pin(rl,
     assert rl.adapter_pin(adapter) == "abc123" and rl.base_revision(None, adapter) == "abc123"
     assert rl.base_revision((tmp_path, dict(identity=dict(revision="resumed")), {}), adapter) == "resumed"     # a resume keeps its own
     assert rl.base_revision(None, None) is None and rl.base_revision(None, tmp_path / "plain") is None
+    # --revision: the base of a zero-RL run, or the pin of an adapter that records none; it must agree with a pin that exists
+    assert rl.base_revision(None, None, "abc") == "abc" and rl.base_revision(None, tmp_path / "plain", "abc") == "abc"
+    assert rl.base_revision(None, adapter, "abc123") == "abc123"
+    with pytest.raises(rl.PackError, match="differs from the base revision"):
+        rl.base_revision(None, adapter, "other")
+    assert rl.base_revision((tmp_path, dict(identity=dict(revision="resumed")), {}), adapter, "abc123") == "resumed"      # a resume keeps its own
     assert rl.KEPT_FILES == ("adapter_model.safetensors", "adapter_config.json", "revision.json")
 
 
@@ -652,6 +814,21 @@ def test_trim_generated_cuts_at_the_first_end_token(rl):
     assert rl.trim_generated([5, 6, 9, 0, 0], 9, 6) == ([5, 6, 9], "stop")
     assert rl.trim_generated([5, 6, 7, 8], 9, 4) == ([5, 6, 7, 8], "length")
     assert rl.trim_generated([9], 9, 4) == ([9], "stop") and rl.trim_generated([5, 9, 9], 9, 4) == ([5, 9], "stop")
+
+
+def test_stop_ids_collect_every_token_the_model_stops_on(rl):
+    assert rl.stop_ids(5, 5, None) == [5] and rl.stop_ids(5, 5, 5) == [5] and rl.stop_ids(5, 5, [5, 7]) == [5, 7]
+    assert rl.stop_ids(5, 7, [9, 5]) == [5, 9, 7]                           # <|im_end|> first, the config's list in order, then the tokenizer's eos
+    assert rl.stop_ids(5, None, (7, 7, 8)) == [5, 7, 8] and rl.stop_ids(5, 6, 6) == [5, 6]       # each once; a tuple or an int works
+    assert rl.stop_ids(5, 5, [True, "x", None, 6.0, 9]) == [5, 9]           # only real ints
+    assert rl.stop_ids(5, 5, []) == [5]
+
+
+def test_generation_stops_at_the_first_of_several_stop_tokens(rl):
+    assert rl.trim_generated([5, 6, 7, 8, 9], {8, 9}, 6) == ([5, 6, 7, 8], "stop")
+    assert rl.trim_generated([5, 6, 9, 8], [8, 9], 6) == ([5, 6, 9], "stop")        # the earlier of the two, wherever it sits in the list
+    assert rl.trim_generated([5, 6, 7], [8, 9], 2) == ([5, 6], "length") and rl.trim_generated([8], (8, 9), 4) == ([8], "stop")
+    assert rl.trim_generated([5, 9, 9], 9, 4) == ([5, 9], "stop")             # a single id still works
 
 
 def test_micro_batches_cover_every_sample_once_inside_the_budget(rl):
@@ -881,7 +1058,7 @@ def test_collapse_truncation_and_patience_stop_the_run_and_stay_final(rl, tmp_pa
     assert first["collapse_score"] == pytest.approx(1 / first["prompts"]) and first["prompts"] == 12   # no signal: the refill doubled the batch
     assert first["collapse_all"] == pytest.approx(1 / 12) and first["top_answer_share"] == 1.0           # one answer everywhere ...
     assert abs(first["lift_batch"]) < 1e-12 and first["modal_pairwise_tanimoto"] == pytest.approx(1.0)  # ... carries no profile information
-    assert first["train_copy_share"] == 1.0                                       # and it is the reference of Train drug 0
+    assert first["train_copy_share"] == pytest.approx(11 / 12)                    # the reference of Train drug 0: a copy for the other 11 drugs, recall for drug 0
     # truncation: 40% of the samples hit the length cap
     policy = FakePolicy(behave=lambda seed, row, i: (mixed(seed, row, i)[0], "length" if i < 2 else "stop"))
     state = run_loop(rl, loop_args(rl, tmp_path, "--steps", "9"), policy, rows)
@@ -910,6 +1087,28 @@ def test_the_stop_rule_reads_collapse_score_not_collapse_all(rl, tmp_path):
     assert state["status"] == "complete" and state["collapse_streak"] == 0
     for m in state["metrics"]:
         assert m["collapse_score"] == pytest.approx(1.0) and m["collapse_all"] == pytest.approx(0.5)      # 6 distinct modal answers: 6/6 and 6/12
+
+
+def test_near_duplicate_modal_answers_warn_after_three_steps_and_never_stop_the_run(rl, tmp_path, capsys):
+    rows = make_rows(12)
+    args = loop_args(rl, tmp_path, "--steps", "5", "--prompts-per-step", "6")
+    state = run_loop(rl, args, FakePolicy(behave=lambda seed, row, i: ("analog", "stop")), rows)
+    out = capsys.readouterr().out
+    assert state["status"] == "complete" and state["step"] == 5 and state["collapse_streak"] == 0       # the collapse stop does not see them
+    for m in state["metrics"]:
+        assert m["modal_pairwise_tanimoto"] > 0.5 and m["collapse_score"] == pytest.approx(1.0)       # distinct structures, all alike
+    assert [m["similar_streak"] for m in state["metrics"]] == [1, 2, 3, 4, 5]
+    warnings = [l for l in out.splitlines() if l.startswith("WARNING: The modal answers")]
+    assert len(warnings) == 3 and "for 3 steps" in warnings[0] and "for 5 steps" in warnings[2]       # one line per step from the third on
+    assert "above 0.5" in warnings[0] and "top_answer_share" in warnings[0] and "lift_batch" in warnings[0]
+    assert re.search(r"pair=0\.[5-9]\d ", out)                                                           # the step line shows the similarity
+    # a policy whose answers differ: nothing to warn about
+    diverse = run_loop(rl, loop_args(rl, tmp_path, "--steps", "5", "--prompts-per-step", "6"), FakePolicy(), rows)
+    assert "WARNING: The modal answers" not in capsys.readouterr().out and max(m["similar_streak"] for m in diverse["metrics"]) < 3
+    # the warning does not depend on the collapse rule being on
+    free = run_loop(rl, loop_args(rl, tmp_path, "--steps", "4", "--prompts-per-step", "6", "--profile-mode", "none"),
+                    FakePolicy(behave=lambda seed, row, i: ("analog", "stop")), rows)
+    assert free["status"] == "complete" and "for 4 steps" in capsys.readouterr().out
 
 
 def test_without_the_profile_a_collapsed_policy_is_not_stopped_but_the_alarm_is_logged(rl, tmp_path):
@@ -983,7 +1182,7 @@ def test_batch_diagnostics_on_a_hand_made_batch(rl):
     assert len(flat) == 10
     assert got["top_answer_share"] == pytest.approx(3 / 10)                                 # S0 and S4 three times each
     assert got["distinct_answer_share"] == pytest.approx(4 / 10)
-    assert got["train_copy_share"] == pytest.approx(5 / 10)                                 # S0 three times and S1 twice are Train references
+    assert got["train_copy_share"] == pytest.approx(3 / 10)                                 # S1 twice and S0 once in group 3; group 0's two S0 are its own reference
     assert got["collapse_all"] == pytest.approx(3 / 4)                                      # modal answers S0, S4, S1 over four groups
     assert grpo.collapse_score([[s["key"] for s in g["samples"]] for g in groups]) == pytest.approx(1.0)       # ... but 3 of 3 with an answer
     assert got["modal_pairwise_tanimoto"] == pytest.approx((tan(S[0], S[4]) + tan(S[0], S[1]) + tan(S[4], S[1])) / 3)
@@ -1010,7 +1209,7 @@ def test_a_constant_answer_has_zero_batch_lift_and_the_edge_cases_are_none(rl):
     constant = rl.batch_diagnostics(make_groups(rl, [(row, [(ans(SMILES[0]), "stop")] * 4) for row in rows]), rl.reference_keys(rows))
     assert abs(constant["lift_batch"]) < 1e-12 and constant["top_answer_share"] == 1.0 and constant["modal_pairwise_tanimoto"] == pytest.approx(1.0)
     assert constant["distinct_answer_share"] == pytest.approx(1 / 24) and constant["collapse_all"] == pytest.approx(1 / 6)
-    assert constant["train_copy_share"] == 1.0
+    assert constant["train_copy_share"] == pytest.approx(20 / 24)       # S0 is Train drug 0's own reference: its 4 answers are recall, not copies
     # no valid answer anywhere: shares have nothing to divide, nothing is None-poisoned that should not be
     nothing = rl.batch_diagnostics(make_groups(rl, [(row, [(ans("not a molecule"), "stop")] * 4) for row in rows]), rl.reference_keys(rows))
     assert nothing["top_answer_share"] is None and nothing["distinct_answer_share"] is None and nothing["train_copy_share"] is None
@@ -1022,6 +1221,7 @@ def test_a_constant_answer_has_zero_batch_lift_and_the_edge_cases_are_none(rl):
     # a policy that answers each drug with its own reference has a clearly positive lift
     own = rl.batch_diagnostics(make_groups(rl, [(row, [(ans(row["ref_smiles"]), "stop")] * 4) for row in rows]), rl.reference_keys(rows))
     assert own["lift_batch"] > 0.3 and own["reward_identity"] == 1.0 and own["collapse_all"] == 1.0
+    assert own["train_copy_share"] == 0.0                                  # every answer is the drug's own reference: all recall, no copy
 
 
 def test_reference_keys_are_connectivity_keys_of_references_and_alternates(rl):
@@ -1291,7 +1491,7 @@ def test_the_contrastive_reward_needs_two_drugs_and_does_not_touch_unusable_samp
     assert [s["answer"] is not None for s in samples[:4]] == [True, False, False, False]
     with pytest.raises(rl.PackError, match="prompts_per_step"):
         rl.config_from_args(["--init-adapter", "none", "--reward-mode", "contrastive", "--prompts-per-step", "1"])
-    assert rl.config_from_args(["--init-adapter", "none", "--reward-mode", "contrastive", "--prompts-per-step", "2"]).reward_mode == "contrastive"
+    assert rl.config_from_args(["--init-adapter", "none", *PIN, "--reward-mode", "contrastive", "--prompts-per-step", "2"]).reward_mode == "contrastive"
 
 
 def contrastive_oracle(policy, rows, group_size=4, stale=False, floor=True):
@@ -1395,6 +1595,7 @@ class ParityPolicy:
     """Scripted for the parity gate: 20 tokens per completion with sampling log-probs of -1.0; the training forward is `shift` higher on
     the first `count` tokens of every completion."""
     sampling = dict(do_sample=True, temperature=1.0, top_k=0, eos_token_id=[0])
+    stops = [0]
     model = types.SimpleNamespace(get_base_model=lambda: types.SimpleNamespace(
         generation_config=types.SimpleNamespace(do_sample=True, temperature=1.0, top_k=0, top_p=1.0, min_p=None, repetition_penalty=1.0)))
 
@@ -1415,7 +1616,7 @@ def test_the_parity_gate_exits_zero_exactly_when_every_case_is_inside_the_thresh
     write_rows(tmp_path / "train.jsonl", make_rows(8))
     write_rows(tmp_path / "val.jsonl", make_rows(3, "val", offset=8))
     gate = lambda policy: (monkeypatch.setattr(rl, "load_policy", lambda args, existing=None: (policy, {})),
-                           rl.main(["--init-adapter", "none", "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
+                           rl.main(["--init-adapter", "none", *PIN, "--train", str(tmp_path / "train.jsonl"), "--val", str(tmp_path / "val.jsonl"),
                                     "--out", str(tmp_path / "out"), "--prompts-per-step", "4", "--gate", "parity"]))[1]
     # 2 of 20 tokens above 0.05 (10%), mean |diff| 0.006: inside the thresholds chosen from the A100 runs (the old 5% share would fail it)
     assert gate(ParityPolicy(count=2, shift=0.06)) == 0
@@ -1480,6 +1681,7 @@ def tiny(torch, rl, vocab=7, hidden=5, seed=0):
             self.model = Backbone()
             self.lm_head = rl.fp32_head(head)
             self.config = types.SimpleNamespace(use_cache=False)
+            self.generation_config = types.SimpleNamespace(eos_token_id=None)       # the checkpoint's own, which Policy reads and replaces
             self.generate_calls = []
 
         def get_base_model(self):
@@ -1693,10 +1895,12 @@ def stub_transformers(monkeypatch):
     monkeypatch.setitem(sys.modules, "transformers", module)
 
 
-def toy_policy(rl, torch, args, vocab=256):
-    """The real rl_grpo.Policy over a tiny torch model: its update, AdamW, checkpoints and generate path are the production code."""
+def toy_policy(rl, torch, args, vocab=256, config_eos=None, tokenizer=None):
+    """The real rl_grpo.Policy over a tiny torch model: its update, AdamW, checkpoints and generate path are the production code.
+    config_eos is the eos_token_id of the model's own generation config (an id, a list or None)."""
     model, emb, mix, head = tiny(torch, rl, vocab=vocab)
-    return rl.Policy(model, ByteTokenizer(), args, torch.bfloat16, device="cpu"), emb, mix, head
+    model.generation_config = types.SimpleNamespace(eos_token_id=config_eos)
+    return rl.Policy(model, tokenizer or ByteTokenizer(), args, torch.bfloat16, device="cpu"), emb, mix, head
 
 
 def toy_weights(torch, path):
@@ -1797,10 +2001,33 @@ def test_policy_generate_passes_the_clean_sampling_config_and_seeds_torch(rl, to
     assert policy.rollout([dict(id="a", rl_prompt="x"), dict(id="b", rl_prompt="yz")], 5) == policy.rollout([dict(id="a", rl_prompt="x"), dict(id="b", rl_prompt="yz")], 5)
 
 
+def test_policy_stops_on_every_token_the_generation_config_lists_not_only_im_end(rl, torch, stub_transformers, tmp_path):
+    args = make_args(rl, tmp_path, "--max-new-tokens", "6")
+    assert toy_policy(rl, torch, args)[0].stops == [250]                                  # no list in the config: <|im_end|> alone, as before
+    policy = toy_policy(rl, torch, args, config_eos=[250, 249])[0]
+    assert policy.stops == [250, 249] and policy.sampling["eos_token_id"] == [250, 249]
+    assert toy_policy(rl, torch, args, config_eos=249)[0].stops == [250, 249]             # one id instead of a list
+    assert toy_policy(rl, torch, args, config_eos=[249, 250, 249])[0].stops == [250, 249]
+    other = type("OtherEos", (ByteTokenizer,), dict(eos_token_id=248))()
+    assert toy_policy(rl, torch, args, config_eos=[249], tokenizer=other)[0].stops == [250, 249, 248]      # and the tokenizer's eos
+    # generate asks the model to stop on all of them, and a rollout ends at the first one it emits
+    policy.generate([[1, 2, 3]], 1, seed=1)
+    assert policy.model.get_base_model().generate_calls[0]["eos_token_id"] == [250, 249]
+    policy.model.generate = lambda input_ids, attention_mask=None, **kwargs: torch.cat([input_ids, torch.tensor([[7, 249, 8, 250, 4, 4]])], dim=1)
+    assert policy.generate([[1, 2, 3]], 1, seed=1) == [[dict(ids=[7, 249], finish="stop")]]       # <|endoftext|> ends it: as in vLLM
+    policy.model.generate = lambda input_ids, attention_mask=None, **kwargs: torch.cat([input_ids, torch.tensor([[7, 8, 3, 4, 5, 6]])], dim=1)
+    assert policy.generate([[1, 2, 3]], 1, seed=1) == [[dict(ids=[7, 8, 3, 4, 5, 6], finish="length")]]
+    assert policy.model.get_base_model().generation_config.eos_token_id == [250, 249]        # the model's config carries the same list
+
+
 def test_policy_snapshot_holds_cpu_copies_of_the_weights_and_the_adamw_moments(rl, torch, stub_transformers, tmp_path):
     policy, *_ = toy_policy(rl, torch, make_args(rl, tmp_path))
     before = policy.snapshot()
     assert before["exp_avg"] == [None] and before["exp_avg_sq"] == [None] and before["step"] == [0.0]
+    assert before["names"] == ["model.mix"] and set(before["rng"]) == {"python", "numpy", "torch"}        # parameter names and the RNG states (no cuda on the CPU)
+    assert before["rng"]["python"] == random.getstate() and torch.equal(before["rng"]["torch"], torch.get_rng_state())
+    torch.manual_seed(5)
+    assert not torch.equal(before["rng"]["torch"], torch.get_rng_state())                              # a copy of the state at the time, not the live one
     policy.train(toy_items(policy, scale=8.0), 0.01)
     snap = policy.snapshot()
     state = policy.optimizer.state[policy.params[0]]
@@ -1893,6 +2120,9 @@ class DiskPolicy(FakePolicy):
             self.metric_lines = (self.out / "metrics.jsonl").read_text().splitlines()      # what the log holds when the first step starts
         if self.fail:
             raise RuntimeError("the first step fails")
+        self.torch.manual_seed(seed)                      # what Policy.generate does, plus python and numpy states that move with the run,
+        random.random()                                   # so that a restore that is lost shows
+        np.random.random()
         return super().rollout(rows, seed)
 
 
@@ -1906,7 +2136,8 @@ def train_on_disk(rl, torch, tmp_path, *flags, policy=None, rows=None, val=None)
     policy = policy or DiskPolicy(rl, torch)
 
     def loader(args, existing=None):
-        return policy.attach(args, existing), dict(revision="rev", kernels={}, dtype="bf16", adapter_modules=3, trainable_parameters=7)
+        return policy.attach(args, existing), dict(revision="rev", kernels={}, dtype="bf16", adapter_modules=3, trainable_parameters=7,
+                                                   stop_ids=policy.real.stops)
 
     return rl.run_training(loop_args(rl, tmp_path, "--lr", "0.01", *flags), rows, val, time.monotonic(), loader=loader), policy
 
@@ -1920,6 +2151,7 @@ def test_run_training_commits_a_first_checkpoint_and_resumes_from_disk(rl, torch
     assert state["step"] == 0 and state["cursor"] == 0 and state["identity"]["options"]["seed"] == 3
     done, first = train_on_disk(rl, torch, tmp_path, "--steps", "2")
     assert done["step"] == 2 and done["status"] == "complete" and first.loaded == path
+    assert done["stop_token_ids"] == [250] and first.real.stops == [250]                    # the stop list is recorded in the state
     # a step that was logged but never committed must not survive the resume
     with (tmp_path / "out" / "metrics.jsonl").open("a") as stream:
         stream.write('{"step": 3}\n')
@@ -1956,7 +2188,7 @@ def test_a_resume_without_the_saved_optimizer_state_would_change_the_weights(rl,
 def test_a_rule_stop_in_run_training_is_final_on_disk(rl, torch, stub_transformers, tmp_path):
     done, _ = train_on_disk(rl, torch, tmp_path, "--steps", "9", policy=DiskPolicy(rl, torch, behave=lambda seed, row, i: ("const", "stop")))
     assert done["status"] == "stopped_collapse"
-    assert done["metrics"][0]["train_copy_share"] == 1.0         # the constant answer is the reference of a Train drug, not of a Val drug
+    assert done["metrics"][0]["train_copy_share"] == pytest.approx(11 / 12)       # the constant answer is the reference of a Train drug, not of a Val drug
     again = DiskPolicy(rl, torch)
     done, _ = train_on_disk(rl, torch, tmp_path, "--steps", "9", policy=again)
     assert done["status"] == "stopped_collapse" and again.calls == [] and done["step"] == 3
@@ -1986,23 +2218,93 @@ def run_smoke_on_toy(rl, torch, tmp_path):
     train, val = disk_rows(rl, tmp_path, make_rows(12), make_rows(3, "val", offset=8))
 
     def loader(run_args, existing=None):                                       # a new policy for every process image, as the gate rebuilds it
+        random.seed(run_args.seed)                                             # load_policy's prepare_runtime seeds python, numpy and torch
+        np.random.seed(run_args.seed)
+        torch.manual_seed(run_args.seed)
         return (DiskPolicy(rl, torch).attach(run_args, existing),
                 dict(revision="rev", kernels={}, dtype="bf16", adapter_modules=3, trainable_parameters=7))
 
     return rl.run_smoke(loop_args(rl, tmp_path, "--steps", "3", "--lr", "0.01"), train, val, time.monotonic(), loader=loader)
 
 
-def test_the_smoke_gate_compares_parameters_and_adamw_state_after_the_resumed_update(rl, torch, stub_transformers, tmp_path, capsys, monkeypatch):
+def smoke_lines(out, prefix):
+    line = next((l for l in out.splitlines() if l.startswith(prefix)), None)
+    return line, ({name: float(value) for name, value in re.findall(r"'(\w+)': ([0-9.e+-]+)", line)} if line else {})
+
+
+def test_the_smoke_gate_compares_the_restored_state_exactly_and_the_updated_state_informationally(rl, torch, stub_transformers, tmp_path, capsys, monkeypatch):
     assert run_smoke_on_toy(rl, torch, tmp_path) is True
     out = capsys.readouterr().out
+    zeros = "{'parameters': 0.0, 'exp_avg': 0.0, 'exp_avg_sq': 0.0, 'step': 0.0, 'names': 0.0, 'rng': 0.0}"
+    assert f"PASS right after the load, the resumed weights, AdamW state and RNG states equal the checkpoint's (exact; max abs difference {zeros})" in out
     assert "PASS step 3 parameters and AdamW state equal the uninterrupted run (relative norm of difference <= 1e-06)" in out and "FAIL" not in out
     assert "INFO step 3 rollouts bitwise equal" in out and "True" in next(l for l in out.splitlines() if "rollouts bitwise" in l)
-    # lose the optimizer state on resume: the third update differs, and the gate prints the numbers instead of a PASS (never a FAIL)
-    monkeypatch.setattr(torch.optim.AdamW, "load_state_dict", lambda self, state: None)
-    assert run_smoke_on_toy(rl, torch, tmp_path) is True
+    # a lost optimizer state FAILS right after the load, where no sampling can blur it; the later comparison stays INFO
+    with monkeypatch.context() as patch:
+        patch.setattr(torch.optim.AdamW, "load_state_dict", lambda self, state: None)
+        assert run_smoke_on_toy(rl, torch, tmp_path) is False
     out = capsys.readouterr().out
-    line = next(l for l in out.splitlines() if l.startswith("INFO step 3 parameters and AdamW state differ"))
-    assert "PASS step 3 parameters and AdamW state" not in out and "FAIL" not in out
-    numbers = {name: float(value) for name, value in re.findall(r"'(\w+)': ([0-9.e+-]+)", line)}
-    assert numbers["parameters"] > 1e-4 and numbers["exp_avg"] > 1e-3 and numbers["exp_avg_sq"] > 1e-3
+    line, lost = smoke_lines(out, "FAIL right after the load, the resumed weights")
+    assert lost["parameters"] == 0.0 and lost["exp_avg"] > 1e-3 and lost["exp_avg_sq"] > 1e-6 and lost["step"] == 2.0 and lost["rng"] == 0.0     # step 2: the moments are gone
+    assert smoke_lines(out, "INFO step 3 parameters and AdamW state differ")[0] and "FAIL step 3" not in out
+    # a lost RNG restore FAILS the same way (the loader seeds like prepare_runtime, so a skipped restore leaves the seeded state)
+    for module, name in ((torch, "set_rng_state"), (random, "setstate"), (np.random, "set_state")):
+        with monkeypatch.context() as patch:
+            patch.setattr(module, name, lambda state: None)
+            assert run_smoke_on_toy(rl, torch, tmp_path) is False, name
+        line, lost = smoke_lines(capsys.readouterr().out, "FAIL right after the load, the resumed weights")
+        assert lost["rng"] == 1.0 and lost["parameters"] == lost["exp_avg"] == lost["exp_avg_sq"] == lost["step"] == lost["names"] == 0.0, name
 
+
+def test_a_smoke_run_whose_resume_never_restored_anything_fails(rl, torch, stub_transformers, tmp_path, capsys, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr(rl.sft, "load_checkpoint", lambda root: None)      # the "resumed" run finds no checkpoint and starts from scratch
+        assert run_smoke_on_toy(rl, torch, tmp_path) is False
+    out = capsys.readouterr().out
+    line = next(l for l in out.splitlines() if l.startswith("FAIL right after the load"))
+    assert "'restored': inf" in line                                      # nothing was compared, which is a failure, not a pass
+    assert "PASS step 3 parameters and AdamW state equal the uninterrupted run" in out      # the later comparison alone would have passed it
+
+
+def test_the_exact_restore_comparison_catches_every_kind_of_difference(rl, torch):
+    def snap(**over):
+        base = dict(names=["a", "b"], parameters=[torch.tensor([1.0, 2.0]), torch.tensor([3.0])], exp_avg=[torch.tensor([0.1, 0.2]), torch.tensor([0.3])],
+                    exp_avg_sq=[torch.tensor([0.01, 0.02]), torch.tensor([0.03])], step=[2.0, 2.0],
+                    rng=dict(python=random.getstate(), numpy=np.random.get_state(), torch=torch.get_rng_state().clone()))
+        return dict(base, **over)
+
+    zero = dict(parameters=0.0, exp_avg=0.0, exp_avg_sq=0.0, step=0.0, names=0.0, rng=0.0)
+    assert rl.snapshot_difference(snap(), snap()) == zero
+    got = rl.snapshot_difference(snap(), snap(parameters=[torch.tensor([1.0, 2.5]), torch.tensor([3.0])], step=[2.0, 3.0]))
+    assert got == dict(zero, parameters=pytest.approx(0.5), step=1.0)                          # the largest absolute difference, not a norm
+    assert rl.snapshot_difference(snap(), snap(exp_avg=[None, None]))["exp_avg"] == pytest.approx(0.3)      # a lost moment reads as zeros
+    assert rl.snapshot_difference(snap(exp_avg=[None, None]), snap(exp_avg=[None, None])) == zero
+    assert rl.snapshot_difference(snap(), snap(names=["b", "a"])) == dict(zero, names=1.0)           # the same tensors in another parameter order
+    swapped = rl.snapshot_difference(snap(), snap(parameters=[torch.tensor([3.0]), torch.tensor([1.0, 2.0])]))
+    assert swapped["parameters"] == float("inf")                                                # equal-looking lists of other shapes: inf, never an error
+    assert rl.snapshot_difference(snap(), snap(parameters=[torch.tensor([1.0, 2.0])]))["parameters"] == float("inf")
+    assert np.isnan(rl.snapshot_difference(snap(), snap(parameters=[torch.tensor([1.0, float("nan")]), torch.tensor([3.0])]))["parameters"])
+    after_a_real_difference = snap(parameters=[torch.tensor([1.0, 2.5]), torch.tensor([float("nan")])])           # a NaN behind a finite difference still counts
+    assert np.isnan(rl.snapshot_difference(snap(), after_a_real_difference)["parameters"])
+    for key, state in (("python", (3, (0,) * 625, None)), ("torch", torch.zeros(5000, dtype=torch.uint8))):
+        assert rl.snapshot_difference(snap(), snap(rng=dict(snap()["rng"], **{key: state})))["rng"] == 1.0, key
+    other = np.random.get_state()
+    other = (other[0], other[1] + 1, *other[2:])
+    assert rl.snapshot_difference(snap(), snap(rng=dict(snap()["rng"], numpy=other)))["rng"] == 1.0
+    assert rl.snapshot_difference(snap(), snap(rng=dict(snap()["rng"], cuda=[torch.zeros(3, dtype=torch.uint8)])))["rng"] == 1.0   # a state only one side has
+
+
+def test_smoke_checks_fail_on_any_restore_difference_and_never_on_the_updated_state(rl):
+    zero = dict(parameters=0.0, exp_avg=0.0, exp_avg_sq=0.0, step=0.0, names=0.0, rng=0.0)
+    label = lambda checks: [k for k in checks if "right after the load" in k]
+    checks, _ = rl.smoke_checks(smoke_state(), smoke_state(), None, zero)
+    assert [checks[k] for k in label(checks)] == [True]
+    for key in zero:
+        for bad in (1e-30, 1.0, float("inf"), float("nan")):
+            checks, _ = rl.smoke_checks(smoke_state(), smoke_state(), None, dict(zero, **{key: bad}))
+            assert [checks[k] for k in label(checks)] == [False], (key, bad)                 # exact: even a difference of 1e-30 fails
+            assert str(bad) in label(checks)[0]                                              # and the numbers are in the line
+    checks, _ = rl.smoke_checks(smoke_state(), smoke_state())
+    assert not label(checks)                                                                 # not measured: no line
+    checks, info = rl.smoke_checks(smoke_state(), smoke_state(), dict(parameters=1.0, exp_avg=1.0, exp_avg_sq=1.0, step=1.0), zero)
+    assert all(checks.values()) and [v for k, v in info.items() if "AdamW" in k]              # the updated state is INFO beside a passing restore
