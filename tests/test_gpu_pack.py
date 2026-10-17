@@ -428,3 +428,31 @@ def test_posix_session_stops_without_gpu_before_download(tmp_path):
         assert refused.returncode == 1 and "Cannot lock this session" in refused.stderr
         assert "START inventory" not in refused.stdout
         assert (tmp_path / "results/session1_report.json").read_bytes() == before
+
+
+def test_system_text_override_rewrites_only_the_system_turn_and_changes_the_run_identity(rig):
+    system, user = "ORIGINAL SYSTEM", "USER TEXT"
+    rows = [dict(r, prompt=f"<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}{r['id']}<|im_end|>\n<|im_start|>assistant\n<think>\n")
+            for r in rig.rows]
+    (rig.data / "val.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    rig.run(rig.out, "--system-text", "ANSWER WITH THE SMILES ONLY")
+    prompt = bytes(rig.state["calls"][0][0][0]["prompt_token_ids"]).decode()
+    assert "ANSWER WITH THE SMILES ONLY" in prompt and system not in prompt and prompt.count("<|im_start|>system") == 1
+    assert f"{user}v0<|im_end|>" in prompt and prompt.endswith("<think>\n")
+    with pytest.raises(SystemExit, match="settings changed"):
+        rig.run(rig.out)                                     # same directory, no override: a different run
+    other = rig.out.parent / "other"
+    rig.run(other)
+    assert meta(other)["configuration"]["data_sha256"] != meta(rig.out)["configuration"]["data_sha256"]
+    (rig.data / "val.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rig.rows), encoding="utf-8")   # no system turn
+    with pytest.raises(SystemExit, match="no system block"):
+        rig.run(rig.out.parent / "third", "--system-text", "X")
+
+
+def test_gpu_memory_utilization_override_reaches_the_engine_and_is_range_checked(rig):
+    rig.run(rig.out, "--mode", "think", "--gpu-memory-utilization", "0.93")
+    assert rig.state["engines"][0]["gpu_memory_utilization"] == 0.93
+    assert meta(rig.out)["engine"]["gpu_memory_utilization"] == 0.93
+    for bad in ("0.1", "0.99", "nan"):
+        with pytest.raises(SystemExit):
+            rig.run(rig.out.with_name("bad"), "--gpu-memory-utilization", bad)

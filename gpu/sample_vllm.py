@@ -8,7 +8,7 @@ tail batch and rejects changed inputs/settings. Use one output directory per run
 weights; GPU sizing and CUDA graphs are UNTESTED. Neither changes run identity.
 --limit-drugs selects a random subset of sorted drug names with
 --prompt-subset-seed (default 0), then keeps all their rows in input order.
-The selected rows determine the data hash. A time limit includes startup, but
+--system-text replaces the system-turn text of every prompt before anything else, so it is part of the data hash. The selected rows determine the data hash. A time limit includes startup, but
 always permits one call. It stops only after the current call is durable.
 --dry-run needs no vLLM, tokenizer, GPU or network. Its token counts are estimates
 from n_prompt_tokens (or UTF-8 byte lengths); nothink adds a byte-length allowance.
@@ -23,6 +23,7 @@ import math
 import os
 from pathlib import Path
 import random
+import re
 import sys
 import time
 import traceback
@@ -51,6 +52,11 @@ def load_rows(args):
                 if not valid:
                     raise SystemExit("Invalid or duplicate input row")
                 seen.add(row["id"])
+                if getattr(args, "system_text", None) is not None:
+                    row["prompt"], n = re.subn(r"(<\|im_start\|>system\n).*?(<\|im_end\|>)", lambda m: m.group(1) + args.system_text + m.group(2),
+                                               row["prompt"], count=1, flags=re.S)
+                    if n != 1:
+                        raise SystemExit("Prompt has no system block to replace")
                 rows.append(row)
     groups = sorted({r["group"] for r in rows})
     if args.limit_drugs and args.limit_drugs < len(groups):
@@ -196,9 +202,11 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--quantization")
     parser.add_argument("--lora", type=Path)
+    parser.add_argument("--system-text", help="replace the text of the system turn in every prompt (a prompt-variant baseline); part of the run identity")
     parser.add_argument("--limit-drugs", type=int)
     parser.add_argument("--prompt-subset-seed", type=int, default=0)
     parser.add_argument("--prompts-per-batch", default="1", help="positive integer or auto")
+    parser.add_argument("--gpu-memory-utilization", type=float, help="override the engine's memory fraction (default 0.85, 0.80 below 20 GiB per GPU); a 27B FP8 checkpoint on a 40 GB card needs about 0.93")
     parser.add_argument("--cuda-graphs", action="store_true")
     parser.add_argument("--stop-after-seconds", type=float)
     parser.add_argument("--dry-run", action="store_true")
@@ -210,6 +218,8 @@ def main():
             parser.error("--prompts-per-batch must be an integer >= 1 or auto")
         if args.prompts_per_batch < 1:
             parser.error("--prompts-per-batch must be >= 1")
+    if args.gpu_memory_utilization is not None and not 0.3 <= args.gpu_memory_utilization <= 0.97:
+        parser.error("--gpu-memory-utilization must be between 0.3 and 0.97")
     if (args.k < 1 or args.max_tokens < 1 or not math.isfinite(args.temperature)
             or args.temperature <= 0 or not 0 < args.top_p <= 1
             or args.seed < 0 or args.prompt_subset_seed < 0
@@ -273,7 +283,8 @@ def main():
         token_ids = [tokenizer.encode(p, add_special_tokens=False) for p in prompts]
         engine = {"dtype": dtype, "tensor_parallel_size": len(gpus),
                   "max_model_len": max(map(len, token_ids)) + args.max_tokens,
-                  "gpu_memory_utilization": 0.80 if min(g["memory_bytes"] for g in gpus) < 20 * 2**30 else 0.85,
+                  "gpu_memory_utilization": args.gpu_memory_utilization
+                  or (0.80 if min(g["memory_bytes"] for g in gpus) < 20 * 2**30 else 0.85),
                   "language_model_only": True, "enforce_eager": not args.cuda_graphs,
                   "enable_prefix_caching": False, "seed": args.seed,
                   "enable_lora": bool(args.lora), "max_lora_rank": 64}
