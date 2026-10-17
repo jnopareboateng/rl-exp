@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 dependencies = ["numpy", "rdkit"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "matplotlib"]
 
 [build-system]
 requires = ["hatchling"]

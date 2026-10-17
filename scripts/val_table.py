@@ -18,15 +18,35 @@ RUNS = [
     ("val8-control_constant_pool", "C3 reward-optimal constant (chosen on Train from Train + ChEMBL pool)", "none"),
     ("a-direct", "4B untrained", "T=1.0, k=8"),
     ("a4-icl", "4B + 3 retrieved examples (A4)", "T=1.0, k=8"),
+    ("a4-t0.6", "4B + 3 retrieved examples (A4)", "T=0.6, k=8"),
+    ("a4-t0.3", "4B + 3 retrieved examples (A4)", "T=0.3, k=8"),
+    ("rlfull-s10-t0.3", "4B RL-full step 10", "T=0.3, k=8, think mode"),
+    ("rlfull-s10-t0.6", "4B RL-full step 10", "T=0.6, k=8, think mode"),
+    ("rlfull-s10-t1.0", "4B RL-full step 10", "T=1.0, k=8, think mode"),
+    ("rlfull-s20-t0.3", "4B RL-full step 20", "T=0.3, k=8, think mode"),
     ("rlfull-s20-t0.6", "4B RL-full step 20", "T=0.6, k=8, think mode"),
     ("rlfull-s20-t1.0", "4B RL-full step 20", "T=1.0, k=8, think mode"),
+    ("rlfull-s30-t0.3", "4B RL-full step 30", "T=0.3, k=8, think mode"),
     ("rlfull-s30-t0.6", "4B RL-full step 30", "T=0.6, k=8, think mode"),
     ("rlfull-s30-t1.0", "4B RL-full step 30", "T=1.0, k=8, think mode"),
+    ("rlfull-s40-t0.3", "4B RL-full step 40", "T=0.3, k=8, think mode"),
     ("rlfull-s40-t0.6", "4B RL-full step 40", "T=0.6, k=8, think mode"),
     ("rlfull-s40-t1.0", "4B RL-full step 40", "T=1.0, k=8, think mode"),
     ("a2-val", "4B A2 (answer-only SFT, epoch 1)", "T=1.0, k=8, think mode"),
     ("a2-t0.6", "4B A2", "T=0.6, k=8, think mode"),
     ("a2-t0.3", "4B A2", "T=0.3, k=8, think mode"),
+    ("rlfull-s40-t0.6-seed1", "4B RL-full step 40, sampler seed 1", "T=0.6, k=8, think mode"),
+    ("rlfull-s40-t0.6-seed2", "4B RL-full step 40, sampler seed 2", "T=0.6, k=8, think mode"),
+    ("r3s10-t0.6", "4B RL-contrastive step 10 (run cut short)", "T=0.6, k=8, think mode"),
+    ("r3s10-t1.0", "4B RL-contrastive step 10 (run cut short)", "T=1.0, k=8, think mode"),
+    ("r3s20-t0.6", "4B RL-contrastive step 20 (run cut short)", "T=0.6, k=8, think mode"),
+    ("r3s20-t1.0", "4B RL-contrastive step 20 (run cut short)", "T=1.0, k=8, think mode"),
+    ("a2-t1.0-seed1", "4B A2, sampler seed 1", "T=1.0, k=8, think mode"),
+    ("a2-t1.0-seed2", "4B A2, sampler seed 2", "T=1.0, k=8, think mode"),
+    ("a2-shuffle-t1.0", "4B A2 shown another drug's profile (shuffled)", "T=1.0, k=8, think mode"),
+    ("a2-blank-t1.0", "4B A2 with a blank profile", "T=1.0, k=8, think mode"),
+    ("r1s40-shuffle-t0.6", "4B RL-full step 40 shown another drug's profile (shuffled)", "T=0.6, k=8, think mode"),
+    ("r1s40-blank-t0.6", "4B RL-full step 40 with a blank profile", "T=0.6, k=8, think mode"),
     ("a1-val", "4B A1 (trace SFT, epoch 2)", "T=1.0, k=4, think mode, 8192 tokens"),
     ("b4-t0.6", "4B untrained", "T=0.6, k=8"),
     ("b4-t0.3", "4B untrained", "T=0.3, k=8"),
@@ -43,7 +63,7 @@ RUNS = [
     ("g-9b-direct", "9B untrained near-greedy", "T=0.01, k=1"),
     ("g-4b-direct", "4B untrained near-greedy", "T=0.01, k=1"),
 ]
-COLUMNS = ("valid_closed", "exact@1", "core@1", "mean_tanimoto", "fv_tanimoto", "fv_samples", "fv_lift", "lift", "tanimoto_valid", "core@8", "fv_rate", "mean_reward")
+COLUMNS = ("valid_closed", "exact@1", "core@1", "mean_tanimoto", "fv_tanimoto", "fv_samples", "fv_tokens", "fv_lift", "lift", "tanimoto_valid", "core@8", "fv_rate", "mean_reward")
 
 
 def value(metrics, name):
@@ -75,10 +95,11 @@ def main(argv=None):
         split = json.loads(report.read_text())["splits"]["val"]
         metrics = split["metrics"]
         entry = {"run": name, "label": label, "decoding": note, "drugs": split["n_drugs"], "samples": split["n_samples"],
-                 **{c: value(metrics, c) for c in COLUMNS}}
-        lift = metrics.get("lift")
-        if isinstance(lift, dict):
-            entry["lift_ci"] = [lift.get("lo"), lift.get("hi")]
+                 "prompt_tokens": split.get("prompt_tokens"), **{c: value(metrics, c) for c in COLUMNS}}   # prompt_tokens: original prompt only
+        for name_ci in ("lift", "fv_tanimoto", "mean_tanimoto", "fv_lift"):   # descriptive component-bootstrap intervals, drug-level
+            m = metrics.get(name_ci)
+            if isinstance(m, dict) and m.get("lo") is not None:
+                entry[f"{name_ci}_ci"] = [m.get("lo"), m.get("hi")]
         rows.append(entry)
         cell = lambda v, spec="{:.3f}": "n/a" if v is None else spec.format(v)
         table.append(f"| {label} | {note} | " + " | ".join(cell(entry[c]) for c in COLUMNS[:-1]) + " |")

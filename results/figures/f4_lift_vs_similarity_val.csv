@@ -1,0 +1,44 @@
+run,arm,family,decoding,fv_lift,fv_tanimoto,fv_samples,labelled
+val8-control_constant,Constant answer (C0),control,none,0,0.1760790528,1,True
+val8-control_copy_nearest,Nearest-profile copy (C1),control,none,0.02183358473,0.1740312273,1,True
+val8-control_constant_scaffold,Constant scaffold (C2),control,none,0,0.0759885346,1,True
+val8-control_constant_pool,Best constant answer (C3),control,none,0,0.1865340812,1,True
+a-direct,4B untrained,untrained,"T=1.0, k=8",0.01424391025,0.0872765159,4.904166667,False
+a4-icl,4B with retrieved examples (A4),retrieval,"T=1.0, k=8",0.005011553095,0.1388217636,2.295833333,False
+a4-t0.6,4B with retrieved examples (A4),retrieval,"T=0.6, k=8",0.02119904054,0.1599908138,1.6625,True
+a4-t0.3,4B with retrieved examples (A4),retrieval,"T=0.3, k=8",0.01854611216,0.1540027355,1.579166667,False
+rlfull-s10-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",0.01414629473,0.1633148467,1.025,False
+rlfull-s10-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",0.002907242425,0.1500414497,1.116666667,False
+rlfull-s10-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",0.004137910901,0.1488840093,1.241666667,False
+rlfull-s20-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",0.0121434293,0.1753942019,1,False
+rlfull-s20-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",0.00634551789,0.1683730856,1.054166667,False
+rlfull-s20-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",0.0139732527,0.172794326,1.029166667,False
+rlfull-s30-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",0.003405222527,0.1777939312,1,False
+rlfull-s30-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",0.005133155978,0.1797946002,1.016666667,False
+rlfull-s30-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",0.009752163908,0.1811642625,1.025,False
+rlfull-s40-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",0.006385314338,0.1857496588,1.141666667,False
+rlfull-s40-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",0.008248192045,0.1887007012,1.016666667,False
+rlfull-s40-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",0.009630724398,0.1868786896,1,False
+a2-val,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",0.0195671101,0.1556776076,1.541666667,False
+a2-t0.6,4B fine-tuned on answers (A2),sft,"T=0.6, k=8, think mode",0.005194723214,0.1443080283,1.25,False
+a2-t0.3,4B fine-tuned on answers (A2),sft,"T=0.3, k=8, think mode",0.00545980878,0.1374977475,1.25,False
+rlfull-s40-t0.6-seed1,4B after RL,rl,"T=0.6, k=8, think mode",0.008118525234,0.1887380922,1.066666667,True
+rlfull-s40-t0.6-seed2,4B after RL,rl,"T=0.6, k=8, think mode",0.004826079747,0.1857078371,1.041666667,False
+r3s10-t0.6,4B RL-contrastive step 10 (run cut short),other,"T=0.6, k=8, think mode",0.005179502897,0.12190675,1.045833333,False
+r3s10-t1.0,4B RL-contrastive step 10 (run cut short),other,"T=1.0, k=8, think mode",0.004774001143,0.1230147059,1.083333333,False
+r3s20-t0.6,4B RL-contrastive step 20 (run cut short),other,"T=0.6, k=8, think mode",0.01043338762,0.11288843,1,False
+r3s20-t1.0,4B RL-contrastive step 20 (run cut short),other,"T=1.0, k=8, think mode",0.009576784655,0.1195806304,1.0125,False
+a2-t1.0-seed1,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",0.0107940447,0.1509037794,1.575,False
+a2-t1.0-seed2,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",0.01776059617,0.1500619423,1.541666667,False
+a2-shuffle-t1.0,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",-0.007088079742,0.1314678138,1.758333333,False
+a2-blank-t1.0,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",0,0.1681152066,1,True
+r1s40-shuffle-t0.6,4B RL-full step 40 shown another drug's profile (shuffled),other,"T=0.6, k=8, think mode",0.001909632923,0.1825408708,1,False
+r1s40-blank-t0.6,4B RL-full step 40 with a blank profile,other,"T=0.6, k=8, think mode",0,0.08882539811,1,False
+b4-t0.6,4B untrained,untrained,"T=0.6, k=8",0.01088662002,0.09946043001,4.341666667,True
+b4-t0.3,4B untrained,untrained,"T=0.3, k=8",0.02744490908,0.09713175581,4.8125,False
+b9-direct,9B untrained,size,"T=1.0, k=8",0.01997646089,0.159259224,2.341666667,False
+b9-t0.6,9B untrained,size,"T=0.6, k=8",0.02779153435,0.1655226758,1.766666667,True
+b9-t0.3,9B untrained,size,"T=0.3, k=8",0.02440939852,0.1612445544,2.041666667,False
+b27-direct,27B untrained,size,"T=1.0, k=8",0.04520197215,0.1862677193,1.525,True
+name-4b,4B told the drug name,name,"T=1.0, k=8",0.009471369779,0.141253077,3.25,False
+name-9b,9B told the drug name,name,"T=1.0, k=8",0.009728716768,0.1554820489,2.241666667,False
