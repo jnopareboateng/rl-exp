@@ -27,6 +27,7 @@
   "A0n": {
    "label": "4B untrained, no-think",
    "spec": {
+    "model": "Qwen/Qwen3.5-4B",
     "mode": "nothink",
     "max_tokens": 256,
     "data": "direct",
@@ -50,6 +51,7 @@
   "A2": {
    "label": "4B answer-only SFT (epoch 1)",
    "spec": {
+    "model": "final_models/A2",
     "mode": "think",
     "max_tokens": 256,
     "data": "direct",
@@ -76,6 +78,7 @@
   "A4": {
    "label": "4B + 3 retrieved examples",
    "spec": {
+    "model": "Qwen/Qwen3.5-4B",
     "mode": "nothink",
     "max_tokens": 256,
     "data": "icl",
@@ -99,6 +102,7 @@
   "RL-full": {
    "label": "4B RL, standard reward",
    "spec": {
+    "model": "final_models/RL-full",
     "mode": "think",
     "max_tokens": 256,
     "data": "direct",
@@ -182,6 +186,7 @@
   "RL-contrastive": {
    "label": "4B RL, contrastive reward (run cut short at step 28 of 40)",
    "spec": {
+    "model": "final_models/RL-contrastive",
     "mode": "think",
     "max_tokens": 256,
     "data": "direct",

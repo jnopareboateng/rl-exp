@@ -14,7 +14,7 @@ Run only after the git tag `prereg-v1` exists. Nothing here chooses an arm, a de
 ## 1. Runtime (GPU)
 1. Colab runtime A100-40GB, Drive mounted. Upload `runs/bootstrap.tgz` (`scripts/make_bootstrap_bundle.py`: refuses every file whose hash is a Test file's) and run `sh gpu/bootstrap_colab.sh`
    (fails without CUDA in both venvs; refuses any `test_` file under data/).
-2. Upload, after the bootstrap and never inside the bundle: `results/frozen_arms.json`, `results/selection.json`, `data/MANIFEST.sha256`, `data/processed/test_t.jsonl`, `test_r.jsonl`
+2. Upload, after the bootstrap and never inside the bundle: `results/frozen_arms.json`, `results/frozen_arms.sha256` (the committed one, never regenerated on the runtime), `results/selection.json`, `data/MANIFEST.sha256`, `data/processed/test_t.jsonl`, `test_r.jsonl`
    and `data/processed/arms/{a4,name,ident,shuffle,blank}/test_{t,r}.jsonl`; `cd data && sha256sum -c` on those paths against the manifest must pass.
 Steps 3 to 5 are scripted: `python gpu/run_final.py --drive /content/drive/MyDrive/rl-exp` (`--dry-run` prints the plan; to resume after a stop add `--skip-sanity --from-stage <stage name> [--keep-cache]`).
 It stops before anything runs if a spec arm belongs to no stage, and stops after the sanity step if a merged model does not reproduce its Val score. What it does:

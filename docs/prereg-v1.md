@@ -87,12 +87,14 @@ its cohort (Test-T 41 drugs and 100 rows, Test-R 30 and 80). One training seed p
 Each stochastic arm: temperature chosen on Val from {0.3, 0.6, 1.0} at k=8 by Val fv_tanimoto, then frozen; the score of an arm is its Val fv_tanimoto only (a candidate
 whose Val run has fewer than 8 samples per row is not a candidate). Near-greedy decoding (0.01) is reported at k=1 as "near-greedy" and is not selectable. Top-p 1.0; max 256 new
 tokens for answer-only arms; mode (think/no-think) as trained. RL checkpoint: among the saved steps of RL-full (R1: 10, 20, 30, 40; R5: every saved step from 40 on, because the pilot's Val curve was still rising at step 40), the one with the highest Val
-fv_tanimoto when re-sampled with vLLM at k=8, at each grid temperature; ties go to the earlier step, then to R1. RL runs evaluate Val at EVAL_K=8 in training from the second pilot on (the first used 4).
+fv_tanimoto when re-sampled with vLLM at k=8, at each grid temperature; an exact tie goes to the lower temperature, then the earlier step, then the run name (R1 before R5). RL runs evaluate Val at EVAL_K=8 in training from the second pilot on (the first used 4).
 The untrained size references are not tuned: 9B uses its Val-best grid temperature, the 27B models T=1.0. Merged exports are made from the adapters with `gpu/merge_lora.py`
 at the pinned base revision and checked against the adapter hashes in `results/frozen_arms.json`. Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
 settings, 3 temperatures per arm (RL-contrastive was sampled at 0.6 and 1.0 only; it is not selected).
 
 ## 6. What is not allowed after the tag
+The first complete locked sampling run (`runs/final`, made by `gpu/run_final.py` under the frozen spec) is the result. A second sampling run of any frozen arm is a deviation, reported with both results;
+vLLM batching is not bit-reproducible, so a re-run can differ and reporting the better one would be a forking path. A run killed and resumed through the same command is not a second run.
 Looking at Test results to change an arm, decoding, endpoint, selection rule or comparator set; re-scoring an arm on Test with a different
 setting; adding arms. A bug fix that changes a number is a deviation reported next to both values. Val-only mechanism controls (section 3) may be run after the tag; they
 cannot change anything above.
