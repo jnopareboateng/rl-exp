@@ -38,7 +38,7 @@ SPEC_KEYS = ("mode", "max_tokens", "data", "system")     # what a selected arm's
 DIAGNOSTIC_DATA = ("shuffle", "blank")   # a diagnostic of a selected arm: the profile of another drug, or none
 PROBE_DATA = ("name", "ident")           # a probe of an untrained model: the name given (oracle) or asked for (identification)
 ROLES = ("reference", "diagnostic", "probe")
-DIAGNOSTIC_FREE = {"id", "role", "of", "data", "system", "splits"}      # all a diagnostic may change from the selected arm it belongs to
+DIAGNOSTIC_FREE = {"id", "role", "of", "data", "system", "splits", "label"}      # all a diagnostic may change from the selected arm it belongs to (label: a table name only)
 HUB_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*")      # org/name, never a path
 MODELS_DIR = "final_models"              # where gpu/prepare_final.py puts merged models (its --models default)
 

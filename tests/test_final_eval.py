@@ -148,6 +148,14 @@ def test_a_spec_that_realises_the_selection_loads_with_references_diagnostics_an
     assert cmd[cmd.index("--gpu-memory-utilization") + 1] == "0.93" and "--quantization" not in cmd and cmd[cmd.index("--splits") + 1] == "test_t"
 
 
+def test_a_diagnostic_may_carry_its_own_label_but_nothing_else_new(fe, tmp_path):
+    path, digest, sel_path = frozen(tmp_path, extra=[diagnostic(label="untrained 4B with a shuffled profile")])
+    assert fe.load_spec(path, digest, sel_path)["arms"][-1]["label"] == "untrained 4B with a shuffled profile"
+    path, digest, sel_path = frozen(tmp_path, extra=[diagnostic(label="x", max_tokens=128)])
+    with pytest.raises(fe.SpecError, match="max_tokens"):
+        fe.load_spec(path, digest, sel_path)
+
+
 CASES = {
     "temperature differs from the selected one": (lambda a, e, s: a["RL-full"].update(temperature=1.0), "is not the selected 0.6"),
     "a sampled selected arm is missing": (lambda a, e, s: a.pop("A0n"), "selected arm A0n is not in the spec"),
