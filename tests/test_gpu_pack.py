@@ -456,3 +456,24 @@ def test_gpu_memory_utilization_override_reaches_the_engine_and_is_range_checked
     for bad in ("0.1", "0.99", "nan"):
         with pytest.raises(SystemExit):
             rig.run(rig.out.with_name("bad"), "--gpu-memory-utilization", bad)
+
+
+def test_auto_size_falls_back_to_shard_files_when_the_index_has_no_total_size(rig, monkeypatch, tmp_path):
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "config.json").write_text(json.dumps({"text_config": dict(
+        num_hidden_layers=8, full_attention_interval=4, num_key_value_heads=2, head_dim=256,
+        linear_num_key_heads=16, linear_num_value_heads=32, linear_key_head_dim=128,
+        linear_value_head_dim=128, linear_conv_kernel_dim=4)}))
+    (checkpoint / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {"a": "s1.safetensors", "b": "s1.safetensors", "c": "s2.safetensors"}}))
+    (checkpoint / "s1.safetensors").write_bytes(b"x" * 1000)
+    (checkpoint / "s2.safetensors").write_bytes(b"x" * 500)
+    hub, nvml = types.ModuleType("huggingface_hub"), types.ModuleType("pynvml")
+    hub.hf_hub_download = lambda *a: pytest.fail("Local config must not use the network")
+    nvml.nvmlInit = nvml.nvmlShutdown = lambda: None
+    nvml.nvmlDeviceGetHandleByUUID = lambda uuid: uuid
+    nvml.nvmlDeviceGetMemoryInfo = lambda handle: types.SimpleNamespace(free=14 * 2**30)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    monkeypatch.setitem(sys.modules, "pynvml", nvml)
+    _, estimate = rig.pack.auto_batch_size(str(checkpoint), 4, 1024, [{"memory_bytes": 16 * 2**30}], 0.8, rig.platform)
+    assert estimate["checkpoint_bytes"] == 1500                    # each shard counted once, not once per tensor

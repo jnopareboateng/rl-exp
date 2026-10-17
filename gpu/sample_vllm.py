@@ -153,7 +153,16 @@ def auto_batch_size(model, k, max_len, gpus, utilization, platform):
             math.ceil(vh / tp) * kd * vd * 4
             + (2 * math.ceil(kh / tp) * kd + math.ceil(vh / tp) * vd) * (kernel - 1) * 2)
     recurrent_reserve = state_bytes * min(k * 16, 256)
-    weights = read_config("model.safetensors.index.json")["metadata"]["total_size"]
+    index = read_config("model.safetensors.index.json")
+    weights = (index.get("metadata") or {}).get("total_size")
+    if weights is None:                         # some checkpoints (Qwen3.8 FP8) omit it: sum the shard files instead
+        shards = sorted(set(index["weight_map"].values()))
+        if Path(model).is_dir():
+            weights = sum((Path(model) / name).stat().st_size for name in shards)
+        else:
+            from huggingface_hub import HfApi
+            sizes = {f.rfilename: f.size for f in HfApi().model_info(model, files_metadata=True).siblings}
+            weights = sum(sizes[name] for name in shards)
     if not isinstance(weights, int) or weights < 1:
         raise SystemExit("Invalid checkpoint size; use an explicit --prompts-per-batch")
     pynvml.nvmlInit()
