@@ -79,8 +79,9 @@ The lift's constant-invariance holds only if the completion process does not dep
 [ ] Independent reviews of reward/metrics, RL pack and SFT pack resolved (`docs/plan.md` review log).
 [ ] RL-full, RL-contrastive and RL-validity (and RL-profilefree, RL-cold if run) finished on Val; checkpoint and temperature selections
     recorded in `results/selection.json`. Each control of `docs/plan.md` section 2(d) is either finished on Val or listed as an omission.
-[ ] The answer-reader decision is taken from `results/extractor_audit.json` (plan section 4: more than 1% of outputs differ) and
-    `docs/contracts.md` and `rlexp.chem` agree with it.
+[x] The answer-reader decision (plan section 4: more than 1% of outputs differ; `results/extractor_audit.json`): the 1% rule fired (2.2%), but only 4 of
+    10,304 samples read a different molecule, the rest are sentence-embedded answers; the reader is KEPT because the RL arms were trained on it, and a
+    strict-reader rescoring of the Test samples is a sensitivity analysis. T5 (plan section 4) fails for every arm (best 15.5% against 30%): reported as a finding.
 [ ] `results/val_baselines.json` regenerated with metrics v3; manifest and package versions recorded.
 [ ] Comparator set and temperatures written to `results/frozen_arms.json` with adapter and merged-export hashes.
 [ ] `docs/contracts.md` and this file match the code at the tagged commit.
