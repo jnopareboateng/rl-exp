@@ -6,8 +6,12 @@
 
 Not an arm. With the name-given control (rlexp.arms name) it splits the structure-recovery gap into identification (profile to
 name) and recall (name to SMILES). A sample matches when its first answer line, normalised (case, accents, salt and form words,
-punctuation), equals the normalised drug name or the ChEMBL preferred name of the row's drug. Rates are drug-balanced like
-rlexp.metrics: mean over a drug's rows of the mean over each row's samples; pass@8 is "any of the first 8 samples".
+punctuation), equals the normalised drug name or the ChEMBL preferred name of the row's drug. Only a usable sample can match or
+count as answered, by the common failure rule of rlexp.metrics: its think block closed ('</think>' in the text) and the length cap
+did not cut it. Rates are drug-balanced like rlexp.metrics: mean over a drug's rows of the mean over each row's samples; pass@8 is
+"any of the first 8 samples". The samples are checked (a repeated (id, sample_idx), an id the data does not know, a split that is
+not the data row's, samples of several splits all raise) and `score` scores one split at a time, printing one JSON line per split
+that the samples name and opening only those data files.
 """
 import argparse
 import json
@@ -17,7 +21,7 @@ import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
-from rlexp import arms
+from rlexp import arms, metrics
 
 IDENT_SYSTEM = "Reply with only the international nonproprietary name of the drug described. No explanation."
 SPLITS = ("val", "test_r", "test_t")
@@ -53,18 +57,47 @@ def accepted_names(group, curated):
     return names - {""}
 
 
-def score(samples, rows, curated):
-    """Aggregate over samples (dicts with id, sample_idx, text) of data rows `rows`: name_match@1, pass@8, answered; all drug-balanced."""
+def usable(sample):
+    """The common failure rule (metrics.finished and a closed think block): a sample the length cap cut, or whose think block
+    never closed, is not an answer, so it cannot match and is not 'answered'."""
+    return metrics.finished(sample) and "</think>" in (sample.get("text") or "")
+
+
+def _by_id(samples, rows):
+    """id -> data row, after the checks a score would otherwise hide: data ids that repeat (one row would overwrite the other),
+    sample ids the data does not know (dropped without a word), a repeated (id, sample_idx) (counted twice), a sample whose split
+    is not its row's, and samples of several splits (never pooled)."""
+    ids = [r["id"] for r in rows]
+    if len(set(ids)) != len(ids):
+        raise metrics.InputError(f"the data rows repeat {len(ids) - len(set(ids))} id(s)")
     by_id = {r["id"]: r for r in rows}
+    unknown = {s["id"] for s in samples} - by_id.keys()
+    if unknown:
+        raise metrics.InputError(f"{len(unknown)} unknown sample id(s) not in the data rows, e.g. {[i[:60] for i in sorted(unknown)[:3]]}")
+    keys = [(s["id"], s["sample_idx"]) for s in samples]
+    if len(set(keys)) != len(keys):
+        raise metrics.InputError(f"{len(keys) - len(set(keys))} repeated (id, sample_idx) pair(s); was a resumed run appended twice?")
+    clash = [s["id"] for s in samples if "split" in s and "split" in by_id[s["id"]] and s["split"] != by_id[s["id"]]["split"]]
+    if clash:
+        raise metrics.InputError(f"{len(clash)} sample(s) whose split is not their data row's, e.g. {[i[:60] for i in clash[:3]]}")
+    splits = {by_id[s["id"]].get("split") for s in samples}
+    if len(splits) > 1:
+        raise metrics.InputError(f"the samples span the splits {sorted(map(str, splits))}: score one split at a time")
+    return by_id
+
+
+def score(samples, rows, curated):
+    """Aggregate over samples (dicts with id, sample_idx, text) of data rows `rows`: name_match@1, pass@8, answered; all drug-balanced.
+    Only usable samples match or count as answered. Raises metrics.InputError on the input problems _by_id lists."""
+    by_id = _by_id(samples, rows)
     per_row = defaultdict(list)
     for s in sorted(samples, key=lambda s: (s["id"], s["sample_idx"])):
-        if s["id"] in by_id:
-            per_row[s["id"]].append(s)
+        per_row[s["id"]].append(s)
     drug = defaultdict(lambda: defaultdict(list))
     for rid, group in per_row.items():
         ok = accepted_names(by_id[rid]["group"], curated)
-        hits = [normalize(answer_name(s["text"])) in ok for s in group]
-        said = [bool(answer_name(s["text"])) for s in group]
+        hits = [usable(s) and normalize(answer_name(s["text"])) in ok for s in group]
+        said = [usable(s) and bool(answer_name(s["text"])) for s in group]
         d = drug[by_id[rid]["group"]]
         d["match"].append(sum(hits) / len(hits))
         d["answered"].append(sum(said) / len(said))
@@ -106,8 +139,18 @@ def main(argv=None):
             write(a.data, a.out)
         else:
             samples = _read(a.samples)
-            rows = [r for split in sorted({x["split"] for x in samples}) for r in _read(Path(a.data) / f"{split}.jsonl")]
-            print(json.dumps(score(samples, rows, json.load(open(a.curated, encoding="utf-8")))))
+            if not samples:
+                raise metrics.InputError(f"{a.samples} holds no samples")
+            if (miss := sum("split" not in x for x in samples)):
+                raise metrics.InputError(f"{miss} sample(s) lack split, so the data file to read cannot be chosen")
+            with open(a.curated, encoding="utf-8") as f:
+                curated = json.load(f)
+            for split in sorted({x["split"] for x in samples}):         # one split at a time, only the files that are named
+                path = Path(a.data) / f"{split}.jsonl"
+                if not path.exists():
+                    raise metrics.InputError(f"the samples name split {split!r} but {path} does not exist")
+                part = [x for x in samples if x["split"] == split]
+                print(json.dumps({"split": split, **score(part, _read(path), curated)}))
     except (ValueError, KeyError, OSError) as e:
         sys.exit(f"error: {type(e).__name__}: {e}")
 

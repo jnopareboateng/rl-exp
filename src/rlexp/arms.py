@@ -218,7 +218,11 @@ def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, sta
     score says no) and stale_dropped (the reverse).
     min_reward (dense mode, the reward-ranked A3): success is instead a fresh valid, closed sample whose reward is at least
     min_reward (identity hits are rare, so the identity-only rule starves); the preference is then higher reward, then the
-    order above."""
+    order above. The (id, sample_idx) pairs are checked first, before anything is scored or capped, so a pair that the
+    per-drug cap would have dropped cannot hide a resumed run appended twice."""
+    pairs = [(s["id"], s["sample_idx"]) for s in scored_rows]
+    if len(set(pairs)) != len(pairs):
+        raise ValueError(f"scored rows repeat {len(pairs) - len(set(pairs))} (id, sample_idx) pair(s); was a resumed run appended twice?")
     rows = {r["id"]: r for r in data_rows}
     reward_of = {}
     by_drug = defaultdict(list)
@@ -259,8 +263,6 @@ def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, sta
             prompt = rows[s["id"]]["prompt"]
             out.append({"id": f"{s['id']}#{s['sample_idx']}", "prompt": prompt if system is None else with_system(prompt, system),
                         "completion": text if text.endswith(END) else text + END})
-    if len({o["id"] for o in out}) != len(out):
-        raise ValueError("scored rows repeat an (id, sample_idx) pair")
     return out
 
 

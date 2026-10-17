@@ -692,6 +692,31 @@ def test_rft_dense_mode_keeps_valid_closed_samples_above_the_reward_bar_best_fir
     assert arms.rft_dataset(scored, rows, max_per_drug=2) == arms.rft_dataset([s_hit], rows, max_per_drug=2)    # identity mode unchanged
 
 
+def test_rft_dense_mode_keeps_a_sample_whose_reward_equals_min_reward():
+    rows = data_rows()
+    near = sample("d1/a", 0, 10, answer=REFS["d1"] + "C")                          # a valid molecule that is not the reference
+    fresh = arms.reward.score(near["text"], rows[2])["reward"]
+    assert 0.05 < fresh < 1.0
+    assert [o["id"] for o in arms.rft_dataset([near], rows, min_reward=fresh)] == ["d1/a#0"]       # the bar is inclusive: >=, not >
+    assert arms.rft_dataset([near], rows, min_reward=fresh + 1e-12) == []
+
+
+def test_rft_rejects_repeated_id_sample_idx_pairs_before_scoring_or_capping_in_both_modes(monkeypatch):
+    rows = data_rows()
+    assert arms.rft_dataset([sample("d0/a", 0, 10), sample("d0/a", 1, 12)], rows, max_per_drug=1)       # different pairs are fine
+
+    def never(*args, **kwargs):
+        raise AssertionError("scored a row before the (id, sample_idx) pairs were checked")
+    monkeypatch.setattr(arms.reward, "score", never)
+    cases = {"both would reach the cap": [sample("d0/a", 0, 10), sample("d0/a", 0, 12)],                # max_per_drug=1 keeps one
+             "outside the data": [sample("val9/a", 0, 5, answer=IBUPROFEN), sample("val9/a", 0, 5, answer=IBUPROFEN)],
+             "length-terminated": [sample("d0/a", 0, 5, finish_reason="length")] * 2}
+    for name, scored in cases.items():
+        for kw in ({}, {"min_reward": 0.05}):
+            with pytest.raises(ValueError, match=r"repeat 1 \(id, sample_idx\) pair"):
+                arms.rft_dataset(scored, rows, max_per_drug=1, **kw)
+
+
 def test_rft_dense_mode_ignores_length_terminated_samples_and_stale_flags():
     rows = data_rows()
     cut = sample("d1/a", 0, 256, answer=REFS["d1"], finish_reason="length")

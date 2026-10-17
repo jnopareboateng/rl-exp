@@ -1,8 +1,9 @@
 import json
+from pathlib import Path
 
 import pytest
 
-from rlexp import arms, ident
+from rlexp import arms, ident, metrics
 
 SYS = "You are a pharmacology assistant."
 
@@ -15,8 +16,8 @@ def row(rid, group, **extra):
     return {"id": rid, "group": group, "prompt": prompt(), "split": "val", **extra}
 
 
-def sample(rid, idx, text):
-    return {"id": rid, "sample_idx": idx, "split": "val", "text": text}
+def sample(rid, idx, text, **extra):
+    return {"id": rid, "sample_idx": idx, "split": "val", "text": text, **extra}
 
 
 @pytest.mark.parametrize("a,b", [("Imatinib Mesylate", "imatinib"), ("Éléctro-Drug (INN)", "electrodrug"),
@@ -81,3 +82,78 @@ def test_cli_write_and_score(tmp_path, capsys):
     capsys.readouterr()
     ident.main(["score", "--samples", str(samples), "--data", str(data), "--curated", str(cur)])
     assert json.loads(capsys.readouterr().out)["name_match@1"] == 1.0
+
+
+# ------------------------------------------------------------------ the common failure rule and the input checks
+@pytest.mark.parametrize("text,finish,hit", [
+    ("</think>\n\nAlpha", "stop", True), ("</think>\n\nAlpha", None, True),        # no finish_reason counts as finished
+    ("</think>\n\nAlpha", "abort", True),                                          # only "length" is a cut
+    ("</think>\n\nAlpha", "length", False),                                        # cut by the cap, whatever it says
+    ("Alpha", "stop", False), ("Alpha", "length", False),                           # the think block never closed
+    ("thinking about Alpha...", "length", False)])
+def test_only_a_closed_finished_sample_can_match_or_count_as_answered(text, finish, hit):
+    s = sample("a/0", 0, text, **({"finish_reason": finish} if finish else {}))
+    out = ident.score([s], [row("a/0", "alpha")], [])
+    assert out["name_match@1"] == out["name_pass@8"] == out["answered"] == (1.0 if hit else 0.0)
+    assert ident.usable(s) is hit and ident.usable({"text": text, "finish_reason": finish}) is hit
+
+
+def test_one_correct_unclosed_length_terminated_name_does_not_make_pass_at_8_one():
+    # the review's counterexample: a name inside unfinished reasoning counted as a match, and one sample became "pass@8"
+    samples = [sample("a/0", 0, "Alpha", finish_reason="length")] + [sample("a/0", i, "</think>\n\nWrong") for i in range(1, 8)]
+    out = ident.score(samples, [row("a/0", "alpha")], [])
+    assert out["name_pass@8"] == 0.0 and out["name_match@1"] == 0.0 and out["answered"] == pytest.approx(7 / 8)
+    assert ident.usable is not None and metrics.finished({"finish_reason": "length"}) is False        # one rule, defined in metrics
+
+
+def test_score_rejects_repeated_pairs_unknown_ids_repeated_data_ids_and_mixed_splits():
+    rows, hit = [row("a/0", "alpha"), row("b/0", "beta")], "</think>\n\nAlpha"
+    with pytest.raises(metrics.InputError, match=r"1 repeated \(id, sample_idx\) pair"):          # a repeat used to change the mean
+        ident.score([sample("a/0", 0, hit), sample("a/0", 0, hit)], rows, [])
+    with pytest.raises(metrics.InputError, match=r"1 unknown sample id\(s\) .*zzz"):             # and an unknown id used to vanish
+        ident.score([sample("a/0", 0, hit), sample("zzz/0", 0, hit)], rows, [])
+    with pytest.raises(metrics.InputError, match=r"repeat 1 id"):                                 # one data row used to overwrite the other
+        ident.score([sample("a/0", 0, hit)], rows + [row("a/0", "other")], [])
+    with pytest.raises(metrics.InputError, match="split is not their data row's"):
+        ident.score([{**sample("a/0", 0, hit), "split": "test_t"}], rows, [])
+    mixed = rows + [row("c/0", "gamma", split="test_t")]
+    with pytest.raises(metrics.InputError, match="span the splits"):                               # never pooled across splits
+        ident.score([sample("a/0", 0, hit), {**sample("c/0", 0, hit), "split": "test_t"}], mixed, [])
+    assert issubclass(metrics.InputError, ValueError)                                             # the CLI catches ValueError
+    assert ident.score([sample("a/0", 0, hit), sample("a/0", 1, hit)], rows, [])["samples"] == 2
+
+
+def test_cli_scores_one_split_at_a_time_and_opens_only_the_files_it_names(tmp_path, capsys, monkeypatch):
+    data = tmp_path / "data"
+    data.mkdir()
+    for s in ("val", "test_r", "test_t"):
+        (data / f"{s}.jsonl").write_text(json.dumps(row(f"{s}/0", f"{s}drug", split=s)) + "\n")
+    cur = tmp_path / "cur.json"
+    cur.write_text("[]")
+    opened, real = [], ident._read
+    monkeypatch.setattr(ident, "_read", lambda path: opened.append(Path(path).name) or real(path))
+
+    def write(name, *samples):
+        path = tmp_path / name
+        path.write_text("".join(json.dumps(x) + "\n" for x in samples))
+        return str(path)
+    val = write("val.samples.jsonl", sample("val/0", 0, "</think>\n\nValdrug"))
+    ident.main(["score", "--samples", val, "--data", str(data), "--curated", str(cur)])
+    assert sorted(opened) == ["val.jsonl", "val.samples.jsonl"]                                    # not test_r, not test_t
+    assert json.loads(capsys.readouterr().out) == {"split": "val", "drugs": 1, "rows": 1, "samples": 1, "name_match@1": 1.0,
+                                                    "name_pass@8": 1.0, "answered": 1.0}
+    both = write("both.samples.jsonl", sample("val/0", 0, "</think>\n\nValdrug"),
+                 {**sample("test_t/0", 0, "</think>\n\nWrong"), "split": "test_t"})
+    opened.clear()
+    ident.main(["score", "--samples", both, "--data", str(data), "--curated", str(cur)])
+    lines = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
+    assert [(x["split"], x["name_match@1"]) for x in lines] == [("test_t", 0.0), ("val", 1.0)]    # one line per split, never pooled
+    assert "test_r.jsonl" not in opened
+    (data / "test_t.jsonl").unlink()
+    with pytest.raises(SystemExit, match=r"name split 'test_t' but .*test_t.jsonl does not exist"):
+        ident.main(["score", "--samples", both, "--data", str(data), "--curated", str(cur)])
+    no_split = write("no_split.jsonl", {k: v for k, v in sample("val/0", 0, "x").items() if k != "split"})
+    with pytest.raises(SystemExit, match="lack split"):
+        ident.main(["score", "--samples", no_split, "--data", str(data), "--curated", str(cur)])
+    with pytest.raises(SystemExit, match="holds no samples"):
+        ident.main(["score", "--samples", write("empty.jsonl"), "--data", str(data), "--curated", str(cur)])
