@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -76,6 +77,12 @@ def sync(out, drive, dry):
         run(["rsync", "-a", f"{out}/", f"{drive}/final/"], dry)
 
 
+def sync_forever(out, drive, every, stop):
+    """Copy runs/final to Drive every `every` seconds (a lost runtime keeps the finished prompts of a long arm: gpu/sample_vllm.py resumes from them)."""
+    while not stop.wait(every):
+        subprocess.run(["rsync", "-a", f"{out}/", f"{drive}/final/"], cwd=ROOT, capture_output=True)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--spec", type=Path, default=Path("results/frozen_arms.json"))
@@ -86,6 +93,7 @@ def main(argv=None):
     ap.add_argument("--models", type=Path, default=Path("final_models"))
     ap.add_argument("--drive")
     ap.add_argument("--tolerance", type=float, default=0.01)
+    ap.add_argument("--sync-every", type=float, default=180.0, help="seconds between background copies of runs/final to --drive")
     ap.add_argument("--skip-sanity", action="store_true", help="only to resume after the sanity gate passed once")
     ap.add_argument("--from-stage", help="resume at this stage name (earlier stages are not run)")
     ap.add_argument("--keep-cache", action="store_true", help="do not clear the Hugging Face cache or the merged models before a stage (resuming inside a stage)")
@@ -106,6 +114,9 @@ def main(argv=None):
                     sanity(arm, selection, args.tolerance, args.dry_run)
     if args.from_stage and args.from_stage not in [n for n, _, _ in stages]:
         sys.exit(f"error: --from-stage {args.from_stage!r} is not a stage of this spec: {[n for n, _, _ in stages]}")
+    stop = threading.Event()
+    if args.drive and not args.dry_run:
+        threading.Thread(target=sync_forever, args=(args.out, args.drive, args.sync_every, stop), daemon=True).start()
     started = args.from_stage is None
     for name, ids, clear in stages:
         started = started or name == args.from_stage
@@ -118,6 +129,8 @@ def main(argv=None):
         if run([VLLM_PY, "gpu/final_eval.py", *common, "--manifest", str(args.manifest), "--data", "data", "--out", str(args.out), "--only", ",".join(ids)], args.dry_run):
             sys.exit(f"error: stage {name} failed; start the same command again to resume")
         sync(args.out, args.drive, args.dry_run)
+    stop.set()
+    sync(args.out, args.drive, args.dry_run)
     print("locked evaluation sampling finished", flush=True)
 
 
