@@ -1,0 +1,571 @@
+{
+  "created_utc": "2026-10-17T13:17:54Z",
+  "status": "complete",
+  "gpu_execution": "see per-step exit codes and run statuses",
+  "versions": {
+    "python": "3.12.3",
+    "torch": "2.13.0+cu129",
+    "transformers": "5.17.0",
+    "vllm": "0.31.0+cu129",
+    "peft": null,
+    "trl": null,
+    "numpy": "2.3.5",
+    "flash-linear-attention": null,
+    "fla-core": null,
+    "causal-conv1d": null
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "uuid": "GPU-faa83e1c-eaa9-141d-b3a0-54d1c42d17be",
+      "name": "NVIDIA A100-SXM4-40GB",
+      "memory_mib": 40960.0,
+      "driver_version": "580.82.07",
+      "compute_capability": [
+        8,
+        0
+      ]
+    }
+  ],
+  "cuda": {
+    "torch_build": "12.9",
+    "driver_supported": "13.0"
+  },
+  "steps": [
+    {
+      "step": "inventory",
+      "exit_code": 0,
+      "seconds": 1
+    },
+    {
+      "step": "gpu-check",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "budgets",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "uv-install",
+      "exit_code": 0,
+      "seconds": 4
+    },
+    {
+      "step": "venv",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "stack-install",
+      "exit_code": 0,
+      "seconds": 57
+    },
+    {
+      "step": "pip-check",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "torchcodec-check",
+      "exit_code": 0,
+      "seconds": 11
+    },
+    {
+      "step": "torchcodec-remove",
+      "exit_code": 0,
+      "seconds": 1
+    },
+    {
+      "step": "import-check",
+      "exit_code": 0,
+      "seconds": 7
+    },
+    {
+      "step": "installed-inventory",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "prepare",
+      "exit_code": 0,
+      "seconds": 1
+    },
+    {
+      "step": "smoke-short",
+      "exit_code": 0,
+      "seconds": 235
+    },
+    {
+      "step": "smoke-resume",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "smoke-long",
+      "exit_code": 0,
+      "seconds": 485
+    },
+    {
+      "step": "memory-after-smoke",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "nothink-val",
+      "exit_code": 0,
+      "seconds": 186
+    },
+    {
+      "step": "memory-after-nothink-val",
+      "exit_code": 0,
+      "seconds": 0
+    },
+    {
+      "step": "nothink-train",
+      "exit_code": 0,
+      "seconds": 255
+    },
+    {
+      "step": "memory-after-nothink-train",
+      "exit_code": 0,
+      "seconds": 0
+    }
+  ],
+  "install_timings_s": {
+    "uv-install": 4,
+    "venv": 0,
+    "stack-install": 57,
+    "pip-check": 0
+  },
+  "runs": {
+    "smoke-short": {
+      "status": "complete",
+      "completed_prompts": 1,
+      "samples": 8,
+      "tokens_per_second": 113.06167953317728,
+      "timing_scope": "last invocation that generated samples",
+      "calls": [
+        {
+          "prompts": 1,
+          "generated_tokens": 1024,
+          "wall_time_s": 9.057003258999998,
+          "invocation": 1,
+          "prompts_per_batch": 1,
+          "enforce_eager": true,
+          "tokens_per_second": 113.06167953317728
+        }
+      ],
+      "calls_scope": "all completed calls; invocation identifies each process run",
+      "prompts_per_batch": 1,
+      "auto_batch_estimate": null,
+      "engine": {
+        "dtype": "bfloat16",
+        "tensor_parallel_size": 1,
+        "max_model_len": 235,
+        "gpu_memory_utilization": 0.85,
+        "language_model_only": true,
+        "enforce_eager": true,
+        "enable_prefix_caching": false,
+        "seed": 0,
+        "enable_lora": false,
+        "max_lora_rank": 64,
+        "max_num_seqs": 8,
+        "enable_chunked_prefill": true,
+        "max_num_batched_tokens": 8192
+      },
+      "closed_think_rate": null,
+      "truncation_rate": 1.0,
+      "mean_generated_tokens": 128.0,
+      "p90_generated_tokens": 128,
+      "per_split": {
+        "val": {
+          "closed": 8,
+          "truncated": 8,
+          "completed_prompts": 1,
+          "samples": 8,
+          "closed_think_rate": null,
+          "saved_text_closed_rate": 1.0,
+          "truncation_rate": 1.0,
+          "mean_generated_tokens": 128.0,
+          "p90_generated_tokens": 128
+        }
+      },
+      "executed_this_session": true
+    },
+    "smoke-long": {
+      "status": "complete",
+      "completed_prompts": 1,
+      "samples": 8,
+      "tokens_per_second": 133.1984536014929,
+      "timing_scope": "last invocation that generated samples",
+      "calls": [
+        {
+          "prompts": 1,
+          "generated_tokens": 57006,
+          "wall_time_s": 427.97794162499997,
+          "invocation": 1,
+          "prompts_per_batch": 1,
+          "enforce_eager": true,
+          "tokens_per_second": 133.1984536014929
+        }
+      ],
+      "calls_scope": "all completed calls; invocation identifies each process run",
+      "prompts_per_batch": 1,
+      "auto_batch_estimate": null,
+      "engine": {
+        "dtype": "bfloat16",
+        "tensor_parallel_size": 1,
+        "max_model_len": 8297,
+        "gpu_memory_utilization": 0.85,
+        "language_model_only": true,
+        "enforce_eager": true,
+        "enable_prefix_caching": false,
+        "seed": 0,
+        "enable_lora": false,
+        "max_lora_rank": 64,
+        "max_num_seqs": 8,
+        "enable_chunked_prefill": true,
+        "max_num_batched_tokens": 8192
+      },
+      "closed_think_rate": 1.0,
+      "truncation_rate": 0.375,
+      "mean_generated_tokens": 7125.75,
+      "p90_generated_tokens": 8192,
+      "per_split": {
+        "val": {
+          "closed": 8,
+          "truncated": 3,
+          "completed_prompts": 1,
+          "samples": 8,
+          "closed_think_rate": 1.0,
+          "saved_text_closed_rate": 1.0,
+          "truncation_rate": 0.375,
+          "mean_generated_tokens": 7125.75,
+          "p90_generated_tokens": 8192
+        }
+      },
+      "executed_this_session": true
+    },
+    "nothink-val": {
+      "status": "complete",
+      "completed_prompts": 58,
+      "samples": 464,
+      "tokens_per_second": 1860.802188233132,
+      "timing_scope": "last invocation that generated samples",
+      "calls": [
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 31.483073671000056,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 2081.6264855475993
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 32.87214977899998,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 1993.6633423916487
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 32.79697348600007,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 1998.2331609950268
+        },
+        {
+          "prompts": 10,
+          "generated_tokens": 40638,
+          "wall_time_s": 30.34442871300007,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 1339.2244218652893
+        }
+      ],
+      "calls_scope": "all completed calls; invocation identifies each process run",
+      "prompts_per_batch": 16,
+      "auto_batch_estimate": {
+        "num_hidden_layers": 32,
+        "full_attention_interval": 4,
+        "full_attention_layers": 8,
+        "num_key_value_heads": 4,
+        "head_dim": 256,
+        "dtype_bytes": 2,
+        "kv_bytes_per_token": 32768,
+        "kv_bytes_per_token_per_gpu": 32768,
+        "free_bytes_per_gpu": [
+          42405855232
+        ],
+        "checkpoint_bytes": 9319737856,
+        "workspace_reserve_bytes_per_gpu": 1073741824,
+        "recurrent_bytes_per_sequence_per_gpu": 51511296,
+        "recurrent_reserve_bytes_per_gpu": 6593445888,
+        "kv_budget_bytes_per_gpu": 19520296448,
+        "per_sequence_kv_bytes_at_max_len": 67665920,
+        "max_model_len": 2065,
+        "safety_fraction": 0.7,
+        "prompts_per_batch": 16,
+        "estimate_status": "UNTESTED on GPU"
+      },
+      "engine": {
+        "dtype": "bfloat16",
+        "tensor_parallel_size": 1,
+        "max_model_len": 2065,
+        "gpu_memory_utilization": 0.85,
+        "language_model_only": true,
+        "enforce_eager": true,
+        "enable_prefix_caching": false,
+        "seed": 0,
+        "enable_lora": false,
+        "max_lora_rank": 64,
+        "max_num_seqs": 128,
+        "enable_chunked_prefill": true,
+        "max_num_batched_tokens": 24848
+      },
+      "closed_think_rate": null,
+      "truncation_rate": 0.9978448275862069,
+      "mean_generated_tokens": 511.3060344827586,
+      "p90_generated_tokens": 512,
+      "per_split": {
+        "val": {
+          "closed": 464,
+          "truncated": 463,
+          "completed_prompts": 58,
+          "samples": 464,
+          "closed_think_rate": null,
+          "saved_text_closed_rate": 1.0,
+          "truncation_rate": 0.9978448275862069,
+          "mean_generated_tokens": 511.3060344827586,
+          "p90_generated_tokens": 512
+        }
+      },
+      "executed_this_session": true
+    },
+    "nothink-train": {
+      "status": "stopped_time_limit",
+      "completed_prompts": 96,
+      "samples": 768,
+      "tokens_per_second": 2000.7092665366727,
+      "timing_scope": "last invocation that generated samples",
+      "calls": [
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 32.789503592000074,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 1998.6883856329366
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 32.35722551699996,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 2025.3899694078668
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 32.325344374,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 2027.3875273147
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 64137,
+          "wall_time_s": 32.624794888,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 1965.8974169854712
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 32.48437743800014,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 2017.4620900487432
+        },
+        {
+          "prompts": 16,
+          "generated_tokens": 65536,
+          "wall_time_s": 33.25780314899998,
+          "invocation": 1,
+          "prompts_per_batch": 16,
+          "enforce_eager": true,
+          "tokens_per_second": 1970.5450689688919
+        }
+      ],
+      "calls_scope": "all completed calls; invocation identifies each process run",
+      "prompts_per_batch": 16,
+      "auto_batch_estimate": {
+        "num_hidden_layers": 32,
+        "full_attention_interval": 4,
+        "full_attention_layers": 8,
+        "num_key_value_heads": 4,
+        "head_dim": 256,
+        "dtype_bytes": 2,
+        "kv_bytes_per_token": 32768,
+        "kv_bytes_per_token_per_gpu": 32768,
+        "free_bytes_per_gpu": [
+          42405855232
+        ],
+        "checkpoint_bytes": 9319737856,
+        "workspace_reserve_bytes_per_gpu": 1073741824,
+        "recurrent_bytes_per_sequence_per_gpu": 51511296,
+        "recurrent_reserve_bytes_per_gpu": 6593445888,
+        "kv_budget_bytes_per_gpu": 19520296448,
+        "per_sequence_kv_bytes_at_max_len": 69599232,
+        "max_model_len": 2124,
+        "safety_fraction": 0.7,
+        "prompts_per_batch": 16,
+        "estimate_status": "UNTESTED on GPU"
+      },
+      "engine": {
+        "dtype": "bfloat16",
+        "tensor_parallel_size": 1,
+        "max_model_len": 2124,
+        "gpu_memory_utilization": 0.85,
+        "language_model_only": true,
+        "enforce_eager": true,
+        "enable_prefix_caching": false,
+        "seed": 0,
+        "enable_lora": false,
+        "max_lora_rank": 64,
+        "max_num_seqs": 128,
+        "enable_chunked_prefill": true,
+        "max_num_batched_tokens": 25792
+      },
+      "closed_think_rate": null,
+      "truncation_rate": 0.9947916666666666,
+      "mean_generated_tokens": 510.1783854166667,
+      "p90_generated_tokens": 512,
+      "per_split": {
+        "train": {
+          "closed": 768,
+          "truncated": 764,
+          "completed_prompts": 96,
+          "samples": 768,
+          "closed_think_rate": null,
+          "saved_text_closed_rate": 1.0,
+          "truncation_rate": 0.9947916666666666,
+          "mean_generated_tokens": 510.1783854166667,
+          "p90_generated_tokens": 512
+        }
+      },
+      "executed_this_session": true
+    },
+    "think-val": {
+      "status": "running",
+      "completed_prompts": 24,
+      "samples": 96,
+      "tokens_per_second": 883.7737926192825,
+      "timing_scope": "last invocation that generated samples",
+      "calls": [
+        {
+          "prompts": 12,
+          "generated_tokens": 388461,
+          "wall_time_s": 439.0911737619999,
+          "invocation": 1,
+          "prompts_per_batch": 12,
+          "enforce_eager": true,
+          "tokens_per_second": 884.6932555527911
+        },
+        {
+          "prompts": 12,
+          "generated_tokens": 387734,
+          "wall_time_s": 439.1822107649998,
+          "invocation": 1,
+          "prompts_per_batch": 12,
+          "enforce_eager": true,
+          "tokens_per_second": 882.8545202789895
+        }
+      ],
+      "calls_scope": "all completed calls; invocation identifies each process run",
+      "prompts_per_batch": 12,
+      "auto_batch_estimate": {
+        "num_hidden_layers": 32,
+        "full_attention_interval": 4,
+        "full_attention_layers": 8,
+        "num_key_value_heads": 4,
+        "head_dim": 256,
+        "dtype_bytes": 2,
+        "kv_bytes_per_token": 32768,
+        "kv_bytes_per_token_per_gpu": 32768,
+        "free_bytes_per_gpu": [
+          42405855232
+        ],
+        "checkpoint_bytes": 9319737856,
+        "workspace_reserve_bytes_per_gpu": 1073741824,
+        "recurrent_bytes_per_sequence_per_gpu": 51511296,
+        "recurrent_reserve_bytes_per_gpu": 3296722944,
+        "kv_budget_bytes_per_gpu": 22817019392,
+        "per_sequence_kv_bytes_at_max_len": 319258624,
+        "max_model_len": 9743,
+        "safety_fraction": 0.7,
+        "prompts_per_batch": 12,
+        "estimate_status": "UNTESTED on GPU"
+      },
+      "engine": {
+        "dtype": "bfloat16",
+        "tensor_parallel_size": 1,
+        "max_model_len": 9743,
+        "gpu_memory_utilization": 0.85,
+        "language_model_only": true,
+        "enforce_eager": true,
+        "enable_prefix_caching": false,
+        "seed": 0,
+        "enable_lora": false,
+        "max_lora_rank": 64,
+        "max_num_seqs": 48,
+        "enable_chunked_prefill": true,
+        "max_num_batched_tokens": 18612
+      },
+      "closed_think_rate": 0.08333333333333333,
+      "truncation_rate": 0.9479166666666666,
+      "mean_generated_tokens": 8085.364583333333,
+      "p90_generated_tokens": 8192,
+      "per_split": {
+        "val": {
+          "closed": 8,
+          "truncated": 91,
+          "completed_prompts": 24,
+          "samples": 96,
+          "closed_think_rate": 0.08333333333333333,
+          "saved_text_closed_rate": 0.08333333333333333,
+          "truncation_rate": 0.9479166666666666,
+          "mean_generated_tokens": 8085.364583333333,
+          "p90_generated_tokens": 8192
+        }
+      },
+      "executed_this_session": false
+    },
+    "think-train": {
+      "status": "not_started",
+      "completed_prompts": 0,
+      "executed_this_session": false
+    }
+  },
+  "metric_scope": "sample-weighted; counts include only complete durable prompts",
+  "gates": {
+    "G0": "UNTESTED: probe k=4 cannot measure pass@8; score a later k=8 run",
+    "G1": "UNTESTED: closure alone cannot establish chemical validity or T5"
+  }
+}

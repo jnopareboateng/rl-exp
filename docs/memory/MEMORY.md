@@ -27,9 +27,11 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 ## Gotchas
 - [gotcha-agent-restarts](gotcha-agent-restarts.md) — A session restart kills background agents and wipes scratch; workers must save after every item
 - [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures and cannot read SMILES under 8 characters
+- [gotcha-base-model-verbosity](gotcha-base-model-verbosity.md) — Qwen3.5-4B rambles under the dataset's xhigh prompt (0% valid); a direct-answer prompt works
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
 
 ## Environment
+- [env-colab-a100-runtime](env-colab-a100-runtime.md) — Colab A100-40GB on Google account index 1: install 57 s, 2k tok/s batched; kill -9 stuck engines
 - [env-compute-supply](env-compute-supply.md) — Kaggle: 2 x T4, 6 GPU-h/week, batch runs only; Colab is primary and needs a browser accept
 
 ## References
