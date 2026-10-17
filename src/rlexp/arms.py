@@ -4,6 +4,7 @@
   python -m rlexp.arms build --data data/processed --out data/processed/arms [--system-text TEXT | --keep-system]
   python -m rlexp.arms a4 --data data/processed --out data/processed/arms/a4 [--system-text TEXT]
   python -m rlexp.arms name --data data/processed --out data/processed/arms/name [--system-text TEXT]
+  python -m rlexp.arms blank --data data/processed --out data/processed/arms/blank [--system-text TEXT] [--splits val]
   python -m rlexp.arms rft --scored runs/X/scored.jsonl --data data/processed --out data/processed/arms/a3_rft_train.jsonl
 
   A1  trace_sft        the reference trace cut right after the final answer (a description after it on its line goes too)
@@ -13,6 +14,10 @@
                        and test_t in the processed-row schema (prompt replaced, system turn = DIRECT_SYSTEM) for sample_vllm.py
   N0  name_prompt      diagnostic control, not an arm: the user turn is only "Drug: <name>". Its score is the recall ceiling for a
                        model that is told which drug it is; `name` writes val, test_r and test_t like `a4`
+  B0  blank_prompt     diagnostic control, not an arm: the profile REMOVED, the user turn is only "Drug: unknown." (the text of
+                       gpu/rl_grpo.py --profile-mode none). What an arm scores with no pharmacology at all, the other side of the
+                       shuffled-profile control (rlexp.shuffle); `blank` writes the splits named by --splits (default val only: the
+                       Test files are read only when asked) like `name`
 Answer-only prompts use a short direct-answer system text: under the dataset's long 'reasoning effort' system text the base
 model rambles instead of answering. Every written file gets a <name>.meta.json sidecar recording the system text.
 Prompts end with '<think>\\n' and completions end with '<|im_end|>' (contracts.md); SFT rows are {id, prompt, completion}.
@@ -26,12 +31,13 @@ from pathlib import Path
 
 import numpy as np
 
-from rlexp import chem, reward
+from rlexp import chem, metrics, reward
 
 END, THINK, USER = "<|im_end|>", "</think>", "<|im_start|>user\n"
 ICL_HEADER = "Worked examples from similar profiles (each followed by its known answer):"
 DIRECT_SYSTEM = "Reply with only the SMILES string of the drug described. No explanation."
 K = 3                                                      # neighbours per A4 prompt
+BLANK_USER = "Drug: unknown."      # the user turn of the profile-removed control; gpu/rl_grpo.py PROFILE_FREE_USER (a test pins equality)
 SPLITS = ("train", "val", "test_r", "test_t")
 _TOKEN = re.compile(r"[a-z0-9]+")
 _SYSTEM = re.compile(r"(<\|im_start\|>system\n)(.*?)(<\|im_end\|>)", re.S)    # the match gpu/sample_vllm.py --system-text uses
@@ -69,6 +75,14 @@ def name_prompt(row, system=DIRECT_SYSTEM):
     can answer. The system turn is `system`; the generation prefix is kept."""
     head, _, tail = split_prompt(row["prompt"])
     return with_system(head + f"Drug: {row['group']}" + tail, system)
+
+
+def blank_prompt(row, system=DIRECT_SYSTEM):
+    """B0: the row's prompt with its user turn replaced by BLANK_USER: no profile and no drug name, the same user turn for every row,
+    so what an arm scores on it is what it answers with no pharmacology at all. The system turn is `system`; the generation prefix
+    is kept. This is the prompt that gpu/rl_grpo.py --profile-mode none trains and evaluates on."""
+    head, _, tail = split_prompt(row["prompt"])
+    return with_system(head + BLANK_USER + tail, system)
 
 
 def system_text(prompt):
@@ -204,7 +218,8 @@ def nearest_train(query_rows, train_rows, k=K):
 def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, stats=None, system=None, min_reward=None):
     """A3 rows {id, prompt, completion} from scored samples (contracts.md "Sampling and scoring products").
     Success is decided here, never by the stored conn_match/closed (they go stale when a reference or the scorer
-    changes): each sample with finish_reason == 'stop' whose prompt row is in data_rows is re-scored with
+    changes): each sample with finish_reason == 'stop' (a length-terminated or aborted one is a failure, the rule of
+    rlexp.metrics.finished) whose prompt row is in data_rows is re-scored with
     reward.score(text, that row) and kept if the fresh result has conn_match and closed (closed is implied by
     conn_match today; require_closed=False drops that test). Passing the Train rows drops samples of other splits.
     Per drug at most max_per_drug: preference is fewer n_tokens, then lower sample_idx, then id; the best sample of
@@ -220,6 +235,9 @@ def rft_dataset(scored_rows, data_rows, max_per_drug=2, require_closed=True, sta
     min_reward (identity hits are rare, so the identity-only rule starves); the preference is then higher reward, then the
     order above. The (id, sample_idx) pairs are checked first, before anything is scored or capped, so a pair that the
     per-drug cap would have dropped cannot hide a resumed run appended twice."""
+    for field in ("sample_idx", "n_tokens"):
+        if (bad := sum(not metrics.is_number(s[field]) for s in scored_rows)):
+            raise ValueError(f"{bad} scored row(s) with a non-finite or non-numeric {field}")
     pairs = [(s["id"], s["sample_idx"]) for s in scored_rows]
     if len(set(pairs)) != len(pairs):
         raise ValueError(f"scored rows repeat {len(pairs) - len(set(pairs))} (id, sample_idx) pair(s); was a resumed run appended twice?")
@@ -376,6 +394,21 @@ def name_oracle(data_dir, out_dir, system=DIRECT_SYSTEM):
         print(f"{s}.jsonl: {len(rows)} rows | prompt chars {_chars([r['prompt'] for r in rows])}")
 
 
+def blank(data_dir, out_dir, system=DIRECT_SYSTEM, splits=("val",)):
+    """Write <split>.jsonl and a .meta.json each under out_dir for the named splits (val, test_r, test_t): the processed rows with
+    `prompt` replaced by blank_prompt, for gpu/sample_vllm.py --data out_dir. Only the named split files are read, so a Val run
+    never opens a Test file. Prints counts and character lengths."""
+    bad = [s for s in splits if s not in ("val", "test_r", "test_t")]
+    if bad or not splits:
+        raise ValueError(f"splits must be a non-empty subset of val, test_r, test_t; got {list(splits)}")
+    out = Path(out_dir)
+    for s in splits:
+        rows = [{**r, "prompt": blank_prompt(r, system)} for r in _read(Path(data_dir) / f"{s}.jsonl")]
+        _write(out / f"{s}.jsonl", rows, lines=True)
+        _sidecar(out / f"{s}.jsonl", rows, system, control="blank_profile")
+        print(f"{s}.jsonl: {len(rows)} rows | prompt chars {_chars([r['prompt'] for r in rows])}")
+
+
 def rft(scored_path, data_dir, out_path, max_per_drug=2, system=None, min_reward=None):
     """Write the A3 file from a scored.jsonl of Train rollouts and print the coverage report. system: the system text the
     rollouts were sampled with, if it replaced the dataset's (sample_vllm.py --system-text)."""
@@ -408,6 +441,11 @@ def main(argv=None):
     n.add_argument("--data", default="data/processed")
     n.add_argument("--out", default="data/processed/arms/name")
     n.add_argument("--system-text", default=DIRECT_SYSTEM, help="system-turn text of the prompts (default: the direct-answer text)")
+    k = sub.add_parser("blank", help="write the profile-removed control prompt files (processed-row schema) for sample_vllm.py")
+    k.add_argument("--data", default="data/processed")
+    k.add_argument("--out", default="data/processed/arms/blank")
+    k.add_argument("--system-text", default=DIRECT_SYSTEM, help="system-turn text of the prompts (default: the direct-answer text)")
+    k.add_argument("--splits", default="val", help="comma-separated subset of val,test_r,test_t; the default is Val only: name a Test split only after the lock")
     r = sub.add_parser("rft", help="write the A3 file from scored Train rollouts")
     r.add_argument("--scored", required=True)
     r.add_argument("--data", default="data/processed")
@@ -424,6 +462,8 @@ def main(argv=None):
             a4(a.data, a.out, a.system_text)
         elif a.cmd == "name":
             name_oracle(a.data, a.out, a.system_text)
+        elif a.cmd == "blank":
+            blank(a.data, a.out, a.system_text, tuple(x for x in a.splits.split(",") if x))
         else:
             rft(a.scored, a.data, a.out, a.max_per_drug, a.system_text, a.min_reward)
     except (ValueError, KeyError, OSError) as e:

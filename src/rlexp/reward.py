@@ -8,8 +8,9 @@ No similarity floor: group-relative advantages need only the rank order of the r
 would collapse the many low-similarity answers into a tie. A scaffold bonus because two random drugs share an exact
 Murcko scaffold only about 0.1% of the time, so a hit is rare and informative. Stereo is reported, never rewarded.
 
-v3 (2026-10-17): a sample cut by the length cap (`finished=False`) is a failed answer, because a deployed system
-cannot use text that never ended: valid False, every score 0. `answer` and `closed` are still reported for diagnostics.
+v3 (2026-10-17): a sample that did not end by itself (`finished=False`: cut by the length cap, or aborted) is a failed answer,
+because a deployed system cannot use text that never ended: valid False, every score 0. `answer` and `closed` are still reported
+for diagnostics.
 """
 import json
 import warnings
@@ -39,8 +40,8 @@ def _quiet(fn, *args):
 def score(solution_str: str | None, ref: dict, finished: bool = True) -> dict:
     """Score one generated text against one reference row. ref_smiles is required; ref_alt_smiles (other registry
     SMILES of the same compound, usually empty) is optional. Every key is derived from them in this process, so stored
-    ref_conn, ref_scaffold and ref_inchikey are ignored. finished=False marks a sample cut by the length cap: it
-    scores as a failure (valid False, reward 0, nothing matched) with `answer` and `closed` still reported.
+    ref_conn, ref_scaffold and ref_inchikey are ignored. finished=False marks a sample that did not end by itself (cut by the
+    length cap, or aborted): it scores as a failure (valid False, reward 0, nothing matched) with `answer` and `closed` still reported.
     Raises only on a bad reference, never on generated text."""
     text = solution_str or ""
     answer = _quiet(chem.extract_answer, text)

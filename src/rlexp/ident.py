@@ -7,9 +7,10 @@
 Not an arm. With the name-given control (rlexp.arms name) it splits the structure-recovery gap into identification (profile to
 name) and recall (name to SMILES). A sample matches when its first answer line, normalised (case, accents, salt and form words,
 punctuation), equals the normalised drug name or the ChEMBL preferred name of the row's drug. Only a usable sample can match or
-count as answered, by the common failure rule of rlexp.metrics: its think block closed ('</think>' in the text) and the length cap
-did not cut it. Rates are drug-balanced like rlexp.metrics: mean over a drug's rows of the mean over each row's samples; pass@8 is
-"any of the first 8 samples". The samples are checked (a repeated (id, sample_idx), an id the data does not know, a split that is
+count as answered, by the common failure rule of rlexp.metrics: its think block closed ('</think>' in the text) and the sample ended
+by itself (finish_reason "stop"; a cut or aborted one is a failure). Rates are drug-balanced like rlexp.metrics: mean over a drug's
+rows of the mean over each row's samples. name_pass@k is "any of the first k samples", with k the largest number up to 8 that every
+row supplies, and k is in the key (a run of 2 samples per row reports name_pass@2, never a pass@8) and in `pass_k`. The samples are checked (a repeated (id, sample_idx), an id the data does not know, a split that is
 not the data row's, samples of several splits all raise) and `score` scores one split at a time, printing one JSON line per split
 that the samples name and opening only those data files.
 """
@@ -58,8 +59,8 @@ def accepted_names(group, curated):
 
 
 def usable(sample):
-    """The common failure rule (metrics.finished and a closed think block): a sample the length cap cut, or whose think block
-    never closed, is not an answer, so it cannot match and is not 'answered'."""
+    """The common failure rule (metrics.finished and a closed think block): a sample that was cut by the length cap or aborted, or
+    whose think block never closed, is not an answer, so it cannot match and is not 'answered'."""
     return metrics.finished(sample) and "</think>" in (sample.get("text") or "")
 
 
@@ -67,6 +68,11 @@ def _by_id(samples, rows):
     """id -> data row, after the checks a score would otherwise hide: data ids that repeat (one row would overwrite the other),
     sample ids the data does not know (dropped without a word), a repeated (id, sample_idx) (counted twice), a sample whose split
     is not its row's, and samples of several splits (never pooled)."""
+    if (miss := sum(not {"id", "sample_idx", "text"} <= s.keys() for s in samples)):
+        raise metrics.InputError(f"{miss} sample(s) lack id, sample_idx or text")
+    for name, ok, want in (("id", lambda v: isinstance(v, str), "non-string"), ("sample_idx", metrics.is_number, "non-finite or non-numeric")):
+        if (bad := sum(not ok(s[name]) for s in samples)):         # before any key is built: a list or NaN must not reach a set
+            raise metrics.InputError(f"{bad} sample(s) with a {want} {name}")
     ids = [r["id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise metrics.InputError(f"the data rows repeat {len(ids) - len(set(ids))} id(s)")
@@ -87,12 +93,14 @@ def _by_id(samples, rows):
 
 
 def score(samples, rows, curated):
-    """Aggregate over samples (dicts with id, sample_idx, text) of data rows `rows`: name_match@1, pass@8, answered; all drug-balanced.
-    Only usable samples match or count as answered. Raises metrics.InputError on the input problems _by_id lists."""
+    """Aggregate over samples (dicts with id, sample_idx, text) of data rows `rows`: name_match@1, name_pass@k (k in the key and in
+    pass_k), answered; all drug-balanced. Only usable samples match or count as answered. Raises metrics.InputError on the input
+    problems _by_id lists."""
     by_id = _by_id(samples, rows)
     per_row = defaultdict(list)
     for s in sorted(samples, key=lambda s: (s["id"], s["sample_idx"])):
         per_row[s["id"]].append(s)
+    k = min([8] + [len(g) for g in per_row.values()])              # the largest k <= 8 that every row supplies
     drug = defaultdict(lambda: defaultdict(list))
     for rid, group in per_row.items():
         ok = accepted_names(by_id[rid]["group"], curated)
@@ -101,9 +109,9 @@ def score(samples, rows, curated):
         d = drug[by_id[rid]["group"]]
         d["match"].append(sum(hits) / len(hits))
         d["answered"].append(sum(said) / len(said))
-        d["pass8"].append(float(any(hits[:8])))
-    out = {"drugs": len(drug), "rows": len(per_row), "samples": sum(map(len, per_row.values()))}
-    for key, label in (("match", "name_match@1"), ("pass8", "name_pass@8"), ("answered", "answered")):
+        d["passk"].append(float(any(hits[:k])))
+    out = {"drugs": len(drug), "rows": len(per_row), "samples": sum(map(len, per_row.values())), "pass_k": k}
+    for key, label in (("match", "name_match@1"), ("passk", f"name_pass@{k}"), ("answered", "answered")):
         means = [sum(v[key]) / len(v[key]) for v in drug.values()]
         out[label] = round(sum(means) / len(means), 4) if means else None
     return out

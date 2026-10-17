@@ -12,14 +12,15 @@ Definitions (v3, 2026-10-17: finished, lift, tanimoto_valid, fv_*, the endpoint,
   endpoint   fv_tanimoto is the single confirmatory endpoint (decision 2026-10-17): the count-vector Tanimoto of the FIRST
              valid finished answer among the first 8 samples of each prompt row (0 when none qualifies), drug-balanced,
              with its cost fv_samples reported beside it. It is the deployable resample-until-RDKit-accepts policy: it
-             removes the validity confound without conditioning on validity and compares arms at matched cost. Every
-             other metric is a diagnostic.
+             removes the validity confound without conditioning on validity. Its cost is stated, not matched: only the
+             cap of 8 is common, so it is always read with fv_samples (draws per answer) and fv_tokens (generated tokens up
+             to the first valid answer), plus prompt_tokens for the prompt. Every other metric is a diagnostic.
   unit       the drug (`group`). A drug's value for a metric is the mean over its prompt rows of the mean over each
              row's samples; drugs then count equally. n_tokens_p90 is the nearest-rank 90th percentile of the same
              drug-balanced distribution (a sample weighs 1 / (rows * samples of its row) within its drug).
-  finished   a sample whose finish_reason is not "length" (one without finish_reason counts as finished). `score` hands
-             finished to a scorer that accepts the keyword (rlexp.reward.score does): a sample cut by the length cap is a
-             failed answer, because a deployed system cannot use text that never ended.
+  finished   a sample whose finish_reason is "stop" (one without finish_reason counts as finished). "length" (cut by the cap)
+             and "abort" are failures, as in dense RFT, which keeps only "stop". `score` hands finished to a scorer that accepts
+             the keyword (rlexp.reward.score does): a deployed system cannot use text that never ended.
   lift       a diagnostic of profile association. Per sample of drug d on split S with a valid, closed and finished answer
              a: T(a, ref_d) minus the mean of T(a, ref_d') over the OTHER drugs d' of S, T = chem.tanimoto (count vectors),
              one reference per drug of S in the data files given to the scorer (so a run that sampled few drugs is still
@@ -45,10 +46,15 @@ Definitions (v3, 2026-10-17: finished, lift, tanimoto_valid, fv_*, the endpoint,
   fv_*       the first-valid policy at 8, the deployable "resample until RDKit accepts it": per prompt row the first of
              the first 8 samples (by sample_idx) that is valid, closed and finished. fv_reward, fv_tanimoto and fv_lift
              are its values (0 when none of the 8 qualifies), fv_rate the share of rows with one, fv_samples the mean
-             number of samples drawn up to and including it (8 when none): the cost per answer. Rows with fewer than 8
-             samples are skipped and counted like the @8 metrics.
-  input      stored scores must be finite: a NaN, inf or non-numeric reward, tanimoto, lift, n_tokens or sample_idx raises
-             InputError naming the field and the number of rows (nanmean would otherwise drop the drug without a word).
+             number of samples drawn up to and including it (8 when none): the cost per answer. fv_tokens is the mean number of
+             generated tokens of those samples. prompt_tokens, per split, is the mean n_prompt_tokens of the run's prompt rows
+             in the data files (drug-balanced; None without --data or when a row lacks it): the row's original prompt, which an
+             arm file with a longer prompt (retrieval) does not update. Rows with fewer than 8 samples are skipped and counted
+             like the @8 metrics.
+  input      stored scores must be finite: a NaN, inf, bool or non-numeric reward, tanimoto, lift, n_tokens or sample_idx
+             raises InputError naming the field and the number of rows (nanmean would otherwise drop the drug without a word),
+             and so does a flag (valid, closed, conn_match, scaffold_match, stereo_match) that is not a real boolean or an
+             identifier (id, group, split) that is not a string; no value type reaches a traceback.
              Component metadata is all or nothing: rows that carry cluster_id only in part, a drug with two cluster_ids, two
              runs that disagree on a drug's cluster_id, or a scored row that disagrees with the data raise InputError.
   intervals  95% percentile bootstrap, descriptive. The resampled units are the cluster_id components when the rows
@@ -69,7 +75,8 @@ Definitions (v3, 2026-10-17: finished, lift, tanimoto_valid, fv_*, the endpoint,
   bar        the constant-answer bar scores the Train reference with the highest mean 2048-bit Morgan Tanimoto (bit
              vectors, chem.tanimoto_bits; the scorer itself uses count vectors) to the other Train references against
              every prompt row the run scored (needs --data with a train split and rlexp.reward.score). Each row gets the
-             constant 8 times so fv_* is defined; being always valid, the bar's fv_tanimoto is the constant's Tanimoto.
+             constant 8 times so fv_* is defined, on the rows with 8 samples in the run (the run's own fv rows); being always
+             valid, the bar's fv_tanimoto is the constant's Tanimoto.
              Its lift uses the same full reference panel as the samples (every drug of the split in the data), so it is 0
              only when the run covers every drug of the split.
 """
@@ -97,7 +104,7 @@ SCORE_KEYS = ("closed", "answer", "valid", "tanimoto", "scaffold_match", "conn_m
 SCORED_KEYS = ("id", "group", "split", "sample_idx", "finish_reason", "n_tokens") + SCORE_KEYS
 SAMPLE_METRICS = ("exact@1", "core@1", "stereo_exact@1", "lift", "mean_tanimoto", "tanimoto_valid", "mean_reward",
                   "valid_closed", "truncation", "n_tokens_mean")     # drug means of per-sample values, X's column order
-FV = ("fv_reward", "fv_tanimoto", "fv_lift", "fv_rate", "fv_samples")       # the first-valid policy at K
+FV = ("fv_reward", "fv_tanimoto", "fv_lift", "fv_rate", "fv_samples", "fv_tokens")       # the first-valid policy at K
 METRICS = SAMPLE_METRICS + ("n_tokens_p90", "exact@8", "core@8", "maj@8") + FV
 P90, K = len(SAMPLE_METRICS), 8     # P90: the one column that is not a drug mean. K: the k of the per-row columns after it
 ORACLE = ("exact@8", "core@8")
@@ -106,6 +113,7 @@ FV_LABEL = "deployable with resampling: costs fv_samples generations per answer"
 LABELS = {ORACLE[0]: ORACLE_LABEL, FV[0]: FV_LABEL}     # a labelled block of rows starts at its first member
 TESTED = ("fv_tanimoto", "mean_tanimoto", "lift", "fv_lift", "core@1", "exact@1")    # the metrics with a p-value
 BAR = ("exact@1", "core@1", "lift", "mean_tanimoto", "mean_reward", "fv_tanimoto")
+BOOL_FIELDS = ("closed", "valid", "scaffold_match", "conn_match", "stereo_match")      # flags of a scored row: real booleans
 FINITE_SAMPLE = ("sample_idx", "n_tokens")                            # numbers the metrics use in a sample row
 FINITE_SCORED = FINITE_SAMPLE + ("reward", "tanimoto", "lift")        # ... and in a scored row (lift is absent before v3)
 CI = (2.5, 97.5)
@@ -187,26 +195,49 @@ def _index(data):
 
 
 def _check_rows(rows, required, what):
-    seen = set()
+    """The keys are there, the identifiers are strings and sample_idx is a finite number (so no key below is unhashable or NaN), and
+    no (id, sample_idx) occurs twice. InputError otherwise, never a TypeError."""
     for i, r in enumerate(rows):
         miss = [k for k in required if k not in r]
         if miss:
             raise InputError(f"{what} row {i} lacks {miss}")
+    _typed(rows, (("id", _is_str, "non-string"), ("group", _is_str, "non-string"), ("split", _is_str, "non-string"),
+                  ("cluster_id", _is_id, "non-scalar"), ("finish_reason", _is_text_or_none, "non-string")), what)
+    _finite(rows, ("sample_idx",), what)
+    seen = set()
+    for r in rows:
         key = (r["id"], r["sample_idx"])
         if key in seen:
             raise InputError(f"{what}: duplicate (id, sample_idx); was a resumed run appended twice?")
         seen.add(key)
 
 
-def _is_number(v):
+def is_number(v):
+    """A finite int or float; a bool is not a number here."""
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+_is_str = lambda v: isinstance(v, str)
+_is_bool = lambda v: isinstance(v, bool)
+_is_id = lambda v: v is None or isinstance(v, (str, int)) and not isinstance(v, bool)
+_is_text_or_none = lambda v: v is None or isinstance(v, str)
+_FLAGS = tuple((f, _is_bool, "non-boolean") for f in BOOL_FIELDS) + (("answer", _is_text_or_none, "non-string"),)     # a scored row
+
+
+def _typed(rows, spec, what):
+    """InputError naming the field and the number of rows whose value has the wrong type; spec: (field, test, adjective). A field a row
+    lacks is skipped. It keeps a list or dict from reaching a dict key or a sort, and the text "false" from counting as true."""
+    for f, ok, adjective in spec:
+        bad = sum(f in r and not ok(r[f]) for r in rows)
+        if bad:
+            raise InputError(f"{what}: {bad} row(s) with a {adjective} {f}")
 
 
 def _finite(rows, fields, what):
     """InputError naming the field and the number of rows whose value is NaN, inf, null, text or a bool. Such a value would
     otherwise be read as 'missing' by nanmean and silently remove a drug from the estimand. A field a row lacks is skipped."""
     for f in fields:
-        bad = sum(f in r and not _is_number(r[f]) for r in rows)
+        bad = sum(f in r and not is_number(r[f]) for r in rows)
         if bad:
             raise InputError(f"{what}: {bad} row(s) with a non-finite or non-numeric {f}; stored scores must be finite numbers")
 
@@ -231,9 +262,10 @@ def _default_scorer():
 
 
 def finished(r):
-    """True for a sample the length cap did not cut; one without finish_reason counts as finished. The one definition of the
-    failure rule for cut samples (the scored rows here, rlexp.ident's name matches)."""
-    return r.get("finish_reason") != "length"
+    """True for a sample that ended by itself: finish_reason "stop", or none recorded. "length" (cut by the cap) and "abort" are
+    failures, and so is any other value; dense RFT keeps only "stop" too. The one definition of the failure rule for samples that did
+    not end (the scored rows here, rlexp.ident's name matches)."""
+    return r.get("finish_reason", "stop") == "stop"
 
 
 def _ok(r):
@@ -335,6 +367,7 @@ def score_samples(samples, data_rows, scorer=None):
             raise InputError(f"scorer result lacks {miss}")
         out.append({**s, "group": d["group"], "split": d["split"], **{k: d[k] for k in ROW_KEYS if k in d}, **res})
     _finite(out, ("tanimoto", "reward"), "scorer result")
+    _typed(out, _FLAGS, "scorer result")
     _add_lift(out, data_rows)
     return out
 
@@ -405,13 +438,14 @@ def _maj(first):
 
 
 def _first_valid(first):
-    """[reward, tanimoto, lift, found, samples drawn] of the first ok sample (valid, closed, finished) among these scored
-    samples, the first K of a row by sample_idx. A row with none scores 0 on the first three, found 0 and K draws: the
-    cost of giving up. A scored row from before v3 has no lift: NaN."""
+    """[reward, tanimoto, lift, found, samples drawn, tokens generated] of the first ok sample (valid, closed, finished) among
+    these scored samples, the first K of a row by sample_idx; the last two count up to and including it. A row with none scores 0
+    on the first three, found 0 and K draws with all K samples' tokens: the cost of giving up. A scored row from before v3 has
+    no lift: NaN."""
     for n, r in enumerate(first, 1):
         if _ok(r):
-            return [r["reward"], r["tanimoto"], r.get("lift", np.nan), 1.0, float(n)]
-    return [0.0, 0.0, 0.0, 0.0, float(len(first))]
+            return [r["reward"], r["tanimoto"], r.get("lift", np.nan), 1.0, float(n), float(sum(x["n_tokens"] for x in first[:n]))]
+    return [0.0, 0.0, 0.0, 0.0, float(len(first)), float(sum(x["n_tokens"] for x in first))]
 
 
 def aggregate(rows, pass_ids=None, cluster=None):
@@ -504,7 +538,11 @@ def sign_flip_p(d, rng, flips=FLIPS):
     total per unit (a cluster, or a drug when there are no clusters). The statistic is T = sum(d); tied units
     (|d| < TIE) never change it and are dropped. Up to EXACT_MAX non-tied units: every one of the 2^n sign patterns,
     p = share with |T*| >= |T|. More: `flips` seeded random patterns with p = (1 + #{|T*| >= |T|}) / (flips + 1),
-    which is never 0. Returns (p, method, n non-tied units)."""
+    which is never 0. Returns (p, method, n non-tied units). A NaN or inf difference raises InputError: it would be dropped
+    as a tie and change the p-value."""
+    d = np.asarray(d, float)
+    if not np.isfinite(d).all():
+        raise InputError("sign_flip_p needs finite differences: a NaN or inf unit would be dropped as a tie")
     d = d[np.abs(d) >= TIE]
     x, n = np.abs(d), len(d)
     if n == 0:
@@ -634,15 +672,32 @@ def _same_clusters(ca, cb):
         raise InputError(f"{len(bad)} drug(s) have different cluster_id in A and B, e.g. {[g[:60] for g in bad[:3]]}")
 
 
+def _prompt_tokens(index, ids):
+    """Drug-balanced mean of n_prompt_tokens over the prompt rows `ids`, from the data rows; None without data or when a row has no
+    finite n_prompt_tokens. The count belongs to the row's original prompt, which arm files (retrieval, name, shuffle) keep."""
+    if index is None:
+        return None
+    by_drug = {}
+    for i in ids:
+        n = index[i].get("n_prompt_tokens")
+        if not is_number(n):
+            return None
+        by_drug.setdefault(index[i]["group"], []).append(n)
+    # fsum: the same number whatever order the (set of) ids is visited in, so a report is bit-for-bit reproducible across processes
+    return math.fsum(math.fsum(v) / len(v) for v in by_drug.values()) / len(by_drug) if by_drug else None
+
+
 def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=None, names=("A", "B")):
     """Per-split drug-level metrics with bootstrap intervals; JSON-able dict (undefined numbers are None).
     vs: a second run for paired A - B. data: data rows, enabling coverage, cluster ids and alternate references
     for scored rows that lack them, and the constant-answer bar. Stored scores must be finite, and the cluster_id metadata
     all or nothing and the same in both runs (InputError otherwise)."""
     _check_rows(scored, SCORED_KEYS, "scored")
+    _typed(scored, _FLAGS, "scored")
     _finite(scored, FINITE_SCORED, "scored")
     if vs is not None:
         _check_rows(vs, SCORED_KEYS, "--vs")
+        _typed(vs, _FLAGS, "--vs")
         _finite(vs, FINITE_SCORED, "--vs")
     index = _index(data) if data is not None else None
     if index is not None:
@@ -673,6 +728,7 @@ def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=N
             continue
         a = aggregate(rows, cluster=cl)
         out = res["splits"][s] = {"n_drugs": len(a["drugs"]), "n_rows": len(a["ids"]), "n_samples": a["n_samples"],
+                                  "prompt_tokens": _prompt_tokens(index, a["ids"]),
                                   "bootstrap": {"unit": "cluster" if cl else "drug", "n_units": int(a["clu"].max()) + 1},
                                   "metrics": _block(a, boot, _rng(seed, s, 0))}
         if index is not None:
@@ -688,7 +744,7 @@ def report(scored, vs=None, splits=None, boot=10000, seed=0, data=None, scorer=N
             mine = [r for r in data if r["id"] in a["ids"]]
             # K copies of the constant per row, so fv_* is defined; lift against the same full panel as the samples' lift
             draws = [dict(x, sample_idx=j) for x in answer_samples(mine, [smiles] * len(mine), "constant") for j in range(K)]
-            ab = aggregate(score_samples(draws, panel, sc), cluster=cl)
+            ab = aggregate(score_samples(draws, panel, sc), pass_ids=a["k_ids"], cluster=cl)     # the run's own fv rows
             out["constant"] = {"smiles": smiles, "mean_bit_tanimoto_to_train": centrality,
                                "metrics": {m: e for m, e in _block(ab, boot, _rng(seed, s, 2)).items() if m in BAR}}
     for name, rs in ((names[0], scored), (names[1], vs or [])):
@@ -703,7 +759,7 @@ def _v(x, name, signed=False):
     if x is None:
         return "n/a"
     x = 0.0 if abs(x) < 1e-12 else x        # float noise around zero (a constant answer's lift) prints as 0, never -0.000
-    return format(x, f"{'+' if signed else ''}.{1 if name == 'n_tokens_mean' else 0 if name == 'n_tokens_p90' else 3}f")
+    return format(x, f"{'+' if signed else ''}.{1 if name in ('n_tokens_mean', 'fv_tokens') else 0 if name == 'n_tokens_p90' else 3}f")
 
 
 def _ci(e, name, signed=False):
@@ -756,6 +812,9 @@ def format_report(res):
         row = lambda k, e: (f"  {_name(k):<16}{_v(e['value'], k):>9}  {_ci(e, k):<24}{e['n_drugs']:>5}"
                             f"{e['n_rows']:>6}   {_note(e)}")
         L += _table(sp["metrics"], row)
+        pt = sp.get("prompt_tokens")
+        L.append("  prompt_tokens " + ("n/a" if pt is None else f"{pt:.1f}") + " (mean n_prompt_tokens of the prompt rows, from the data files: the "
+                 "original prompt; fv_tokens + prompt_tokens is the token cost of an answer if the prompt is read once)")
         p = sp.get("paired")
         if p is not None:
             if not p["metrics"]:
@@ -801,7 +860,9 @@ def format_report(res):
           "* = bootstrap interval excludes 0 (descriptive).",
           "exact@8 and core@8 are oracle coverage: they need the answer to pick the sample, never a deployable result.",
           f"fv_tanimoto is the confirmatory endpoint: the Tanimoto of the first valid finished answer among the first {K} samples of "
-          "a row (0 if none), at the cost fv_samples draws per answer;",
+          "a row (0 if none). Its cost is stated, not matched:",
+          "  read it with fv_samples (draws per answer) and fv_tokens (generated tokens up to the first valid answer; prompt_tokens adds the "
+          "prompt): an arm that invalidates its weak answers can raise it by paying in draws.",
           "  every other metric is a diagnostic. tanimoto_valid conditions on a valid finished answer: read it beside valid_closed.",
           "lift = Tanimoto of the answer to its own drug's reference minus its mean Tanimoto to the other drugs' references of the "
           "split (0 for an invalid, unclosed or length-terminated answer); fv_lift is the lift of the first valid answer;",

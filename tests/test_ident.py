@@ -43,7 +43,7 @@ def test_accepted_names_add_the_curated_preferred_name_of_the_same_drug_only():
     assert ident.accepted_names("Unlisted", curated) == {"unlisted"}
 
 
-def test_score_is_drug_balanced_and_pass8_looks_at_the_first_eight():
+def test_score_is_drug_balanced_and_pass_k_looks_at_the_first_k():
     rows = [row("a/0", "alpha"), row("a/1", "alpha"), row("b/0", "beta")]
     hit, miss = "</think>\n\nAlpha", "</think>\n\nWrong"
     samples = ([sample("a/0", i, hit) for i in range(2)] + [sample("a/0", i, miss) for i in range(2, 4)]    # row a/0: 2 of 4
@@ -52,7 +52,7 @@ def test_score_is_drug_balanced_and_pass8_looks_at_the_first_eight():
     out = ident.score(samples, rows, [])
     assert out["drugs"] == 2 and out["rows"] == 3 and out["samples"] == 12
     assert out["name_match@1"] == pytest.approx((0.25 + 0.0) / 2)       # alpha: mean(0.5, 0) = 0.25, beta: 0
-    assert out["name_pass@8"] == pytest.approx((0.5 + 0.0) / 2)         # alpha: mean(1, 0), beta: 0
+    assert out["name_pass@4"] == pytest.approx((0.5 + 0.0) / 2) and out["pass_k"] == 4 and "name_pass@8" not in out   # 4 samples per row: pass@4
     assert out["answered"] == pytest.approx((1.0 + 0.0) / 2)
     late = [sample("a/0", i, miss) for i in range(8)] + [sample("a/0", 8, hit)]
     assert ident.score(late, rows[:1], [])["name_pass@8"] == 0.0         # a hit at index 8 is outside pass@8
@@ -87,15 +87,16 @@ def test_cli_write_and_score(tmp_path, capsys):
 # ------------------------------------------------------------------ the common failure rule and the input checks
 @pytest.mark.parametrize("text,finish,hit", [
     ("</think>\n\nAlpha", "stop", True), ("</think>\n\nAlpha", None, True),        # no finish_reason counts as finished
-    ("</think>\n\nAlpha", "abort", True),                                          # only "length" is a cut
+    ("</think>\n\nAlpha", "abort", False),                                         # an aborted generation is a failure, as in dense RFT
     ("</think>\n\nAlpha", "length", False),                                        # cut by the cap, whatever it says
     ("Alpha", "stop", False), ("Alpha", "length", False),                           # the think block never closed
     ("thinking about Alpha...", "length", False)])
 def test_only_a_closed_finished_sample_can_match_or_count_as_answered(text, finish, hit):
     s = sample("a/0", 0, text, **({"finish_reason": finish} if finish else {}))
     out = ident.score([s], [row("a/0", "alpha")], [])
-    assert out["name_match@1"] == out["name_pass@8"] == out["answered"] == (1.0 if hit else 0.0)
-    assert ident.usable(s) is hit and ident.usable({"text": text, "finish_reason": finish}) is hit
+    assert out["name_match@1"] == out["name_pass@1"] == out["answered"] == (1.0 if hit else 0.0) and out["pass_k"] == 1
+    assert ident.usable(s) is hit and ident.usable({"text": text, **({"finish_reason": finish} if finish else {})}) is hit
+    assert ident.usable({"text": "</think>\n\nAlpha", "finish_reason": None}) is False       # an explicit null is no "stop"
 
 
 def test_one_correct_unclosed_length_terminated_name_does_not_make_pass_at_8_one():
@@ -140,8 +141,8 @@ def test_cli_scores_one_split_at_a_time_and_opens_only_the_files_it_names(tmp_pa
     val = write("val.samples.jsonl", sample("val/0", 0, "</think>\n\nValdrug"))
     ident.main(["score", "--samples", val, "--data", str(data), "--curated", str(cur)])
     assert sorted(opened) == ["val.jsonl", "val.samples.jsonl"]                                    # not test_r, not test_t
-    assert json.loads(capsys.readouterr().out) == {"split": "val", "drugs": 1, "rows": 1, "samples": 1, "name_match@1": 1.0,
-                                                    "name_pass@8": 1.0, "answered": 1.0}
+    assert json.loads(capsys.readouterr().out) == {"split": "val", "drugs": 1, "rows": 1, "samples": 1, "pass_k": 1, "name_match@1": 1.0,
+                                                    "name_pass@1": 1.0, "answered": 1.0}        # one sample per row: pass@1, never pass@8
     both = write("both.samples.jsonl", sample("val/0", 0, "</think>\n\nValdrug"),
                  {**sample("test_t/0", 0, "</think>\n\nWrong"), "split": "test_t"})
     opened.clear()
@@ -157,3 +158,37 @@ def test_cli_scores_one_split_at_a_time_and_opens_only_the_files_it_names(tmp_pa
         ident.main(["score", "--samples", no_split, "--data", str(data), "--curated", str(cur)])
     with pytest.raises(SystemExit, match="holds no samples"):
         ident.main(["score", "--samples", write("empty.jsonl"), "--data", str(data), "--curated", str(cur)])
+
+
+# ------------------------------------------------------------------ round 3: the k in the key, and no traceback on odd indices
+def test_the_pass_key_names_the_k_every_row_supplies_so_a_two_sample_run_is_never_read_as_pass_at_8():
+    rows = [row("a/0", "alpha"), row("a/1", "alpha"), row("b/0", "beta")]
+    A, W, B = "</think>\n\nAlpha", "</think>\n\nWrong", "</think>\n\nBeta"
+    two = [sample("a/0", 0, A), sample("a/0", 1, W), sample("a/1", 0, W), sample("a/1", 1, W), sample("b/0", 0, W), sample("b/0", 1, B)]
+    out = ident.score(two, rows, [])
+    assert out["pass_k"] == 2 and "name_pass@8" not in out                       # the live case: ident-27b has 2 samples per row
+    assert out["name_pass@2"] == pytest.approx((0.5 + 1.0) / 2) and out["name_match@1"] == pytest.approx((0.25 + 0.5) / 2)
+    mixed = [sample("a/0", i, W) for i in range(5)] + [sample("a/1", i, W) for i in range(3)]
+    mixed += [sample("b/0", i, B if i == 3 else W) for i in range(5)]            # b/0 hits only at index 3; a/1 has just 3 samples
+    out = ident.score(mixed, rows, [])
+    assert out["pass_k"] == 3 and out["name_pass@3"] == 0.0                      # the shortest row sets k: index 3 is outside pass@3
+    many = [sample("a/0", i, A if i == 9 else W) for i in range(12)]
+    out = ident.score(many, rows[:1], [])
+    assert out["pass_k"] == 8 and out["name_pass@8"] == 0.0                      # more than 8: capped at 8, the hit at 9 is outside
+    assert ident.score([], rows, [])["pass_k"] == 8 and ident.score([], rows, [])["name_pass@8"] is None
+
+
+@pytest.mark.parametrize("field,bad", [("sample_idx", float("nan")), ("sample_idx", [0]), ("sample_idx", {"i": 0}), ("sample_idx", True),
+                                       ("sample_idx", "0"), ("id", ["a/0"]), ("id", 3)])
+def test_a_nan_list_bool_or_text_index_or_a_non_string_id_raises_input_error_not_a_traceback(field, bad):
+    hit = "</think>\n\nAlpha"
+    samples = [sample("a/0", 0, hit), sample("a/0", 1, hit)]
+    samples[0][field] = bad
+    pattern = r"^1 sample\(s\) with a (non-string|non-finite or non-numeric) " + field
+    with pytest.raises(metrics.InputError, match=pattern):
+        ident.score(samples, [row("a/0", "alpha")], [])
+    nan = float("nan")                                                              # NaN != NaN: two of them in one row used to count twice
+    with pytest.raises(metrics.InputError, match=r"^2 sample\(s\) with a non-finite or non-numeric sample_idx"):
+        ident.score([sample("a/0", nan, hit), sample("a/0", nan, hit)], [row("a/0", "alpha")], [])
+    with pytest.raises(metrics.InputError, match="lack id, sample_idx or text"):
+        ident.score([{"id": "a/0", "sample_idx": 0}], [row("a/0", "alpha")], [])

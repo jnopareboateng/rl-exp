@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import random
+import re
 import subprocess
 import sys
 import types
@@ -674,6 +675,62 @@ def test_cli_name_writes_processed_row_files_and_prints_only_counts(tmp_path, ca
     assert "val.jsonl: 2 rows | prompt chars p50" in printed and not any(m in printed for m in ("VALMARK", "TESTRMARK", "TESTTMARK"))
 
 
+def test_blank_prompt_removes_the_profile_and_the_name_under_the_direct_system_text():
+    r = row("v0/0", "SECRETPROFILE kinase inhibitor", NAPROXEN, group="naproxen")
+    p = arms.blank_prompt(r)
+    assert arms.user_text(p) == "Drug: unknown." == arms.BLANK_USER
+    assert "SECRETPROFILE" not in p and "naproxen" not in p                                  # neither the profile nor the drug name
+    assert arms.system_text(p) == arms.DIRECT_SYSTEM and p.endswith("<|im_start|>assistant\n<think>\n")      # the generation prefix is kept
+    assert arms.system_text(arms.blank_prompt(r, "Custom.")) == "Custom."
+    assert arms.blank_prompt(r) == arms.blank_prompt({**r, "prompt": prompt("another profile entirely"), "group": "other"})   # one fixed prompt
+    named = arms.name_prompt(r)                                                              # it differs from the name-given control only in the user turn
+    assert arms.split_prompt(named)[0] == arms.split_prompt(p)[0] and arms.split_prompt(named)[2] == arms.split_prompt(p)[2]
+
+
+def test_blank_user_turn_is_the_text_the_rl_pack_trains_on_without_a_profile():
+    source = (GPU / "rl_grpo.py").read_text(encoding="utf-8")
+    pinned = re.search(r'^PROFILE_FREE_USER = "([^"]*)"', source, re.M)
+    assert pinned and pinned.group(1) == arms.BLANK_USER                                      # the two strings are the same text
+    assert "head + PROFILE_FREE_USER + tail" in source                                       # and the pack builds its prompt the same way
+    for user in ("a profile", "SECRET <b>markup</b>\nwith lines", ""):
+        r = row("v/0", user, group="g")
+        text = arms.with_system(r["prompt"], arms.DIRECT_SYSTEM)                               # rl_prompt(prompt, "none"), step by step
+        head, _, tail = arms.split_prompt(text)
+        assert arms.blank_prompt(r) == head + pinned.group(1) + tail
+
+
+def test_cli_blank_writes_processed_row_files_for_the_named_splits_only_and_prints_only_counts(tmp_path, capsys, monkeypatch):
+    src = a4_data(tmp_path / "data")
+    read, original = [], arms._read
+    monkeypatch.setattr(arms, "_read", lambda path: read.append(Path(path).name) or original(path))
+    out = tmp_path / "blank"
+    arms.main(["blank", "--data", str(tmp_path / "data"), "--out", str(out)])                 # no --splits: Val only
+    assert read == ["val.jsonl"] and sorted(p.name for p in out.iterdir()) == ["val.jsonl", "val.meta.json"]
+    got = jsonl(out / "val.jsonl")
+    assert len(got) == len(src["val"])
+    for g, r in zip(got, src["val"]):
+        assert list(g) == list(r) and {k: v for k, v in g.items() if k != "prompt"} == {k: v for k, v in r.items() if k != "prompt"}
+        assert g["prompt"] == arms.blank_prompt(r) and arms.user_text(g["prompt"]) == "Drug: unknown."
+    meta = json.loads((out / "val.meta.json").read_text())
+    assert meta == {"file": "val.jsonl", "rows": 2, "system_source": "direct", "system_text": arms.DIRECT_SYSTEM, "control": "blank_profile"}
+    printed = capsys.readouterr().out
+    assert "val.jsonl: 2 rows | prompt chars p50" in printed and not any(m in printed for m in ("VALMARK", "TESTRMARK", "TESTTMARK", "TRAINMARK"))
+    read.clear()
+    arms.main(["blank", "--data", str(tmp_path / "data"), "--out", str(tmp_path / "all"), "--splits", "val,test_r,test_t", "--system-text", "Custom."])
+    assert sorted(read) == ["test_r.jsonl", "test_t.jsonl", "val.jsonl"] and "train.jsonl" not in read                   # only what is asked
+    assert all(arms.system_text(r["prompt"]) == "Custom." and arms.user_text(r["prompt"]) == "Drug: unknown."
+               for s in ("val", "test_r", "test_t") for r in jsonl(tmp_path / "all" / f"{s}.jsonl"))
+    assert json.loads((tmp_path / "all" / "test_t.meta.json").read_text())["system_source"] == "custom"
+    for bad in ("train", "val,nonsense", ""):                                                  # only the three eval splits, and at least one
+        with pytest.raises(SystemExit, match="error: ValueError: splits must be a non-empty subset"):
+            arms.main(["blank", "--data", str(tmp_path / "data"), "--out", str(tmp_path / "never"), "--splits", bad])
+    assert not (tmp_path / "never").exists()
+    run = subprocess.run([sys.executable, "-S", str(GPU / "sample_vllm.py"), "--model", "fake", "--data", str(out), "--splits", "val",
+                          "--k", "2", "--max-tokens", "7", "--out", str(tmp_path / "run"), "--dry-run"], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr                                                    # the sampler reads the written files unchanged
+    assert json.loads(run.stdout)["prompts"] == 2
+
+
 def test_rft_dense_mode_keeps_valid_closed_samples_above_the_reward_bar_best_first():
     ref = REFS["d1"]
     near = ref + "C"                      # a valid molecule that is not the reference: partial reward only
@@ -715,6 +772,38 @@ def test_rft_rejects_repeated_id_sample_idx_pairs_before_scoring_or_capping_in_b
         for kw in ({}, {"min_reward": 0.05}):
             with pytest.raises(ValueError, match=r"repeat 1 \(id, sample_idx\) pair"):
                 arms.rft_dataset(scored, rows, max_per_drug=1, **kw)
+
+
+def test_rft_requires_the_fresh_sample_to_be_closed_in_both_modes(monkeypatch):
+    # valid implies closed with the real scorer, so the check can only be reached through a scorer that says otherwise
+    rows, real = data_rows(), arms.reward.score
+    monkeypatch.setattr(arms.reward, "score", lambda text, row, finished=True: {**real(text, row), "closed": False})
+    unclosed = sample("d1/a", 0, 10, answer=REFS["d1"])
+    assert arms.rft_dataset([unclosed], rows, min_reward=0.05) == []                      # dense: valid, reward above the bar, not closed
+    assert arms.rft_dataset([unclosed], rows, min_reward=0.05, require_closed=False) == []
+    assert arms.rft_dataset([unclosed], rows) == []                                        # identity: a conn_match that is not closed
+    assert [o["id"] for o in arms.rft_dataset([unclosed], rows, require_closed=False)] == ["d1/a#0"]
+
+
+@pytest.mark.parametrize("reason", ["stop", "length", "abort", "error", None])
+def test_rft_keeps_exactly_the_samples_that_metrics_calls_finished(reason):
+    rows = data_rows()
+    s = sample("d0/a", 0, 10, finish_reason=reason)
+    kept = bool(arms.rft_dataset([s], rows))
+    assert kept == (reason == "stop") == arms.metrics.finished(s)                          # an aborted sample is a failure in both
+    assert bool(arms.rft_dataset([s], rows, min_reward=0.05)) == kept
+
+
+@pytest.mark.parametrize("field,bad", [("sample_idx", float("nan")), ("sample_idx", True), ("sample_idx", [0]), ("n_tokens", float("inf")),
+                                       ("n_tokens", True), ("n_tokens", "10"), ("n_tokens", None)])
+def test_rft_rejects_non_numeric_sample_idx_and_n_tokens_before_anything_is_scored(field, bad, monkeypatch):
+    def never(*args, **kwargs):
+        raise AssertionError("scored before the numeric fields were checked")
+    monkeypatch.setattr(arms.reward, "score", never)
+    scored = [sample("d0/a", 0, 10), sample("d0/a", 1, 12)]
+    scored[0][field] = bad
+    with pytest.raises(ValueError, match=rf"^1 scored row\(s\) with a non-finite or non-numeric {field}$"):
+        arms.rft_dataset(scored, data_rows())
 
 
 def test_rft_dense_mode_ignores_length_terminated_samples_and_stale_flags():

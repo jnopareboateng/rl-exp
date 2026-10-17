@@ -98,7 +98,8 @@ def test_passk_matches_exact_combinatorics():
 def test_metric_set_and_order_follow_the_contract():
     assert metrics.METRICS == ("exact@1", "core@1", "stereo_exact@1", "lift", "mean_tanimoto", "tanimoto_valid",
                                "mean_reward", "valid_closed", "truncation", "n_tokens_mean", "n_tokens_p90",
-                               "exact@8", "core@8", "maj@8", "fv_reward", "fv_tanimoto", "fv_lift", "fv_rate", "fv_samples")
+                               "exact@8", "core@8", "maj@8", "fv_reward", "fv_tanimoto", "fv_lift", "fv_rate", "fv_samples",
+                               "fv_tokens")
     assert metrics.METRICS.index("n_tokens_p90") == metrics.P90 and metrics.K == 8
     assert metrics.TESTED == ("fv_tanimoto", "mean_tanimoto", "lift", "fv_lift", "core@1", "exact@1")     # fv_tanimoto: the endpoint
     assert metrics.BAR == ("exact@1", "core@1", "lift", "mean_tanimoto", "mean_reward", "fv_tanimoto")
@@ -183,7 +184,7 @@ def test_pass_at_8_is_unbiased_with_more_samples_and_undefined_when_all_short():
 def test_pass_at_8_columns_are_labelled_oracle_coverage_in_json_and_text():
     label = "oracle coverage (needs the answer to select; not deployable)"
     fv_label = "deployable with resampling: costs fv_samples generations per answer"
-    fv = ("fv_reward", "fv_tanimoto", "fv_lift", "fv_rate", "fv_samples")
+    fv = ("fv_reward", "fv_tanimoto", "fv_lift", "fv_rate", "fv_samples", "fv_tokens")
     want = lambda k: label if k in ("exact@8", "core@8") else fv_label if k in fv else None
     res = metrics.report(_eight("val", "a", 0, "exact") + _eight("val", "b", 0, "miss"), vs=_eight("val", "a", 0, "miss")
                          + _eight("val", "b", 0, "miss"), boot=50)
@@ -198,8 +199,8 @@ def test_pass_at_8_columns_are_labelled_oracle_coverage_in_json_and_text():
     assert first < text.index("exact@8") < text.index("core@8") < text.index("maj@8", first)   # maj@8 comes after the block
     start = text.index(fv_label)
     assert start > text.index("maj@8", first)                            # the first-valid block follows maj@8
-    at = [text.index(k, start + len(fv_label)) for k in fv]              # its five rows come under the label, in order
-    assert at == sorted(at) and len(set(at)) == 5
+    at = [text.index(k, start + len(fv_label)) for k in fv]              # its six rows come under the label, in order
+    assert at == sorted(at) and len(set(at)) == 6
     json.dumps(res, allow_nan=False)                                     # and the labels survive into the JSON
 
 
@@ -740,7 +741,7 @@ def test_coverage_and_constant_bar_use_train_refs_and_the_scored_rows_only():
     # val v0 has the central answer as its reference, v1 and v2 do not; v2 is not in the scored run
     val = [data_row("val", "v0", 0, centre), data_row("val", "v0", 1, centre), data_row("val", "v1", 0, "CCCCCCCCO"),
            data_row("val", "v2", 0, "CCCCCCCCCO")]
-    run = [r for d in ("v0/0", "v0/1", "v1/0") for r in scored("val", d.split("/")[0], int(d[-1]), ["miss"] * 2)]
+    run = [r for d in ("v0/0", "v0/1", "v1/0") for r in scored("val", d.split("/")[0], int(d[-1]), ["miss"] * 8)]
     res = metrics.report(run, data=train + val, scorer=fake_scorer, boot=100)
     sp = res["splits"]["val"]
     assert sp["coverage"] == {"drugs": 3, "rows": 4} and (sp["n_drugs"], sp["n_rows"]) == (2, 3)
@@ -832,7 +833,7 @@ def test_score_samples_hands_finished_to_a_scorer_that_accepts_it():
     data = [data_row("val", "a", 0)]
     smp = [{"id": "a/0", "sample_idx": i, "text": "</think>\nx", **({"finish_reason": f} if f else {})}
            for i, f in enumerate(["stop", "length", None, "abort", "stop"])]
-    expect = [True, False, True, True, True]                  # only "length" is cut; no finish_reason counts as finished
+    expect = [True, False, True, False, True]                 # "stop" and no finish_reason finished; "length" and "abort" are failures
     for scorer in (by_name, by_keyword, by_kwargs):
         metrics.score_samples(smp, data, scorer)
     assert named == keyword_only == expect and anything == [{"finished": f} for f in expect]
@@ -1265,7 +1266,8 @@ def test_paired_fv_tanimoto_gives_the_hand_computed_wins_losses_ties_and_p_where
 # ------------------------------------------------------------------------------ round 2: finite scores, components, panel
 @pytest.mark.parametrize("field,bad", [("reward", float("nan")), ("tanimoto", float("inf")), ("lift", float("nan")),
                                        ("lift", None), ("n_tokens", float("nan")), ("sample_idx", float("-inf")),
-                                       ("reward", "0.5"), ("tanimoto", True)])
+                                       ("sample_idx", float("nan")), ("reward", "0.5"), ("tanimoto", True), ("reward", False),
+                                       ("lift", True), ("n_tokens", True), ("sample_idx", True)])      # a bool is not a number here
 def test_non_finite_stored_scores_are_rejected_naming_the_field_and_the_count(field, bad):
     def run(corrupt):
         rows = [r for g in "abcd" for r in _eight("val", g, 0, "exact" if g in "ab" else "miss")]
@@ -1460,6 +1462,164 @@ def test_the_sign_flip_tie_tolerance_is_a_nanometre_of_float_noise_not_a_thresho
     B = [r for d in range(6) for r in valued("val", f"d{d}", 0, 0.2, 0.0)]
     e = pm(metrics.report(A, vs=B, boot=50), metric="mean_tanimoto")
     assert (e["wins"], e["losses"], e["ties"], e["n_nontied"], e["p_value"]) == (3, 0, 3, 3, 0.25)
+
+
+# ------------------------------------------------------------------------------- round 3: the cost of an answer
+def _tokens(rows, tokens):
+    for r, t in zip(rows, tokens):
+        r["n_tokens"] = t
+    return rows
+
+
+def test_fv_tokens_counts_the_generated_tokens_up_to_the_first_valid_answer():
+    t = [10, 20, 30, 40, 50, 60, 70, 90]
+    a = _tokens(scored("val", "a", 0, ["bad", "bad", "miss", "exact", "bad", "bad", "bad", "bad"]), t)       # first valid at 2: 10 + 20 + 30
+    b = _tokens(scored("val", "b", 0, ["bad"] * 8), t)                                                       # none: all eight samples
+    c = scored("val", "c", 0, ["miss", "exact"] + ["bad"] * 6)
+    c[0]["finish_reason"] = "length"                      # a valid label that the cap cut: its 10 tokens were spent, the first usable is 1
+    c = _tokens(c, t)
+    d0 = _tokens(scored("val", "d", 0, ["bad"] * 7 + ["miss"]), t)                                           # index 7: 370
+    d1 = _tokens(scored("val", "d", 1, ["bad", "exact"] + ["bad"] * 6), t)                                   # index 1: 30
+    e = _tokens(scored("val", "e", 0, ["exact"] * 5), t[:5])                                                 # five samples: skipped
+    A = a + b + c + d0 + d1 + e
+    res = metrics.report(A, boot=50)
+    f = m(res, metric="fv_tokens")
+    assert f["value"] == (60 + 370 + 30 + (370 + 30) / 2) / 4 == 165.0
+    assert (f["n_drugs"], f["n_rows"], f["skipped_rows"], f["label"]) == (4, 5, 1, "deployable with resampling: costs fv_samples generations per answer")
+    assert m(res, metric="fv_samples")["value"] == (3 + 8 + 2 + (8 + 2) / 2) / 4 == 4.5            # the draws it came with
+    B = [dict(r, n_tokens=2 * r["n_tokens"]) for r in A]                                              # the same answers at twice the tokens
+    paired = pm(metrics.report(A, vs=B, boot=50), metric="fv_tokens")
+    assert (paired["a"], paired["b"], paired["diff"]) == (165.0, 330.0, -165.0) and "p_value" not in paired      # a cost, not a tested metric
+    text = metrics.format_report(res)
+    assert [ln.split()[1] for ln in text.splitlines() if ln.startswith("    fv_tokens")] == ["165.0"]
+
+
+def test_prompt_tokens_is_the_drug_balanced_mean_n_prompt_tokens_of_the_prompt_rows_in_the_data_files():
+    data = [data_row("val", "a", 0, n_prompt_tokens=100), data_row("val", "a", 1, n_prompt_tokens=300),
+            data_row("val", "b", 0, n_prompt_tokens=600), data_row("val", "c", 0, n_prompt_tokens=9000)]        # c is not in the run
+    run = _eight("val", "a", 0, "miss") + _eight("val", "a", 1, "miss") + _eight("val", "b", 0, "miss")
+    res = metrics.report(run, data=data, boot=20)
+    assert res["splits"]["val"]["prompt_tokens"] == 400.0                       # drugs count equally: (200 + 600) / 2, not 1000 / 3
+    assert any(ln.startswith("  prompt_tokens 400.0 ") for ln in metrics.format_report(res).splitlines())
+    json.dumps(res, allow_nan=False)
+    assert metrics.report(run, boot=20)["splits"]["val"]["prompt_tokens"] is None                                # no data files
+    for bad in (None, float("nan"), "100", True):                                # a row without a usable count: no value, not a guess
+        broken = [dict(r, n_prompt_tokens=bad) if r["id"] == "b/0" else r for r in data]
+        assert metrics.report(run, data=broken, boot=20)["splits"]["val"]["prompt_tokens"] is None
+    missing = [{k: v for k, v in r.items() if k != "n_prompt_tokens"} if r["id"] == "a/1" else r for r in data]
+    res = metrics.report(run, data=missing, boot=20)
+    assert res["splits"]["val"]["prompt_tokens"] is None and "  prompt_tokens n/a " in metrics.format_report(res)
+
+
+def test_prompt_tokens_is_the_same_number_whatever_order_the_rows_are_visited_in():
+    rows = {"a": [296, 834], "b": [653, 662, 587], "c": [754, 254, 337], "d": [635, 499]}      # np.mean of their drug means depends on the order
+    index = {r["id"]: r for g, v in rows.items() for j, n in enumerate(v) for r in [data_row("val", g, j, n_prompt_tokens=n)]}
+    want = math.fsum(math.fsum(v) / len(v) for v in rows.values()) / len(rows)
+    for order in itertools.permutations(rows):                              # the report visits a set of ids: any drug order may come
+        ids = [i for g in order for i in index if index[i]["group"] == g]
+        assert metrics._prompt_tokens(index, ids) == metrics._prompt_tokens(index, ids[::-1]) == metrics._prompt_tokens(index, set(ids)) == want
+    assert metrics._prompt_tokens(index, []) is None and metrics._prompt_tokens(None, ["a/0"]) is None
+
+
+def test_the_cost_is_stated_not_matched_and_fv_tanimoto_is_read_with_its_draws_and_tokens():
+    text = metrics.format_report(metrics.report(_eight("val", "a", 0, "exact") + _eight("val", "b", 0, "miss"), boot=20))
+    for where in (metrics.__doc__, text):
+        assert "matched cost" not in where and "stated, not matched" in where
+    assert "fv_samples (draws per answer) and fv_tokens (generated tokens up to the first valid answer" in text
+    assert "an arm that invalidates its weak answers can raise it by paying in draws" in text
+    assert "fv_tokens" in metrics.__doc__ and "prompt_tokens" in metrics.__doc__
+
+
+# ---------------------------------------------------------------------------------- round 3: types, abort, the bar's rows
+@pytest.mark.parametrize("field,bad", [("sample_idx", [1]), ("sample_idx", {"a": 1}), ("id", ["a/0"]), ("id", 7), ("group", {"g": 1}),
+                                       ("group", 3), ("split", ["val"]), ("cluster_id", [1]), ("finish_reason", ["stop"])])
+def test_non_scalar_identifiers_raise_input_error_not_a_traceback(field, bad):
+    rows = _eight("val", "a", 0, "exact") + _eight("val", "b", 0, "miss")
+    rows[0][field] = bad
+    pattern = rf"^scored: 1 row\(s\) with a (non-string|non-finite or non-numeric|non-scalar) {field}"
+    with pytest.raises(metrics.InputError, match=pattern):
+        metrics.report(rows, boot=20)
+    with pytest.raises(metrics.InputError, match=pattern.replace("scored", "--vs")):
+        metrics.report(_eight("val", "a", 0, "exact"), vs=rows, boot=20)
+    if field in ("sample_idx", "id"):
+        smp = [{"id": "a/0", "sample_idx": 0, "text": "t"}, {"id": "a/0", "sample_idx": 1, "text": "t"}]
+        smp[0][field] = bad
+        with pytest.raises(metrics.InputError, match=rf"^samples: 1 row\(s\) with a (non-string|non-finite or non-numeric) {field}"):
+            metrics.score_samples(smp, [data_row("val", "a", 0)], fake_scorer)
+
+
+def test_two_nan_sample_indices_in_one_row_are_rejected_because_nan_is_never_equal_to_itself(tmp_path):
+    rows = _eight("val", "a", 0, "exact")
+    rows[0]["sample_idx"] = rows[1]["sample_idx"] = float("nan")            # NaN != NaN: a duplicate check alone would let both through
+    with pytest.raises(metrics.InputError, match=r"^scored: 2 row\(s\) with a non-finite or non-numeric sample_idx"):
+        metrics.report(rows, boot=20)
+    listy = _eight("val", "a", 0, "exact")
+    listy[3]["sample_idx"] = [3]
+    path = tmp_path / "listy.jsonl"
+    _write(path, listy)
+    with pytest.raises(SystemExit, match=r"^error: scored: 1 row\(s\) with a non-finite or non-numeric sample_idx"):      # not a traceback
+        metrics.main(["report", "--scored", str(path), "--data", str(tmp_path / "no-data"), "--boot", "20"])
+
+
+@pytest.mark.parametrize("field,bad", [("valid", "false"), ("closed", 1), ("conn_match", None), ("scaffold_match", "True"),
+                                       ("stereo_match", 0), ("answer", ["x"])])
+def test_flags_must_be_real_booleans_so_the_text_false_never_counts_as_true(field, bad):
+    rows = _eight("val", "a", 0, "exact") + _eight("val", "b", 0, "miss")
+    rows[0][field] = bad
+    pattern = rf"^scored: 1 row\(s\) with a (non-boolean|non-string) {field}$"
+    with pytest.raises(metrics.InputError, match=pattern):
+        metrics.report(rows, boot=20)
+    with pytest.raises(metrics.InputError, match=pattern.replace("scored", "--vs")):
+        metrics.report(rows[8:], vs=rows, boot=20)
+    data = [data_row("val", "a", 0)]
+    with pytest.raises(metrics.InputError, match=rf"^scorer result: 1 row\(s\) with a (non-boolean|non-string) {field}$"):
+        metrics.score_samples([{"id": "a/0", "sample_idx": 0, "text": "t"}], data, lambda text, ref: {**OUT["miss"], "answer": None, field: bad})
+
+
+def test_sign_flip_p_refuses_a_nan_or_inf_difference_instead_of_dropping_it_as_a_tie():
+    rng = np.random.default_rng(0)
+    assert metrics.sign_flip_p(np.array([0.2, 0.1, 0.3]), rng) == metrics.sign_flip_p([0.2, 0.1, 0.3], rng) == (0.25, "exact", 3)
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(metrics.InputError, match="finite differences"):
+            metrics.sign_flip_p(np.array([0.2, 0.1, bad, 0.3]), rng)           # the review's example: it gave the p of the three others
+    with pytest.raises(metrics.InputError, match="finite differences"):
+        metrics.sign_flip_p([0.2, None, 0.3], rng)
+
+
+def test_abort_and_every_finish_reason_but_stop_is_a_failure_and_a_missing_one_is_finished():
+    assert metrics.finished({}) and metrics.finished({"finish_reason": "stop"})
+    assert not any(metrics.finished({"finish_reason": f}) for f in ("length", "abort", "error", "", None))
+    data = real_data("val", {"a": (SMILES[0], 1), "b": (SMILES[1], 1)})
+    ok, aborted = metrics.score_samples([sample(data[0], 0, f"t</think>\n{SMILES[0]}"),
+                                         sample(data[0], 1, f"t</think>\n{SMILES[0]}", "abort")], data)
+    assert ok["valid"] and ok["reward"] == 1.0 and ok["lift"] > 0
+    assert (aborted["valid"], aborted["reward"], aborted["lift"], aborted["answer"]) == (False, 0.0, 0.0, SMILES[0])   # answer kept to inspect
+    res = metrics.report([ok, aborted], boot=20)
+    assert m(res, metric="valid_closed")["value"] == 0.5 and m(res, metric="truncation")["value"] == 0.0      # an abort is no length cut
+    handmade = scored("val", "a", 0, ["exact"] * 8) + scored("val", "b", 0, ["miss"] * 8)
+    for r in handmade[:8]:
+        r["finish_reason"] = "abort"                                       # valid labels, but none of drug a's samples ended by itself
+    res = metrics.report(handmade, boot=20)
+    assert m(res, metric="valid_closed")["value"] == 0.5 and m(res, metric="fv_rate")["value"] == 0.5
+    assert m(res, metric="tanimoto_valid")["n_drugs"] == 1 and m(res, metric="fv_samples")["value"] == (8 + 1) / 2
+
+
+def test_the_bars_fv_rows_are_the_runs_fv_rows_when_some_rows_are_short():
+    train = real_data("train", {f"t{i}": (s, 1) for i, s in enumerate(SMILES[:6])})
+    val = real_data("val", VAL)
+    rows = [r for r in run_real(val, lambda r, j: r["ref_smiles"], n=8) if not (r["id"] == "b/0" and r["sample_idx"] >= 5)]    # b/0: 5 samples
+    res = metrics.report(rows, data=train + val, boot=20)
+    sp = res["splits"]["val"]
+    own, bar = sp["metrics"]["fv_tanimoto"], sp["constant"]["metrics"]["fv_tanimoto"]
+    assert (own["n_drugs"], own["n_rows"], own["skipped_rows"]) == (3, 6, 1)           # drug b has only the short row: no value
+    assert (bar["n_drugs"], bar["n_rows"], bar["skipped_rows"]) == (3, 6, 1)           # the bar uses the same rows
+    centre = chem.standardize(sp["constant"]["smiles"])
+    refs = {g: s for g, (s, _) in VAL.items()}
+    want = float(np.mean([chem.tanimoto(centre, chem.standardize(refs[g])) for g in "acd"]))
+    assert bar["value"] == pytest.approx(want, abs=1e-12) and sp["constant"]["metrics"]["mean_tanimoto"]["n_drugs"] == 4
+    short = run_real(val, lambda r, j: r["ref_smiles"], n=2)                           # no row has eight samples: no run fv, no bar fv
+    bare = metrics.report(short, data=train + val, boot=20)["splits"]["val"]
+    assert bare["metrics"]["fv_tanimoto"]["value"] is None and bare["constant"]["metrics"]["fv_tanimoto"]["value"] is None
 
 
 # ----------------------------------------------------------------------------------------------- cli
