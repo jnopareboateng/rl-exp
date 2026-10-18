@@ -1,0 +1,5 @@
+control,chembl_id,smiles,selection_rule
+C0,CHEMBL2105719,COc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1NC(=O)/C=C/CN1CCCCC1,Train reference with the highest mean 2048-bit Morgan Tanimoto to the other Train references (ties: first in Train order)
+C1,,,"Copy the reference of the Train drug whose profile text is nearest by TF-IDF cosine; needs the private profile text, so no structure is released"
+C2,CHEMBL207538,CC(=O)[C@H]1CC[C@H]2[C@@H]3CC[C@H]4C[C@H](O)CC[C@]4(C)[C@H]3CC[C@]12C,Shortest Train reference among those whose non-empty Murcko scaffold is the most common among the Train references (each drug counted once)
+C3,CHEMBL941,Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1,"Highest mean count-vector Morgan Tanimoto to the Train references among the Train references (own entry left out) and the leakage-filtered ChEMBL approved-drug pool (ChEMBL_37, 2026-05-01, 1587 drugs, not copied, sha256 24ebd41be4c83e58899094d355a76897d20fab0fc72b4567cf4eb2ddcab5facc); rebuild: scripts/fetch_chembl_pool.py then scripts/build_pool.py"

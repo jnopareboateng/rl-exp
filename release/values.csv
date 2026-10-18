@@ -1,0 +1,91 @@
+table,name,split,statistic,value,source_file
+random_pair,pairs of reference structures,train+val+test_r+test_t,n_structures,332,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,n_pairs,54946,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,mean,0.141386,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,sd,0.057595,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,min,0.0,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,max,0.851852,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/5,0.046473,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/25,0.101911,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/50,0.141414,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/75,0.179856,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/90,0.213018,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/95,0.233161,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/97.5,0.251475,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/99,0.274194,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/99.5,0.292731,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,percentiles/99.9,0.388976,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1760/percentile,72.68409,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1760/share_at_or_above,27.31591,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1740/percentile,71.599388,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1740/share_at_or_above,28.400612,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.0760/percentile,13.131074,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.0760/share_at_or_above,86.868926,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1865/percentile,78.657227,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1865/share_at_or_above,21.342773,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1954/percentile,83.054271,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1954/share_at_or_above,16.945729,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1949/percentile,82.837695,results/random_pair_calibration.json
+random_pair,pairs of reference structures,train+val+test_r+test_t,at/0.1949/share_at_or_above,17.162305,results/random_pair_calibration.json
+oracle_constant,best constant over Train plus pool,val,oracle,0.195361,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,c3,0.186534,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,c3_rank,7,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,top5/1,0.1954,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,top5/2,0.1921,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,top5/3,0.1895,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,top5/4,0.188,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,top5/5,0.1877,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,candidates,1828,results/constant_ceiling.json
+oracle_constant,best constant over Train plus pool,val,drugs,20,results/constant_ceiling.json
+control,C0,val,fv_tanimoto,0.176079,results/val_baselines.json
+control,C0,val,fv_tanimoto_ci_low,0.14529,results/val_baselines.json
+control,C0,val,fv_tanimoto_ci_high,0.212231,results/val_baselines.json
+control,C0,val,mean_reward,0.155647,results/val_baselines.json
+control,C0,val,lift,0.0,results/val_baselines.json
+control,C0,val,lift_ci_low,-0.032409,results/val_baselines.json
+control,C0,val,lift_ci_high,0.038054,results/val_baselines.json
+control,C0,val,exact@1,0.0,results/val_baselines.json
+control,C0,val,core@1,0.0,results/val_baselines.json
+control,C0,val,valid_closed,1.0,results/val_baselines.json
+control,C0,val,fv_samples,1.0,results/val_baselines.json
+control,C0,val,fv_tokens,0.0,results/val_baselines.json
+control,C0,val,drugs,20,results/val_baselines.json
+control,C1,val,fv_tanimoto,0.174031,results/val_baselines.json
+control,C1,val,fv_tanimoto_ci_low,0.15173,results/val_baselines.json
+control,C1,val,fv_tanimoto_ci_high,0.197727,results/val_baselines.json
+control,C1,val,mean_reward,0.154419,results/val_baselines.json
+control,C1,val,lift,0.021834,results/val_baselines.json
+control,C1,val,lift_ci_low,0.002842,results/val_baselines.json
+control,C1,val,lift_ci_high,0.043185,results/val_baselines.json
+control,C1,val,exact@1,0.0,results/val_baselines.json
+control,C1,val,core@1,0.0,results/val_baselines.json
+control,C1,val,valid_closed,1.0,results/val_baselines.json
+control,C1,val,fv_samples,1.0,results/val_baselines.json
+control,C1,val,fv_tokens,0.0,results/val_baselines.json
+control,C1,val,drugs,20,results/val_baselines.json
+control,C2,val,fv_tanimoto,0.075989,results/val_baselines.json
+control,C2,val,fv_tanimoto_ci_low,0.048165,results/val_baselines.json
+control,C2,val,fv_tanimoto_ci_high,0.125202,results/val_baselines.json
+control,C2,val,mean_reward,0.095593,results/val_baselines.json
+control,C2,val,lift,0.0,results/val_baselines.json
+control,C2,val,lift_ci_low,-0.029288,results/val_baselines.json
+control,C2,val,lift_ci_high,0.051804,results/val_baselines.json
+control,C2,val,exact@1,0.0,results/val_baselines.json
+control,C2,val,core@1,0.0,results/val_baselines.json
+control,C2,val,valid_closed,1.0,results/val_baselines.json
+control,C2,val,fv_samples,1.0,results/val_baselines.json
+control,C2,val,fv_tokens,0.0,results/val_baselines.json
+control,C2,val,drugs,20,results/val_baselines.json
+control,C3,val,fv_tanimoto,0.186534,results/val_baselines.json
+control,C3,val,fv_tanimoto_ci_low,0.150551,results/val_baselines.json
+control,C3,val,fv_tanimoto_ci_high,0.228769,results/val_baselines.json
+control,C3,val,mean_reward,0.16192,results/val_baselines.json
+control,C3,val,lift,0.0,results/val_baselines.json
+control,C3,val,lift_ci_low,-0.037877,results/val_baselines.json
+control,C3,val,lift_ci_high,0.044458,results/val_baselines.json
+control,C3,val,exact@1,0.0,results/val_baselines.json
+control,C3,val,core@1,0.0,results/val_baselines.json
+control,C3,val,valid_closed,1.0,results/val_baselines.json
+control,C3,val,fv_samples,1.0,results/val_baselines.json
+control,C3,val,fv_tokens,0.0,results/val_baselines.json
+control,C3,val,drugs,20,results/val_baselines.json

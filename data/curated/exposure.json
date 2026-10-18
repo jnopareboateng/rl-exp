@@ -1,0 +1,1772 @@
+{
+ "abametapir": {
+  "pubchem_cid": 15664,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 15
+ },
+ "abemaciclib": {
+  "pubchem_cid": 46220502,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 1510
+ },
+ "abrocitinib": {
+  "pubchem_cid": 78323835,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 617
+ },
+ "acalabrutinib": {
+  "pubchem_cid": 71226662,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 791
+ },
+ "aceclidine hydrochloride": {
+  "pubchem_cid": 1979,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 107
+ },
+ "acoltremon": {
+  "pubchem_cid": 11266244,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 18
+ },
+ "acoramidis hydrochloride": {
+  "pubchem_cid": 71464713,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 121
+ },
+ "adagrasib": {
+  "pubchem_cid": 138611145,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 357
+ },
+ "afamelanotide": {
+  "pubchem_cid": 16154396,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 104
+ },
+ "afatinib": {
+  "pubchem_cid": 10184653,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 2565
+ },
+ "aficamten": {
+  "pubchem_cid": 139331495,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 171
+ },
+ "albiglutide": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 286
+ },
+ "alectinib": {
+  "pubchem_cid": 49806720,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 1527
+ },
+ "alogliptin": {
+  "pubchem_cid": 11450633,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 664
+ },
+ "alpelisib": {
+  "pubchem_cid": 56649450,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 705
+ },
+ "amifampridine": {
+  "pubchem_cid": 5918,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 53
+ },
+ "amisulpride": {
+  "pubchem_cid": 2159,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 1477
+ },
+ "angiotensin ii": {
+  "pubchem_cid": 172198,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 58288
+ },
+ "apalutamide": {
+  "pubchem_cid": 24872560,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 846
+ },
+ "apremilast": {
+  "pubchem_cid": 11561674,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 1504
+ },
+ "aprocitentan": {
+  "pubchem_cid": 25099191,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 92
+ },
+ "arimoclomol citrate": {
+  "pubchem_cid": 9568077,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 70
+ },
+ "aripiprazole lauroxil": {
+  "pubchem_cid": 49831411,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 87
+ },
+ "asciminib": {
+  "pubchem_cid": 72165228,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 367
+ },
+ "atogepant": {
+  "pubchem_cid": 72163100,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 218
+ },
+ "atrasentan hydrochloride": {
+  "pubchem_cid": 159594,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 321
+ },
+ "avacopan": {
+  "pubchem_cid": 49841217,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 337
+ },
+ "avapritinib": {
+  "pubchem_cid": 118023034,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 287
+ },
+ "avatrombopag": {
+  "pubchem_cid": 9852519,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 261
+ },
+ "baloxavir marboxil": {
+  "pubchem_cid": 124081896,
+  "pubchem_create_year": 2017,
+  "pubmed_count": 315
+ },
+ "baricitinib": {
+  "pubchem_cid": 44205240,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 2462
+ },
+ "baxdrostat": {
+  "pubchem_cid": 71535962,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 113
+ },
+ "belinostat": {
+  "pubchem_cid": 6918638,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 370
+ },
+ "belumosudil": {
+  "pubchem_cid": 11950170,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 161
+ },
+ "belzutifan": {
+  "pubchem_cid": 117947097,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 290
+ },
+ "bempedoic acid": {
+  "pubchem_cid": 10472693,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 740
+ },
+ "benznidazole": {
+  "pubchem_cid": 31593,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 1888
+ },
+ "berotralstat": {
+  "pubchem_cid": 137528262,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 93
+ },
+ "betrixaban": {
+  "pubchem_cid": 10275777,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 231
+ },
+ "bexagliflozin": {
+  "pubchem_cid": 25195624,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 51
+ },
+ "binimetinib": {
+  "pubchem_cid": 10288191,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 509
+ },
+ "bremelanotide": {
+  "pubchem_cid": 9941379,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 95
+ },
+ "brensocatib": {
+  "pubchem_cid": 118253852,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 75
+ },
+ "brepocitinib tosylate": {
+  "pubchem_cid": 118878093,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 67
+ },
+ "brexanolone": {
+  "pubchem_cid": 92786,
+  "pubchem_create_year": 2004,
+  "pubmed_count": 214
+ },
+ "brexpiprazole": {
+  "pubchem_cid": 11978813,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 609
+ },
+ "brigatinib": {
+  "pubchem_cid": 68165256,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 586
+ },
+ "brivaracetam": {
+  "pubchem_cid": 9837243,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 649
+ },
+ "camizestrant": {
+  "pubchem_cid": 134453496,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 38
+ },
+ "canagliflozin": {
+  "pubchem_cid": 24812758,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 2238
+ },
+ "cangrelor": {
+  "pubchem_cid": 9854012,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 758
+ },
+ "cannabidiol": {
+  "pubchem_cid": 644019,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 8575
+ },
+ "capivasertib": {
+  "pubchem_cid": 25227436,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 274
+ },
+ "capmatinib": {
+  "pubchem_cid": 25145656,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 318
+ },
+ "cariprazine": {
+  "pubchem_cid": 11154555,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 629
+ },
+ "cefepime hydrochloride": {
+  "pubchem_cid": 5491295,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 5596
+ },
+ "cefiderocol": {
+  "pubchem_cid": 77843966,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 1508
+ },
+ "ceftazidime and avibactam": {
+  "pubchem_cid": 5481173,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 2721
+ },
+ "ceftobiprole medocaril sodium": {
+  "pubchem_cid": 135456161,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 65
+ },
+ "cenobamate": {
+  "pubchem_cid": 11962412,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 361
+ },
+ "ceritinib": {
+  "pubchem_cid": 57379345,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 788
+ },
+ "clascoterone": {
+  "pubchem_cid": 11750009,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 86
+ },
+ "cobimetinib": {
+  "pubchem_cid": 16222096,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 555
+ },
+ "copanlisib": {
+  "pubchem_cid": 135565596,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 228
+ },
+ "copper cu 64 dotatate": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 2
+ },
+ "copper histidinate": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 27
+ },
+ "crinecerfont": {
+  "pubchem_cid": 5282340,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 31
+ },
+ "crisaborole": {
+  "pubchem_cid": 44591583,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 310
+ },
+ "dabrafenib": {
+  "pubchem_cid": 44462760,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 2251
+ },
+ "dacomitinib": {
+  "pubchem_cid": 11511120,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 439
+ },
+ "dalbavancin": {
+  "pubchem_cid": 16134627,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 889
+ },
+ "danicopan": {
+  "pubchem_cid": 118323590,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 71
+ },
+ "dapagliflozin": {
+  "pubchem_cid": 9887712,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 4577
+ },
+ "daprodustat": {
+  "pubchem_cid": 91617630,
+  "pubchem_create_year": 2015,
+  "pubmed_count": 166
+ },
+ "daraxonrasib": {
+  "pubchem_cid": 164726578,
+  "pubchem_create_year": 2022,
+  "pubmed_count": 92
+ },
+ "daridorexant": {
+  "pubchem_cid": 91801202,
+  "pubchem_create_year": 2015,
+  "pubmed_count": 179
+ },
+ "darolutamide": {
+  "pubchem_cid": 67171867,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 571
+ },
+ "dasiglucagon": {
+  "pubchem_cid": 126961379,
+  "pubchem_create_year": 2017,
+  "pubmed_count": 47
+ },
+ "deflazacort": {
+  "pubchem_cid": 189821,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 573
+ },
+ "delafloxacin": {
+  "pubchem_cid": 487101,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 275
+ },
+ "delgocitinib": {
+  "pubchem_cid": 50914062,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 173
+ },
+ "deucravacitinib": {
+  "pubchem_cid": 134821691,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 401
+ },
+ "deuruxolitinib phosphate": {
+  "pubchem_cid": 72704611,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 51
+ },
+ "deutetrabenazine": {
+  "pubchem_cid": 45255840,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 191
+ },
+ "deutivacaftor": {
+  "pubchem_cid": 71470491,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 38
+ },
+ "difamilast": {
+  "pubchem_cid": 57855696,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 42
+ },
+ "difelikefalin": {
+  "pubchem_cid": 24794466,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 122
+ },
+ "dimethyl fumarate": {
+  "pubchem_cid": 637568,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 2153
+ },
+ "dolutegravir": {
+  "pubchem_cid": 54726191,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 3244
+ },
+ "doravirine": {
+  "pubchem_cid": 58460047,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 347
+ },
+ "dordaviprone hydrochloride": {
+  "pubchem_cid": 73777259,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 53
+ },
+ "droxidopa": {
+  "pubchem_cid": 92974,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 217
+ },
+ "duvelisib": {
+  "pubchem_cid": 50905713,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 225
+ },
+ "edaravone": {
+  "pubchem_cid": 4021,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 1831
+ },
+ "edoxaban tosylate": {
+  "pubchem_cid": 10280735,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 2714
+ },
+ "efinaconazole": {
+  "pubchem_cid": 489181,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 265
+ },
+ "elacestrant": {
+  "pubchem_cid": 23642301,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 124
+ },
+ "elafibranor": {
+  "pubchem_cid": 9864881,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 178
+ },
+ "elagolix": {
+  "pubchem_cid": 11250647,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 201
+ },
+ "elamipretide hydrochloride": {
+  "pubchem_cid": 11764719,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 206
+ },
+ "eliglustat": {
+  "pubchem_cid": 23652731,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 163
+ },
+ "elinzanetant": {
+  "pubchem_cid": 16063568,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 69
+ },
+ "eluxadoline": {
+  "pubchem_cid": 11250029,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 144
+ },
+ "empagliflozin": {
+  "pubchem_cid": 11949646,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 4510
+ },
+ "enasidenib": {
+  "pubchem_cid": 89683805,
+  "pubchem_create_year": 2015,
+  "pubmed_count": 267
+ },
+ "encorafenib": {
+  "pubchem_cid": 50922675,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 572
+ },
+ "enmetazobactam": {
+  "pubchem_cid": 23653540,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 113
+ },
+ "ensartinib hydrochloride": {
+  "pubchem_cid": 56960363,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 173
+ },
+ "ensifentrine": {
+  "pubchem_cid": 9934746,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 86
+ },
+ "ensitrelvir": {
+  "pubchem_cid": 162533924,
+  "pubchem_create_year": 2022,
+  "pubmed_count": 186
+ },
+ "entrectinib": {
+  "pubchem_cid": 25141092,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 618
+ },
+ "eravacycline": {
+  "pubchem_cid": 54726192,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 488
+ },
+ "erdafitinib": {
+  "pubchem_cid": 67462786,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 415
+ },
+ "ertugliflozin": {
+  "pubchem_cid": 44814423,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 387
+ },
+ "eslicarbazepine acetate": {
+  "pubchem_cid": 179344,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 537
+ },
+ "etelcalcetide": {
+  "pubchem_cid": 71511839,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 148
+ },
+ "etrasimod": {
+  "pubchem_cid": 44623998,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 166
+ },
+ "etripamil": {
+  "pubchem_cid": 91824132,
+  "pubchem_create_year": 2015,
+  "pubmed_count": 47
+ },
+ "fedratinib": {
+  "pubchem_cid": 16722836,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 302
+ },
+ "ferric maltol": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 43
+ },
+ "fexinidazole": {
+  "pubchem_cid": 68792,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 136
+ },
+ "fezolinetant": {
+  "pubchem_cid": 117604931,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 164
+ },
+ "finafloxacin": {
+  "pubchem_cid": 11567473,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 50
+ },
+ "finerenone": {
+  "pubchem_cid": 60150535,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 1237
+ },
+ "flibanserin": {
+  "pubchem_cid": 6918248,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 232
+ },
+ "flortaucipir f 18": {
+  "pubchem_cid": 70957463,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 9
+ },
+ "fluciclovine f 18": {
+  "pubchem_cid": 450601,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 7
+ },
+ "fluoroestradiol f 18": {
+  "pubchem_cid": 10869981,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 1
+ },
+ "flurpiridaz f-18": {
+  "pubchem_cid": 11405965,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 22
+ },
+ "flutemetamol f 18": {
+  "pubchem_cid": 15950376,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 8
+ },
+ "fosdenopterin": {
+  "pubchem_cid": 135463437,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 14
+ },
+ "fostamatinib disodium hexahydrate": {
+  "pubchem_cid": 11671467,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 405
+ },
+ "fostemsavir": {
+  "pubchem_cid": 11319217,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 120
+ },
+ "fruquintinib": {
+  "pubchem_cid": 44480399,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 315
+ },
+ "futibatinib": {
+  "pubchem_cid": 71621331,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 119
+ },
+ "gadopiclenol": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 61
+ },
+ "gadoterate meglumine": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 368
+ },
+ "gallium ga 68 dotatate": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 15
+ },
+ "ganaxolone": {
+  "pubchem_cid": 6918305,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 234
+ },
+ "gedatolisib": {
+  "pubchem_cid": 44516953,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 70
+ },
+ "gepirone": {
+  "pubchem_cid": 55191,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 289
+ },
+ "gepotidacin mesylate": {
+  "pubchem_cid": 25101874,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 171
+ },
+ "gilteritinib": {
+  "pubchem_cid": 49803313,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 593
+ },
+ "givinostat hydrochloride": {
+  "pubchem_cid": 9804992,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 161
+ },
+ "glasdegib": {
+  "pubchem_cid": 25166913,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 137
+ },
+ "iberdomide hydrochloride": {
+  "pubchem_cid": 67335295,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 76
+ },
+ "ibrexafungerp": {
+  "pubchem_cid": 46871657,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 190
+ },
+ "ibrutinib": {
+  "pubchem_cid": 24821094,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 4650
+ },
+ "idelalisib": {
+  "pubchem_cid": 11625818,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 835
+ },
+ "imetelstat sodium": {
+  "pubchem_cid": 72941969,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 178
+ },
+ "imlunestrant tosylate": {
+  "pubchem_cid": 146603228,
+  "pubchem_create_year": 2020,
+  "pubmed_count": 39
+ },
+ "inavolisib": {
+  "pubchem_cid": 124173720,
+  "pubchem_create_year": 2017,
+  "pubmed_count": 74
+ },
+ "infigratinib": {
+  "pubchem_cid": 53235510,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 160
+ },
+ "iomeprol": {
+  "pubchem_cid": 3731,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 406
+ },
+ "iptacopan": {
+  "pubchem_cid": 90467622,
+  "pubchem_create_year": 2015,
+  "pubmed_count": 180
+ },
+ "isavuconazonium sulfate": {
+  "pubchem_cid": 6918606,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 128
+ },
+ "islatravir": {
+  "pubchem_cid": 6483431,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 147
+ },
+ "istradefylline": {
+  "pubchem_cid": 5311037,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 305
+ },
+ "ivabradine": {
+  "pubchem_cid": 132999,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 1926
+ },
+ "ivosidenib": {
+  "pubchem_cid": 71657455,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 416
+ },
+ "ixazomib": {
+  "pubchem_cid": 25183872,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 744
+ },
+ "landiolol hydrochloride": {
+  "pubchem_cid": 114905,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 496
+ },
+ "larotrectinib": {
+  "pubchem_cid": 46188928,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 542
+ },
+ "lasmiditan": {
+  "pubchem_cid": 11610526,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 236
+ },
+ "latanoprostene bunod": {
+  "pubchem_cid": 11156438,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 87
+ },
+ "lazertinib mesylate": {
+  "pubchem_cid": 121269225,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 204
+ },
+ "lefamulin": {
+  "pubchem_cid": 25185057,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 141
+ },
+ "lemborexant": {
+  "pubchem_cid": 56944144,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 286
+ },
+ "lenacapavir": {
+  "pubchem_cid": 133082658,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 422
+ },
+ "leniolisib": {
+  "pubchem_cid": 57495353,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 51
+ },
+ "lenvatinib": {
+  "pubchem_cid": 9823820,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 4292
+ },
+ "lesinurad": {
+  "pubchem_cid": 53465279,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 170
+ },
+ "letermovir": {
+  "pubchem_cid": 45138674,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 681
+ },
+ "levacetylleucine": {
+  "pubchem_cid": 70912,
+  "pubchem_create_year": 2004,
+  "pubmed_count": 12
+ },
+ "lifitegrast": {
+  "pubchem_cid": 11965427,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 163
+ },
+ "linerixibat": {
+  "pubchem_cid": 53492727,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 30
+ },
+ "lofexidine": {
+  "pubchem_cid": 30668,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 231
+ },
+ "lonafarnib": {
+  "pubchem_cid": 148195,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 297
+ },
+ "lorlatinib": {
+  "pubchem_cid": 71731823,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 892
+ },
+ "lotilaner": {
+  "pubchem_cid": 76959255,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 111
+ },
+ "luliconazole": {
+  "pubchem_cid": 3003141,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 256
+ },
+ "lumateperone": {
+  "pubchem_cid": 21302490,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 155
+ },
+ "lurbinectedin": {
+  "pubchem_cid": 57327016,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 234
+ },
+ "lusutrombopag": {
+  "pubchem_cid": 49843517,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 95
+ },
+ "macimorelin": {
+  "pubchem_cid": 9804938,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 34
+ },
+ "macitentan": {
+  "pubchem_cid": 16004692,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 546
+ },
+ "maralixibat": {
+  "pubchem_cid": 9831643,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 60
+ },
+ "maribavir": {
+  "pubchem_cid": 471161,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 349
+ },
+ "mavacamten": {
+  "pubchem_cid": 117761397,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 620
+ },
+ "mavorixafor": {
+  "pubchem_cid": 11256587,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 36
+ },
+ "meropenem and vaborbactam": {
+  "pubchem_cid": 441130,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 575
+ },
+ "midostaurin": {
+  "pubchem_cid": 9829523,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 781
+ },
+ "migalastat": {
+  "pubchem_cid": 176077,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 165
+ },
+ "milsaperidone": {
+  "pubchem_cid": 10365268,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 5
+ },
+ "miltefosine": {
+  "pubchem_cid": 3599,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 1961
+ },
+ "mirdametinib": {
+  "pubchem_cid": 9826528,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 67
+ },
+ "mitapivat": {
+  "pubchem_cid": 59634741,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 99
+ },
+ "mobocertinib": {
+  "pubchem_cid": 118607832,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 119
+ },
+ "momelotinib": {
+  "pubchem_cid": 25062766,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 236
+ },
+ "motixafortide": {
+  "pubchem_cid": 166625217,
+  "pubchem_create_year": 2023,
+  "pubmed_count": 27
+ },
+ "moxidectin": {
+  "pubchem_cid": 9832912,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 1303
+ },
+ "naldemedine": {
+  "pubchem_cid": 54732242,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 182
+ },
+ "naloxegol": {
+  "pubchem_cid": 56959087,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 166
+ },
+ "nerandomilast": {
+  "pubchem_cid": 71278111,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 79
+ },
+ "neratinib": {
+  "pubchem_cid": 9915743,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 699
+ },
+ "netarsudil": {
+  "pubchem_cid": 66599893,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 236
+ },
+ "nifurtimox": {
+  "pubchem_cid": 6842999,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 1104
+ },
+ "nintedanib": {
+  "pubchem_cid": 135423438,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 2445
+ },
+ "niraparib": {
+  "pubchem_cid": 24958200,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 999
+ },
+ "nirogacestat": {
+  "pubchem_cid": 46224413,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 76
+ },
+ "obeticholic acid": {
+  "pubchem_cid": 447715,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 904
+ },
+ "odevixibat": {
+  "pubchem_cid": 10153627,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 80
+ },
+ "olaparib": {
+  "pubchem_cid": 23725625,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 4117
+ },
+ "oliceridine": {
+  "pubchem_cid": 66553195,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 192
+ },
+ "olodaterol": {
+  "pubchem_cid": 11504295,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 290
+ },
+ "olutasidenib": {
+  "pubchem_cid": 118955396,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 51
+ },
+ "omadacycline": {
+  "pubchem_cid": 54697325,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 481
+ },
+ "omaveloxolone": {
+  "pubchem_cid": 71811910,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 146
+ },
+ "omidenepag isopropyl": {
+  "pubchem_cid": 44230999,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 78
+ },
+ "opicapone": {
+  "pubchem_cid": 135565903,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 182
+ },
+ "orforglipron calcium": {
+  "pubchem_cid": 137319706,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 144
+ },
+ "oritavancin diphosphate": {
+  "pubchem_cid": 16136912,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 507
+ },
+ "osilodrostat": {
+  "pubchem_cid": 44139752,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 187
+ },
+ "osimertinib": {
+  "pubchem_cid": 71496458,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 4483
+ },
+ "ospemifene": {
+  "pubchem_cid": 3036505,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 282
+ },
+ "oteseconazole": {
+  "pubchem_cid": 77050711,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 72
+ },
+ "ozanimod": {
+  "pubchem_cid": 52938427,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 408
+ },
+ "ozenoxacin": {
+  "pubchem_cid": 9863827,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 76
+ },
+ "pacritinib": {
+  "pubchem_cid": 46216796,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 240
+ },
+ "pafolacianine": {
+  "pubchem_cid": 139033031,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 37
+ },
+ "palbociclib": {
+  "pubchem_cid": 5330286,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 2805
+ },
+ "palovarotene": {
+  "pubchem_cid": 10295295,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 64
+ },
+ "paltusotine hydrochloride": {
+  "pubchem_cid": 134168328,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 35
+ },
+ "panobinostat": {
+  "pubchem_cid": 6918837,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 1142
+ },
+ "pemigatinib": {
+  "pubchem_cid": 86705695,
+  "pubchem_create_year": 2015,
+  "pubmed_count": 283
+ },
+ "peramivir": {
+  "pubchem_cid": 154234,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 552
+ },
+ "perfluorohexyloctane": {
+  "pubchem_cid": 10477896,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 135
+ },
+ "pexidartinib": {
+  "pubchem_cid": 25151352,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 215
+ },
+ "piflufolastat f 18": {
+  "pubchem_cid": 52950901,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 11
+ },
+ "pimavanserin": {
+  "pubchem_cid": 10071196,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 392
+ },
+ "pirfenidone": {
+  "pubchem_cid": 40632,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 2595
+ },
+ "pirtobrutinib": {
+  "pubchem_cid": 129269915,
+  "pubchem_create_year": 2017,
+  "pubmed_count": 211
+ },
+ "pitolisant": {
+  "pubchem_cid": 9948102,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 251
+ },
+ "plazomicin": {
+  "pubchem_cid": 42613186,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 238
+ },
+ "pomalidomide": {
+  "pubchem_cid": 134780,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 1480
+ },
+ "ponesimod": {
+  "pubchem_cid": 11363176,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 164
+ },
+ "pralsetinib": {
+  "pubchem_cid": 129073603,
+  "pubchem_create_year": 2017,
+  "pubmed_count": 312
+ },
+ "pretomanid": {
+  "pubchem_cid": 456199,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 496
+ },
+ "prucalopride": {
+  "pubchem_cid": 3052762,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 507
+ },
+ "quizartinib": {
+  "pubchem_cid": 24889392,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 404
+ },
+ "relacorilant": {
+  "pubchem_cid": 73051463,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 46
+ },
+ "relugolix": {
+  "pubchem_cid": 10348973,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 264
+ },
+ "remdesivir": {
+  "pubchem_cid": 121304016,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 4693
+ },
+ "remibrutinib": {
+  "pubchem_cid": 118107483,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 92
+ },
+ "remimazolam": {
+  "pubchem_cid": 9867812,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 1539
+ },
+ "repotrectinib": {
+  "pubchem_cid": 135565923,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 123
+ },
+ "resmetirom": {
+  "pubchem_cid": 15981237,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 506
+ },
+ "revefenacin": {
+  "pubchem_cid": 11753673,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 52
+ },
+ "revumenib citrate": {
+  "pubchem_cid": 132212657,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 107
+ },
+ "rezafungin": {
+  "pubchem_cid": 78318119,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 228
+ },
+ "ribociclib": {
+  "pubchem_cid": 44631912,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 1341
+ },
+ "rifamycin": {
+  "pubchem_cid": 6324616,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 2055
+ },
+ "rilzabrutinib": {
+  "pubchem_cid": 73388818,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 85
+ },
+ "rimegepant": {
+  "pubchem_cid": 51049968,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 336
+ },
+ "riociguat": {
+  "pubchem_cid": 11304743,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 646
+ },
+ "ripretinib": {
+  "pubchem_cid": 71584930,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 185
+ },
+ "risdiplam": {
+  "pubchem_cid": 118513932,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 406
+ },
+ "ritlecitinib": {
+  "pubchem_cid": 118115473,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 265
+ },
+ "rolapitant": {
+  "pubchem_cid": 10311306,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 107
+ },
+ "rucaparib": {
+  "pubchem_cid": 9931954,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 726
+ },
+ "rusfertide acetate": {
+  "pubchem_cid": 155884410,
+  "pubchem_create_year": 2021,
+  "pubmed_count": 20
+ },
+ "safinamide": {
+  "pubchem_cid": 131682,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 370
+ },
+ "sarecycline": {
+  "pubchem_cid": 54681908,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 92
+ },
+ "sebetralstat": {
+  "pubchem_cid": 121365142,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 34
+ },
+ "secnidazole": {
+  "pubchem_cid": 71815,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 219
+ },
+ "seladelpar lysine": {
+  "pubchem_cid": 11236126,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 115
+ },
+ "selexipag": {
+  "pubchem_cid": 9913767,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 368
+ },
+ "selinexor": {
+  "pubchem_cid": 71481097,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 693
+ },
+ "selpercatinib": {
+  "pubchem_cid": 134436906,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 546
+ },
+ "selumetinib": {
+  "pubchem_cid": 10127622,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 812
+ },
+ "semaglutide": {
+  "pubchem_cid": 56843331,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 5697
+ },
+ "sepiapterin": {
+  "pubchem_cid": 135398579,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 677
+ },
+ "setmelanotide": {
+  "pubchem_cid": 11993702,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 219
+ },
+ "sevabertinib": {
+  "pubchem_cid": 155234713,
+  "pubchem_create_year": 2020,
+  "pubmed_count": 21
+ },
+ "siponimod": {
+  "pubchem_cid": 44599207,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 362
+ },
+ "sodium zirconium cyclosilicate": {
+  "pubchem_cid": null,
+  "pubchem_create_year": null,
+  "pubmed_count": 326
+ },
+ "sofosbuvir": {
+  "pubchem_cid": 45375808,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 3761
+ },
+ "sofpironium bromide": {
+  "pubchem_cid": 86301317,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 30
+ },
+ "solriamfetol": {
+  "pubchem_cid": 10130337,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 142
+ },
+ "sonidegib": {
+  "pubchem_cid": 24775005,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 412
+ },
+ "sonrotoclax": {
+  "pubchem_cid": 149553242,
+  "pubchem_create_year": 2020,
+  "pubmed_count": 25
+ },
+ "sotagliflozin": {
+  "pubchem_cid": 24831714,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 328
+ },
+ "sotorasib": {
+  "pubchem_cid": 137278711,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 656
+ },
+ "sparsentan": {
+  "pubchem_cid": 10257882,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 131
+ },
+ "stiripentol": {
+  "pubchem_cid": 5311454,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 459
+ },
+ "suvorexant": {
+  "pubchem_cid": 24965990,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 553
+ },
+ "suzetrigine": {
+  "pubchem_cid": 156445116,
+  "pubchem_create_year": 2021,
+  "pubmed_count": 154
+ },
+ "tafamidis meglumine": {
+  "pubchem_cid": 8567,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 876
+ },
+ "tafenoquine": {
+  "pubchem_cid": 115358,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 377
+ },
+ "talazoparib": {
+  "pubchem_cid": 135565082,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 687
+ },
+ "taletrectinib adipate": {
+  "pubchem_cid": 72202474,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 45
+ },
+ "tapinarof": {
+  "pubchem_cid": 6439522,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 223
+ },
+ "tasimelteon": {
+  "pubchem_cid": 10220503,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 108
+ },
+ "tavaborole": {
+  "pubchem_cid": 11499245,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 156
+ },
+ "tazemetostat": {
+  "pubchem_cid": 66558664,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 318
+ },
+ "tebipenem pivoxil hydrobromide": {
+  "pubchem_cid": 9892071,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 73
+ },
+ "tecovirimat": {
+  "pubchem_cid": 16124688,
+  "pubchem_create_year": 2007,
+  "pubmed_count": 557
+ },
+ "tedizolid phosphate": {
+  "pubchem_cid": 11476460,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 530
+ },
+ "telotristat ethyl": {
+  "pubchem_cid": 25181577,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 68
+ },
+ "tenapanor": {
+  "pubchem_cid": 71587953,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 190
+ },
+ "tepotinib": {
+  "pubchem_cid": 25171648,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 262
+ },
+ "tezacaftor": {
+  "pubchem_cid": 46199646,
+  "pubchem_create_year": 2010,
+  "pubmed_count": 1391
+ },
+ "tirbanibulin": {
+  "pubchem_cid": 23635314,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 130
+ },
+ "tivozanib": {
+  "pubchem_cid": 9911830,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 205
+ },
+ "tovorafenib": {
+  "pubchem_cid": 25161177,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 48
+ },
+ "trabectedin": {
+  "pubchem_cid": 108150,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 982
+ },
+ "tradipitant": {
+  "pubchem_cid": 9916461,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 23
+ },
+ "trametinib": {
+  "pubchem_cid": 11707110,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 3048
+ },
+ "treosulfan": {
+  "pubchem_cid": 9882105,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 538
+ },
+ "triclabendazole": {
+  "pubchem_cid": 50248,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 737
+ },
+ "trifarotene": {
+  "pubchem_cid": 11518241,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 86
+ },
+ "triheptanoin": {
+  "pubchem_cid": 69286,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 161
+ },
+ "trilaciclib": {
+  "pubchem_cid": 68029831,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 91
+ },
+ "trofinetide": {
+  "pubchem_cid": 11318905,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 88
+ },
+ "trospium chloride": {
+  "pubchem_cid": 5284632,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 523
+ },
+ "tucatinib": {
+  "pubchem_cid": 51039094,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 310
+ },
+ "ubrogepant": {
+  "pubchem_cid": 68748835,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 207
+ },
+ "umbralisib": {
+  "pubchem_cid": 72950888,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 72
+ },
+ "upadacitinib": {
+  "pubchem_cid": 58557659,
+  "pubchem_create_year": 2012,
+  "pubmed_count": 2361
+ },
+ "uridine triacetate": {
+  "pubchem_cid": 20058,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 47
+ },
+ "vadadustat": {
+  "pubchem_cid": 23634441,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 116
+ },
+ "valbenazine": {
+  "pubchem_cid": 24795069,
+  "pubchem_create_year": 2008,
+  "pubmed_count": 190
+ },
+ "vamorolone": {
+  "pubchem_cid": 3035000,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 82
+ },
+ "venetoclax": {
+  "pubchem_cid": 49846579,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 5071
+ },
+ "vepdegestrant": {
+  "pubchem_cid": 134562533,
+  "pubchem_create_year": 2018,
+  "pubmed_count": 50
+ },
+ "vericiguat": {
+  "pubchem_cid": 54674461,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 509
+ },
+ "vibegron": {
+  "pubchem_cid": 44472635,
+  "pubchem_create_year": 2009,
+  "pubmed_count": 183
+ },
+ "viloxazine": {
+  "pubchem_cid": 5666,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 403
+ },
+ "vimseltinib": {
+  "pubchem_cid": 86267612,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 29
+ },
+ "voclosporin": {
+  "pubchem_cid": 6918486,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 203
+ },
+ "vorapaxar": {
+  "pubchem_cid": 10077130,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 362
+ },
+ "vorasidenib": {
+  "pubchem_cid": 117817422,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 134
+ },
+ "vortioxetine": {
+  "pubchem_cid": 9966051,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 949
+ },
+ "vosoritide": {
+  "pubchem_cid": 119058036,
+  "pubchem_create_year": 2016,
+  "pubmed_count": 127
+ },
+ "voxelotor": {
+  "pubchem_cid": 71602803,
+  "pubchem_create_year": 2013,
+  "pubmed_count": 240
+ },
+ "xanomeline tartrate": {
+  "pubchem_cid": 60809,
+  "pubchem_create_year": 2005,
+  "pubmed_count": 355
+ },
+ "xenon xe 129 hyperpolarized": {
+  "pubchem_cid": 10290811,
+  "pubchem_create_year": 2006,
+  "pubmed_count": 195
+ },
+ "zanubrutinib": {
+  "pubchem_cid": 135565884,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 702
+ },
+ "zavegepant": {
+  "pubchem_cid": 53472683,
+  "pubchem_create_year": 2011,
+  "pubmed_count": 88
+ },
+ "zidesamtinib": {
+  "pubchem_cid": 166560233,
+  "pubchem_create_year": 2023,
+  "pubmed_count": 11
+ },
+ "ziftomenib": {
+  "pubchem_cid": 138497449,
+  "pubchem_create_year": 2019,
+  "pubmed_count": 48
+ },
+ "zoliflodacin": {
+  "pubchem_cid": 76685216,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 117
+ },
+ "zongertinib": {
+  "pubchem_cid": 160283094,
+  "pubchem_create_year": 2021,
+  "pubmed_count": 59
+ },
+ "zuranolone": {
+  "pubchem_cid": 86294073,
+  "pubchem_create_year": 2014,
+  "pubmed_count": 178
+ }
+}

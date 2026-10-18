@@ -7,12 +7,12 @@ __pycache__/
 # agent scratch and ledgers (never tracked)
 .agent-runs/
 .jspace/
-# data: nothing derived from the private dataset is published. Raw rows, prompt files and every derived dataset table
-# (references, splits, hand-resolved facts, release tables) stay on the authors' machine and are rebuilt with the scripts.
+# data: the private dataset (raw rows, profile texts, reasoning traces and every prompt file built from them) is never published.
+# The tables built from public databases are tracked: data/curated/, data/processed/refs.jsonl, data/processed/split_report.json and release/.
 data/raw/
 data/processed/*
-data/curated/
-release/
+!data/processed/refs.jsonl
+!data/processed/split_report.json
 # heavy run outputs; small summaries belong in results/
 runs/
 final_models/

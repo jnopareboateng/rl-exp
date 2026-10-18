@@ -1,0 +1,58 @@
+- abrocitinib: CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- aceclidine hydrochloride: PubMed and name lookups used 'aceclidine' (trailing salt or acetate word dropped from 'aceclidine hydrochloride')
+- acoramidis hydrochloride: PubMed and name lookups used 'acoramidis' (trailing salt or acetate word dropped from 'acoramidis hydrochloride')
+- albiglutide: no reference SMILES in refs.jsonl, so no structure match
+- arimoclomol citrate: PubMed and name lookups used 'arimoclomol' (trailing salt or acetate word dropped from 'arimoclomol citrate')
+- atrasentan hydrochloride: PubMed and name lookups used 'atrasentan' (trailing salt or acetate word dropped from 'atrasentan hydrochloride')
+- brepocitinib tosylate: PubMed and name lookups used 'brepocitinib' (trailing salt or acetate word dropped from 'brepocitinib tosylate')
+- cariprazine: CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- cefepime hydrochloride: PubMed and name lookups used 'cefepime' (trailing salt or acetate word dropped from 'cefepime hydrochloride')
+- ceftazidime and avibactam: combination product; the reference structure is one component only; PubMed phrase 'ceftazidime-avibactam' used, since the literal name is not how the drug is written in abstracts
+- ceftobiprole medocaril sodium: PubMed and name lookups used 'ceftobiprole medocaril' (trailing salt or acetate word dropped from 'ceftobiprole medocaril sodium')
+- copper cu 64 dotatate: radiolabelled name; PubMed phrase may undercount the drug; reference SMILES has no metal (it is the free ligand), so the matched CID would describe the ligand, not the drug; no CID or creation year reported
+- copper histidinate: reference SMILES has no metal (it is the free ligand), so the matched CID would describe the ligand, not the drug; no CID or creation year reported
+- deuruxolitinib phosphate: PubMed and name lookups used 'deuruxolitinib' (trailing salt or acetate word dropped from 'deuruxolitinib phosphate')
+- dordaviprone hydrochloride: PubMed and name lookups used 'dordaviprone' (trailing salt or acetate word dropped from 'dordaviprone hydrochloride')
+- edoxaban tosylate: PubMed and name lookups used 'edoxaban' (trailing salt or acetate word dropped from 'edoxaban tosylate')
+- elamipretide hydrochloride: PubMed and name lookups used 'elamipretide' (trailing salt or acetate word dropped from 'elamipretide hydrochloride')
+- ensartinib hydrochloride: PubMed and name lookups used 'ensartinib' (trailing salt or acetate word dropped from 'ensartinib hydrochloride')
+- ensifentrine: CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- eslicarbazepine acetate: PubMed and name lookups used 'eslicarbazepine' (trailing salt or acetate word dropped from 'eslicarbazepine acetate')
+- ferric maltol: reference SMILES has no metal (it is the free ligand), so the matched CID would describe the ligand, not the drug; no CID or creation year reported
+- flortaucipir f 18: radiolabelled name; PubMed phrase may undercount the drug
+- fluciclovine f 18: radiolabelled name; PubMed phrase may undercount the drug; CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- fluoroestradiol f 18: radiolabelled name; PubMed phrase may undercount the drug
+- flurpiridaz f-18: radiolabelled name; PubMed phrase may undercount the drug
+- flutemetamol f 18: radiolabelled name; PubMed phrase may undercount the drug
+- fostamatinib disodium hexahydrate: PubMed and name lookups used 'fostamatinib' (trailing salt or acetate word dropped from 'fostamatinib disodium hexahydrate')
+- gadopiclenol: reference SMILES has no metal (it is the free ligand), so the matched CID would describe the ligand, not the drug; no CID or creation year reported
+- gadoterate meglumine: PubMed and name lookups used 'gadoterate' (trailing salt or acetate word dropped from 'gadoterate meglumine'); reference SMILES has no metal (it is the free ligand), so the matched CID would describe the ligand, not the drug; no CID or creation year reported
+- gallium ga 68 dotatate: radiolabelled name; PubMed phrase may undercount the drug; reference SMILES has no metal (it is the free ligand), so the matched CID would describe the ligand, not the drug; no CID or creation year reported
+- gepotidacin mesylate: PubMed and name lookups used 'gepotidacin' (trailing salt or acetate word dropped from 'gepotidacin mesylate')
+- givinostat hydrochloride: PubMed and name lookups used 'givinostat' (trailing salt or acetate word dropped from 'givinostat hydrochloride')
+- iberdomide hydrochloride: PubMed and name lookups used 'iberdomide' (trailing salt or acetate word dropped from 'iberdomide hydrochloride')
+- imetelstat sodium: PubMed and name lookups used 'imetelstat' (trailing salt or acetate word dropped from 'imetelstat sodium')
+- imlunestrant tosylate: PubMed and name lookups used 'imlunestrant' (trailing salt or acetate word dropped from 'imlunestrant tosylate')
+- isavuconazonium sulfate: PubMed and name lookups used 'isavuconazonium' (trailing salt or acetate word dropped from 'isavuconazonium sulfate')
+- landiolol hydrochloride: PubMed and name lookups used 'landiolol' (trailing salt or acetate word dropped from 'landiolol hydrochloride')
+- lazertinib mesylate: PubMed and name lookups used 'lazertinib' (trailing salt or acetate word dropped from 'lazertinib mesylate')
+- meropenem and vaborbactam: combination product; the reference structure is one component only; PubMed phrase 'meropenem-vaborbactam' used, since the literal name is not how the drug is written in abstracts
+- orforglipron calcium: PubMed and name lookups used 'orforglipron' (trailing salt or acetate word dropped from 'orforglipron calcium')
+- oritavancin diphosphate: PubMed and name lookups used 'oritavancin' (trailing salt or acetate word dropped from 'oritavancin diphosphate')
+- paltusotine hydrochloride: PubMed and name lookups used 'paltusotine' (trailing salt or acetate word dropped from 'paltusotine hydrochloride')
+- piflufolastat f 18: radiolabelled name; PubMed phrase may undercount the drug
+- ponesimod: CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- pralsetinib: CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- revumenib citrate: PubMed and name lookups used 'revumenib' (trailing salt or acetate word dropped from 'revumenib citrate'); CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- rusfertide acetate: PubMed and name lookups used 'rusfertide' (trailing salt or acetate word dropped from 'rusfertide acetate')
+- seladelpar lysine: PubMed and name lookups used 'seladelpar' (trailing salt or acetate word dropped from 'seladelpar lysine')
+- sodium zirconium cyclosilicate: no reference SMILES in refs.jsonl, so no structure match
+- sofpironium bromide: PubMed and name lookups used 'sofpironium' (trailing salt or acetate word dropped from 'sofpironium bromide')
+- sonrotoclax: CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- tafamidis meglumine: PubMed and name lookups used 'tafamidis' (trailing salt or acetate word dropped from 'tafamidis meglumine')
+- taletrectinib adipate: PubMed and name lookups used 'taletrectinib' (trailing salt or acetate word dropped from 'taletrectinib adipate')
+- tebipenem pivoxil hydrobromide: PubMed and name lookups used 'tebipenem pivoxil' (trailing salt or acetate word dropped from 'tebipenem pivoxil hydrobromide')
+- tedizolid phosphate: PubMed and name lookups used 'tedizolid' (trailing salt or acetate word dropped from 'tedizolid phosphate')
+- trospium chloride: PubMed and name lookups used 'trospium' (trailing salt or acetate word dropped from 'trospium chloride'); CID full InChIKey differs from the reference (stereo or isotope layer; connectivity matches)
+- xanomeline tartrate: PubMed and name lookups used 'xanomeline' (trailing salt or acetate word dropped from 'xanomeline tartrate')
+- xenon xe 129 hyperpolarized: radiolabelled name; PubMed phrase may undercount the drug; PubMed phrase 'hyperpolarized xenon' used, since the literal name is not how the drug is written in abstracts

@@ -1,0 +1,664 @@
+{
+ "seed": 0,
+ "similarity_threshold": 0.4,
+ "test_t_min_year": 2025,
+ "inputs": {
+  "rows_read": 1146,
+  "rows_kept": 980,
+  "groups_kept": 354,
+  "sha256": {
+   "train_think.jsonl": "02f986ae079a",
+   "val_think.jsonl": "58d35de2a09f",
+   "chembl_refs.json": "ac35c141798a",
+   "manual_refs.json": "f70b85fa6de7",
+   "approval_audit.json": "eddcb08bc547",
+   "exposure.json": "c3d79638375f"
+  },
+  "manual_refs": {
+   "present": true,
+   "entries": 20
+  },
+  "approval_audit": {
+   "present": true,
+   "entries": 43
+  },
+  "exposure": {
+   "present": true,
+   "entries": 354
+  }
+ },
+ "dropped": {
+  "pd": {
+   "rows": 155,
+   "groups": [
+    "abaloparatide",
+    "ado-trastuzumab emtansine",
+    "alirocumab",
+    "amivantamab-vmjw",
+    "angiotensin ii",
+    "anifrolumab-fnia",
+    "ansuvimab-zykl",
+    "asfotase alfa",
+    "asparaginase erwinia chrysanthemi (recombinant)-rywn",
+    "atezolizumab",
+    "atoltivimab, maftivimab, and odesivimab-ebgn",
+    "avacincaptad pegol",
+    "avalglucosidase alfa-ngpt",
+    "avelumab",
+    "belantamab mafodotin-blmf",
+    "benralizumab",
+    "bezlotoxumab",
+    "bimekizumab-bkzx",
+    "brodalumab",
+    "brolucizumab-dbll",
+    "burosumab-twza",
+    "calaspargase pegol-mknl",
+    "casimersen",
+    "cemiplimab-rwlc",
+    "cenegermin-bkbj",
+    "cipaglucosidase alfa-atga",
+    "crizanlizumab-tmca",
+    "daratumumab",
+    "dasiglucagon",
+    "daxibotulinumtoxina-lanm",
+    "dinutuximab",
+    "dostarlimab-gxly",
+    "dulaglutide",
+    "dupilumab",
+    "durvalumab",
+    "efbemalenograstim alfa-vuxw",
+    "efgartigimod alfa-fcab",
+    "eflapegrastim-xnst",
+    "elapegademase-lvlr",
+    "elosulfase alfa",
+    "elotuzumab",
+    "elranatamab-bcmm",
+    "emapalumab-lzsg",
+    "emicizumab-kxwh",
+    "enfortumab vedotin-ejfv",
+    "epcoritamab-bysp",
+    "eplontersen",
+    "eptinezumab-jjmr",
+    "erenumab-aooe",
+    "eteplirsen",
+    "evolocumab",
+    "fam-trastuzumab deruxtecan-nxki",
+    "faricimab-svoa",
+    "fremanezumab-vfrm",
+    "galcanezumab-gnlm",
+    "givosiran",
+    "glofitamab-gxbm",
+    "golodirsen",
+    "guselkumab",
+    "ibalizumab-uiyk",
+    "idarucizumab",
+    "inclisiran",
+    "inebilizumab-cdon",
+    "inotuzumab ozogamicin",
+    "insulin degludec",
+    "isatuximab-irfc",
+    "ixekizumab",
+    "lanadelumab-flyo",
+    "lecanemab-irmb",
+    "lonapegsomatropin-tcgd",
+    "loncastuximab tesirine-lpyl",
+    "lumasiran",
+    "luspatercept-aamt",
+    "margetuximab-cmkb",
+    "mepolizumab",
+    "metreleptin",
+    "mirikizumab-mrkz",
+    "mirvetuximab soravtansine-gynx",
+    "mogamulizumab-kpkc",
+    "mosunetuzumab-axgb",
+    "nedosiran",
+    "nirsevimab-alip",
+    "nivolumab | nivolumab and relatlimab-rmbw",
+    "nusinersen",
+    "obiltoxaximab",
+    "obinutuzumab",
+    "ocrelizumab",
+    "olipudase alfa-rpcp",
+    "patisiran",
+    "pegcetacoplan",
+    "peginterferon beta-1a",
+    "pegunigalsidase alfa-iwxj",
+    "pegvaliase-pqpz",
+    "pembrolizumab",
+    "plecanatide",
+    "polatuzumab vedotin-piiq",
+    "pozelimab-bbfg",
+    "ramucirumab",
+    "ravulizumab-cwvz",
+    "reslizumab",
+    "retifanlimab-dlwr",
+    "risankizumab-rzaa",
+    "romosozumab-aqqg",
+    "ropeginterferon alfa-2b-njft",
+    "rozanolixizumab-noli",
+    "sacituzumab govitecan-hziy",
+    "sarilumab",
+    "satralizumab-mwge",
+    "secukinumab",
+    "semaglutide",
+    "siltuximab",
+    "somapacitan-beco",
+    "somatrogon-ghla",
+    "spesolimab-sbzo",
+    "sutimlimab-jome",
+    "tafasitamab-cxix",
+    "tagraxofusp-erzs",
+    "talquetamab-tgvs",
+    "tebentafusp-tebn",
+    "teclistamab-cqyv",
+    "teplizumab-mzwv",
+    "teprotumumab-trbw",
+    "terlipressin",
+    "tezepelumab-ekko",
+    "tildrakizumab-asmn",
+    "tirzepatide",
+    "tisotumab vedotin-tftv",
+    "tofersen",
+    "toripalimab-tpzi",
+    "tralokinumab-ldrm",
+    "tremelimumab-actl",
+    "ublituximab-xiiy",
+    "vedolizumab",
+    "velmanase alfa-tycv",
+    "vestronidase alfa-vjbk",
+    "viltolarsen",
+    "vutrisiran"
+   ]
+  },
+  "combination": {
+   "rows": 11,
+   "groups": [
+    "avutometinib potassium | defactinib hydrochloride",
+    "probenecid | sulopenem etzadroxil"
+   ]
+  },
+  "excluded": {
+   "manual_unresolvable": {
+    "rows": 5,
+    "groups": [
+     "albiglutide",
+     "sodium zirconium cyclosilicate"
+    ]
+   },
+   "unextractable_reference": {
+    "rows": 1,
+    "groups": [
+     "xenon xe 129 hyperpolarized"
+    ]
+   }
+  }
+ },
+ "splits": {
+  "train": {
+   "drugs": 241,
+   "rows": 687,
+   "rows_by_task": {
+    "A": 185,
+    "B": 210,
+    "C": 194,
+    "MO": 98
+   },
+   "drugs_by_year": {
+    "<2015": 46,
+    "2015-2021": 141,
+    "2022": 11,
+    "2023": 19,
+    "2024": 24,
+    "2025": 0,
+    "2026": 0
+   },
+   "rows_by_year": {
+    "<2015": 144,
+    "2015-2021": 389,
+    "2022": 32,
+    "2023": 55,
+    "2024": 67,
+    "2025": 0,
+    "2026": 0
+   },
+   "drugs_n_heavy_over_100": 2,
+   "drugs_ligand_only": 2
+  },
+  "val": {
+   "drugs": 20,
+   "rows": 58,
+   "rows_by_task": {
+    "A": 21,
+    "B": 14,
+    "C": 16,
+    "MO": 7
+   },
+   "drugs_by_year": {
+    "<2015": 1,
+    "2015-2021": 12,
+    "2022": 2,
+    "2023": 2,
+    "2024": 3,
+    "2025": 0,
+    "2026": 0
+   },
+   "rows_by_year": {
+    "<2015": 4,
+    "2015-2021": 34,
+    "2022": 4,
+    "2023": 8,
+    "2024": 8,
+    "2025": 0,
+    "2026": 0
+   },
+   "drugs_n_heavy_over_100": 0,
+   "drugs_ligand_only": 0
+  },
+  "test_r": {
+   "drugs": 30,
+   "rows": 80,
+   "rows_by_task": {
+    "A": 23,
+    "B": 22,
+    "C": 22,
+    "MO": 13
+   },
+   "drugs_by_year": {
+    "<2015": 6,
+    "2015-2021": 16,
+    "2022": 1,
+    "2023": 5,
+    "2024": 2,
+    "2025": 0,
+    "2026": 0
+   },
+   "rows_by_year": {
+    "<2015": 15,
+    "2015-2021": 42,
+    "2022": 4,
+    "2023": 13,
+    "2024": 6,
+    "2025": 0,
+    "2026": 0
+   },
+   "drugs_n_heavy_over_100": 1,
+   "drugs_ligand_only": 1
+  },
+  "test_t": {
+   "drugs": 41,
+   "rows": 100,
+   "rows_by_task": {
+    "A": 28,
+    "B": 31,
+    "C": 21,
+    "MO": 20
+   },
+   "drugs_by_year": {
+    "<2015": 0,
+    "2015-2021": 0,
+    "2022": 0,
+    "2023": 0,
+    "2024": 0,
+    "2025": 26,
+    "2026": 15
+   },
+   "rows_by_year": {
+    "<2015": 0,
+    "2015-2021": 0,
+    "2022": 0,
+    "2023": 0,
+    "2024": 0,
+    "2025": 66,
+    "2026": 34
+   },
+   "drugs_n_heavy_over_100": 1,
+   "drugs_ligand_only": 1
+  },
+  "buffer": {
+   "drugs": 19,
+   "rows": 49,
+   "rows_by_task": {
+    "A": 15,
+    "B": 13,
+    "C": 16,
+    "MO": 5
+   },
+   "drugs_by_year": {
+    "<2015": 2,
+    "2015-2021": 15,
+    "2022": 1,
+    "2023": 1,
+    "2024": 0,
+    "2025": 0,
+    "2026": 0
+   },
+   "rows_by_year": {
+    "<2015": 8,
+    "2015-2021": 37,
+    "2022": 3,
+    "2023": 1,
+    "2024": 0,
+    "2025": 0,
+    "2026": 0
+   },
+   "drugs_n_heavy_over_100": 5,
+   "drugs_ligand_only": 2
+  },
+  "excluded": {
+   "drugs": 3,
+   "rows": 6,
+   "rows_by_task": {
+    "A": 1,
+    "B": 1,
+    "C": 2,
+    "MO": 2
+   },
+   "drugs_by_year": {
+    "<2015": 1,
+    "2015-2021": 1,
+    "2022": 1,
+    "2023": 0,
+    "2024": 0,
+    "2025": 0,
+    "2026": 0
+   },
+   "rows_by_year": {
+    "<2015": 4,
+    "2015-2021": 1,
+    "2022": 1,
+    "2023": 0,
+    "2024": 0,
+    "2025": 0,
+    "2026": 0
+   },
+   "drugs_n_heavy_over_100": 0,
+   "drugs_ligand_only": 0
+  }
+ },
+ "targets": {
+  "test_r": {
+   "target": 30,
+   "got": 30,
+   "exact": true
+  },
+  "val": {
+   "target": 20,
+   "got": 20,
+   "exact": true
+  }
+ },
+ "clusters": {
+  "n": 302,
+  "size_distribution": {
+   "1": 276,
+   "2": 16,
+   "3": 6,
+   "4": 2,
+   "6": 1,
+   "11": 1
+  },
+  "largest": [
+   {
+    "size": 11,
+    "splits": {
+     "buffer": 10,
+     "test_t": 1
+    },
+    "members": [
+     "afamelanotide",
+     "angiotensin ii",
+     "bremelanotide",
+     "copper cu 64 dotatate",
+     "dasiglucagon",
+     "gallium ga 68 dotatate",
+     "motixafortide",
+     "rusfertide acetate",
+     "semaglutide",
+     "setmelanotide",
+     "vosoritide"
+    ]
+   },
+   {
+    "size": 6,
+    "splits": {
+     "train": 6
+    },
+    "members": [
+     "bexagliflozin",
+     "canagliflozin",
+     "dapagliflozin",
+     "empagliflozin",
+     "ertugliflozin",
+     "sotagliflozin"
+    ]
+   },
+   {
+    "size": 4,
+    "splits": {
+     "val": 4
+    },
+    "members": [
+     "droxidopa",
+     "iomeprol",
+     "ixazomib",
+     "solriamfetol"
+    ]
+   }
+  ]
+ },
+ "max_cross_tanimoto": {
+  "train|val": {
+   "max": 0.3692,
+   "pair": [
+    "trospium chloride",
+    "sofpironium bromide"
+   ]
+  },
+  "train|test_r": {
+   "max": 0.3976,
+   "pair": [
+    "meropenem and vaborbactam",
+    "tebipenem pivoxil hydrobromide"
+   ]
+  },
+  "train|test_t": {
+   "max": 0.3855,
+   "pair": [
+    "etelcalcetide",
+    "elamipretide hydrochloride"
+   ]
+  },
+  "val|test_r": {
+   "max": 0.3889,
+   "pair": [
+    "edaravone",
+    "pirfenidone"
+   ]
+  },
+  "val|test_t": {
+   "max": 0.3947,
+   "pair": [
+    "binimetinib",
+    "mirdametinib"
+   ]
+  },
+  "test_r|test_t": {
+   "max": 0.2385,
+   "pair": [
+    "deucravacitinib",
+    "sevabertinib"
+   ]
+  }
+ },
+ "scaffold_overlap": {
+  "drugs_sharing_a_scaffold_with_train": {
+   "val": 0,
+   "test_r": 0,
+   "test_t": 0
+  },
+  "shared_scaffolds": {
+   "train|val": 0,
+   "train|test_r": 0,
+   "train|test_t": 0,
+   "val|test_r": 0,
+   "val|test_t": 0,
+   "test_r|test_t": 0
+  }
+ },
+ "references": {
+  "exposure_matched": 354,
+  "with_alternates": {
+   "count": 5,
+   "groups": [
+    "copanlisib",
+    "eravacycline",
+    "nintedanib",
+    "omadacycline",
+    "sarecycline"
+   ]
+  },
+  "ref_source": {
+   "chembl": 334,
+   "manual": 18
+  },
+  "sft_agrees": {
+   "false": 1,
+   "null": 15,
+   "true": 338
+  },
+  "approval_source": {
+   "audit": 42,
+   "chembl": 286,
+   "manual": 20,
+   "openfda": 6
+  },
+  "sft_answer_groups": []
+ },
+ "manual_effect": {
+  "identical": [
+   "copper cu 64 dotatate",
+   "copper histidinate",
+   "daraxonrasib",
+   "dasiglucagon",
+   "ferric maltol",
+   "gadopiclenol",
+   "gadoterate meglumine",
+   "milsaperidone",
+   "rusfertide acetate",
+   "semaglutide",
+   "vosoritide"
+  ],
+  "changed_smiles_only": [
+   "imetelstat sodium"
+  ],
+  "changed_tautomer": [
+   "copanlisib",
+   "eravacycline",
+   "nintedanib",
+   "omadacycline",
+   "sarecycline"
+  ],
+  "changed_connectivity": [],
+  "filled_gap": [
+   "gallium ga 68 dotatate"
+  ],
+  "unresolvable": [
+   "albiglutide",
+   "sodium zirconium cyclosilicate"
+  ]
+ },
+ "disagreements": [
+  {
+   "group": "gallium ga 68 dotatate",
+   "chembl_smiles": "O=C(O)CCc1ccc(O)c(CN(CCN(CC(=O)O)Cc2cc(CCC(=O)NCCCCCC(=O)NCCCC[C@H](NC(=O)N[C@@H](CCC(=O)O)C(=O)O)C(=O)O)ccc2O)CC(=O)O)c1",
+   "sft_smiles": "C[C@@H](O)[C@H](NC(=O)[C@@H]1CSSC[C@H](NC(=O)[C@@H](Cc2ccccc2)NC(=O)CN2CCN(CC(=O)O)CCN(CC(=O)O)CCN(CC(=O)O)CC2)C(=O)N[C@@H](Cc2ccc(O)cc2)C(=O)N[C@H](Cc2c[nH]c3ccccc23)C(=O)N[C@@H](CCCCN)C(=O)N[C@@H]([C@@H](C)O)C(=O)N1)C(=O)O",
+   "tanimoto": 0.159,
+   "resolved_by": "manual"
+  }
+ ],
+ "year_overrides": [
+  {
+   "group": "copper cu 64 dotatate",
+   "pool_year": null,
+   "year": 2020,
+   "source": "manual"
+  },
+  {
+   "group": "copper histidinate",
+   "pool_year": null,
+   "year": 2026,
+   "source": "manual"
+  },
+  {
+   "group": "daraxonrasib",
+   "pool_year": null,
+   "year": 2026,
+   "source": "manual"
+  },
+  {
+   "group": "delgocitinib",
+   "pool_year": 2025,
+   "year": 2020,
+   "source": "audit",
+   "confidence": "high"
+  },
+  {
+   "group": "difamilast",
+   "pool_year": 2026,
+   "year": 2021,
+   "source": "audit",
+   "confidence": "high"
+  },
+  {
+   "group": "ensitrelvir",
+   "pool_year": 2026,
+   "year": 2022,
+   "source": "audit",
+   "confidence": "high"
+  },
+  {
+   "group": "gadoterate meglumine",
+   "pool_year": 2013,
+   "year": 2000,
+   "source": "manual"
+  },
+  {
+   "group": "gallium ga 68 dotatate",
+   "pool_year": 2020,
+   "year": 2016,
+   "source": "manual"
+  },
+  {
+   "group": "milsaperidone",
+   "pool_year": null,
+   "year": 2026,
+   "source": "manual"
+  },
+  {
+   "group": "sonrotoclax",
+   "pool_year": 2026,
+   "year": 2025,
+   "source": "audit",
+   "confidence": "medium"
+  },
+  {
+   "group": "taletrectinib adipate",
+   "pool_year": 2025,
+   "year": 2024,
+   "source": "audit",
+   "confidence": "high"
+  },
+  {
+   "group": "tebipenem pivoxil hydrobromide",
+   "pool_year": 2026,
+   "year": 2009,
+   "source": "audit",
+   "confidence": "high"
+  }
+ ],
+ "rejected_structures": [],
+ "unused_hand_entries": {
+  "manual_refs": [],
+  "approval_audit": []
+ }
+}

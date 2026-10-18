@@ -1,0 +1,452 @@
+{
+  "aceclidine hydrochloride": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.biospace.com/press-releases/lenz-therapeutics-announces-us-fda-approval-of-vizz-for-the-treatment-of-presbyopia",
+      "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12577907/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=218585"
+    ],
+    "confidence": "medium"
+  },
+  "acoltremon": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://newdrugapprovals.org/2025/06/27/acoltremon/",
+      "https://xtalks.com/tryptyr-acoltremon-wins-fda-nod-offering-a-new-mechanism-for-treating-dry-eye-disease-4274",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=217370"
+    ],
+    "confidence": "medium"
+  },
+  "aficamten": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "NMPA (China)",
+    "evidence": [
+      "https://s206.q4cdn.com/793207125/files/doc_news/Cytokinetics-Announces-NMPA-Approval-of-MYQORZO-aficamten-in-China--for-Patients-with-Obstructive-Hypertrophic-Cardiomyopathy-2025.pdf",
+      "https://ir.cytokinetics.com/press-releases/press-release-details/2026/Cytokinetics-Reports-Fourth-Quarter-2025-Financial-Results-and-Provides-Business-Update/default.aspx",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219083"
+    ],
+    "confidence": "medium"
+  },
+  "atrasentan hydrochloride": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219208",
+      "https://www.pharnexcloud.com/zixun/zcsp_54082",
+      "https://www.novartis.com/us-en/news/media-releases/novartis-vanrafia-phase-iii-data-support-slowing-kidney-function-decline-patients-iga-nephropathy"
+    ],
+    "confidence": "medium"
+  },
+  "baxdrostat": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.bioworld.com/articles/731309-new-hypertension-option-as-astrazenecas-baxfendy-wins-fda-nod",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219878"
+    ],
+    "confidence": "medium"
+  },
+  "brensocatib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://respiratory-therapy.com/products-treatment/pharmaceuticals/intl-pharmaceuticals/europe-approves-brinsupri-non-cf-bronchiectasis/",
+      "https://www.barchart.com/story/news/3999341/brinsupri-brensocatib-approved-by-japan-s-ministry-of-health-labour-and-welfare-for-the-treatment-of-patients-with-non-cystic-fibrosis-bronchiectasis-a-serious-chronic-lung-disease",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=217673"
+    ],
+    "confidence": "medium"
+  },
+  "brepocitinib tosylate": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.hcplive.com/view/fda-approves-first-oral-treatment-dermatomyositis-adult-patients",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220106"
+    ],
+    "confidence": "medium"
+  },
+  "camizestrant": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "EMA/EC (EU)",
+    "evidence": [
+      "https://www.ema.europa.eu/en/medicines/human/EPAR/etcamah",
+      "https://www.onclive.com/view/european-commission-approves-camizestrant-plus-cdk4-6-inhibition-for-emergent-esr1-mutated-advanced-breast-cancer",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220359"
+    ],
+    "confidence": "high"
+  },
+  "delgocitinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2020,
+    "earliest_regulator": "PMDA/MHLW (Japan)",
+    "evidence": [
+      "https://www.shionogi.com/global/en/news/2026/02/20260227_2.html",
+      "https://thepharmaletter.com/biotechnology/japan-approval-for-jt-and-torii-s-corectim-for-atopic-dermatitis",
+      "https://www.biospectrumasia.com/news/25/15337/jt-to-market-corectim-in-japan-to-treat-atopic-dermatitis.html",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219155"
+    ],
+    "confidence": "high"
+  },
+  "difamilast": {
+    "fda_year": 2026,
+    "earliest_global_year": 2021,
+    "earliest_regulator": "PMDA/MHLW (Japan)",
+    "evidence": [
+      "https://www.pmda.go.jp/files/000250545.pdf",
+      "https://en.wikipedia.org/wiki/Difamilast",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219474"
+    ],
+    "confidence": "high"
+  },
+  "dordaviprone hydrochloride": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.fda.gov/drugs/resources-information-approved-drugs/fda-grants-accelerated-approval-dordaviprone-diffuse-midline-glioma",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219876"
+    ],
+    "confidence": "medium"
+  },
+  "elamipretide hydrochloride": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2025/215244Orig1s000Approv.pdf",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=215244"
+    ],
+    "confidence": "medium"
+  },
+  "elinzanetant": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "MHRA (UK)",
+    "evidence": [
+      "https://www.pharmafocuseurope.com/pharma-exclusives/press-releases/bayer-receives-first-approval-worldwide-for-lynkue",
+      "https://www.cambridgenetwork.co.uk/news/first-non-hormonal-menopause-treatment-approved-use-uk-mhra-early-stage-development-stevenage",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219469"
+    ],
+    "confidence": "high"
+  },
+  "ensitrelvir": {
+    "fda_year": 2026,
+    "earliest_global_year": 2022,
+    "earliest_regulator": "PMDA/MHLW (Japan)",
+    "evidence": [
+      "https://www.shionogi.com/content/dam/shionogi/ts/news/pdf/2022/E_20221122_final.pdf",
+      "https://www.medthority.com/news/2022/11/xocova-tablets-125mg-approved-in-japan-for-the-treatment-of-sars-cov-2-infection-under-the-emergency-regulatory-approval-system.--shionogi",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220442"
+    ],
+    "confidence": "high"
+  },
+  "etripamil": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://xtalks.com/cardamyst-nasal-spray-wins-fda-approval-to-treat-heart-arrhythmia-4565/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=218571"
+    ],
+    "confidence": "medium"
+  },
+  "gedatolisib": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.oncnursingnews.com/view/fda-approves-gedatolisib-for-hr-her2-metastatic-breast-cancer",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219908"
+    ],
+    "confidence": "medium"
+  },
+  "gepotidacin mesylate": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.gsk.com/media/11932/blujepa-global-fda-approval.pdf",
+      "https://www.indianpharmapost.com/news/lite/mhra-approves-uks-first-new-type-of-antibiotic-for-urinary-tract-infections-17691",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=218230"
+    ],
+    "confidence": "medium"
+  },
+  "iberdomide hydrochloride": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.cancernetwork.com/view/fda-approves-iberdomide-combo-in-relapsed-refractory-multiple-myeloma",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=221075"
+    ],
+    "confidence": "medium"
+  },
+  "imlunestrant tosylate": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.ema.europa.eu/en/medicines/human/EPAR/inluriyo",
+      "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2025/218881Orig1s000Approv.pdf",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=218881"
+    ],
+    "confidence": "medium"
+  },
+  "islatravir": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.merck.com/news/fda-approves-mercks-once-daily-idvynso-doravirine-islatravir/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=216964"
+    ],
+    "confidence": "medium"
+  },
+  "linerixibat": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.gsk.com/media/32rneqro/linerixibat-fda-approval-19326.pdf",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220295"
+    ],
+    "confidence": "medium"
+  },
+  "mirdametinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.biospace.com/press-releases/european-commission-grants-conditional-approval-of-ezmekly-mirdametinib-for-the-treatment-of-adult-and-pediatric-patients-with-nf1-pn",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219379"
+    ],
+    "confidence": "medium"
+  },
+  "nerandomilast": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.thepharmaletter.com/pharmaceutical/boehringer-s-jascayd-follows-up-us-approval-with-chinese-nod",
+      "https://medicaldialogues.in/news/industry/pharma/boehringer-ingelheim-jascayd-gets-nod-in-china-for-idiopathic-pulmonary-fibrosis-157307",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=218764"
+    ],
+    "confidence": "medium"
+  },
+  "orforglipron calcium": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.healio.com/news/endocrinology/20260401/fda-approves-orforglipron-an-oral-glp1-for-adults-with-obesity",
+      "https://www.medino.com/article/orforglipron-weight-loss-pill",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220934"
+    ],
+    "confidence": "medium"
+  },
+  "paltusotine hydrochloride": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://s206.q4cdn.com/492797646/files/doc_news/Crinetics-Pharmaceuticals-Announces-the-European-Commission-Approval-of-PALSONIFY-Paltusotine-for-the-Treatment-of-Acromegaly-in-Adults-2026.pdf",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219070"
+    ],
+    "confidence": "medium"
+  },
+  "relacorilant": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2026/220641Orig1s000Approv.pdf",
+      "https://www.consultant360.com/fda-alerts/fda-approves-relacorilant-lifyorli-plus-nab-paclitaxel-platinum-resistant-ovarian"
+    ],
+    "confidence": "medium"
+  },
+  "remibrutinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.ema.europa.eu/en/medicines/human/EPAR/rhapsido",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=218436"
+    ],
+    "confidence": "medium"
+  },
+  "rilzabrutinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.fiercepharma.com/pharma/sanofi-rilzabrutinib-fda-approval-immune-thrombocytopenia-itp",
+      "https://www.pharmanow.live/latest-news/wayrilz-eu-approval-itp",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219685"
+    ],
+    "confidence": "medium"
+  },
+  "rusfertide acetate": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.takeda.com/newsroom/newsreleases/2026/nda-rusfertide/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220605"
+    ],
+    "confidence": "medium"
+  },
+  "sebetralstat": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.businesswire.com/news/home/20250715103754/en",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219301"
+    ],
+    "confidence": "medium"
+  },
+  "sepiapterin": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "EMA/EC (EU)",
+    "evidence": [
+      "https://www.ema.europa.eu/en/medicines/human/EPAR/sephience",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219666"
+    ],
+    "confidence": "high"
+  },
+  "sevabertinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.bayer.com/media/en-us/bayers-sevabertinib-approved-in-japan-for-patients-with-her2-mutant-non-small-cell-lung-cancer/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219972"
+    ],
+    "confidence": "medium"
+  },
+  "sonrotoclax": {
+    "fda_year": 2026,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "NMPA (China)",
+    "evidence": [
+      "https://pharmacally.com/china-grants-first-in-world-approval-to-beone-medicines-sonrotoclax-for-r-r-mcl-and-cll-sll/",
+      "https://www.indianpharmapost.com/regulatory/lite/beone-medicines-wins-first-in-world-nod-for-sonrotoclax-in-china-18825",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220711"
+    ],
+    "confidence": "medium"
+  },
+  "suzetrigine": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219209"
+    ],
+    "confidence": "medium"
+  },
+  "taletrectinib adipate": {
+    "fda_year": 2025,
+    "earliest_global_year": 2024,
+    "earliest_regulator": "NMPA (China)",
+    "evidence": [
+      "https://www.springermedicine.com/nsclc/nsclc/taletrectinib-first-approval/51703750",
+      "https://pharmashots.com/20535/innovent-reports-the-nmpas-approval-of-dovbleron-taletrectinib-adipate-capsule-for-treating-ros1-positive-nsclc/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219713"
+    ],
+    "confidence": "high"
+  },
+  "tebipenem pivoxil hydrobromide": {
+    "fda_year": 2026,
+    "earliest_global_year": 2009,
+    "earliest_regulator": "PMDA/MHLW (Japan)",
+    "evidence": [
+      "https://www.pmda.go.jp/PmdaSearch/iyakuDetail/780009_6139002C1026_1_13",
+      "https://newdrugapprovals.org/2018/08/17/tebipenem-pivoxil/",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=215960"
+    ],
+    "confidence": "high"
+  },
+  "tradipitant": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.hcplive.com/view/fda-approves-tradipitant-nereus-for-the-prevention-of-vomiting-induced-by-motion",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220152"
+    ],
+    "confidence": "medium"
+  },
+  "vepdegestrant": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2026/219835Orig1s000Lbl.pdf",
+      "https://www.curetoday.com/view/fda-approval-of-veppanu-offers-new-hope-for-esr1-mutant-breast-cancer-care"
+    ],
+    "confidence": "medium"
+  },
+  "vimseltinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.businesswire.com/news/home/20250917912113/en/Deciphera-Receives-European-Commission-Approval-of-ROMVIMZA%E2%84%A2-vimseltinib-for-the-Treatment-of-Tenosynovial-Giant-Cell-Tumor-TGCT",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219304"
+    ],
+    "confidence": "medium"
+  },
+  "zidesamtinib": {
+    "fda_year": 2026,
+    "earliest_global_year": 2026,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.fda.gov/drugs/resources-information-approved-drugs/fda-approves-zidesamtinib-ros1-positive-non-small-cell-lung-cancer",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220185"
+    ],
+    "confidence": "medium"
+  },
+  "ziftomenib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.kyowakirin.com/media_center/news_releases/2026/e20260424_01.html",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=220305"
+    ],
+    "confidence": "medium"
+  },
+  "zoliflodacin": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://gardp.org/nuzolvence-zoliflodacin-first-in-class-oral-antibiotic-for-gonorrhoea-receives-u-s-fda-approval/",
+      "https://gardp.org/wp-content/uploads/2026/07/PR-Thai-FDA-Approval-July-2026-Final.pdf",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219491"
+    ],
+    "confidence": "medium"
+  },
+  "zongertinib": {
+    "fda_year": 2025,
+    "earliest_global_year": 2025,
+    "earliest_regulator": "FDA",
+    "evidence": [
+      "https://www.fda.gov/drugs/drug-trials-snapshots/drug-trials-snapshots-hernexeos",
+      "https://www.santelog.com/actualites-sante-nasdaq/boehringers-hernexeosr-approved-china-first-oral-targeted-therapy-previously",
+      "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=219042"
+    ],
+    "confidence": "medium"
+  }
+}
