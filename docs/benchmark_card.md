@@ -1,6 +1,6 @@
 # Benchmark card: an approved drug's structure from its pharmacology profile
 
-This card describes the release tables that `scripts/make_release.py` builds in `release/`, which are kept local and are not published with the repository: reference structures and splits for 351 drugs, control answers, and the study's reference numbers (splits.csv, controls.csv,
+This card describes the release tables that `scripts/make_release.py` builds in `release/`, which are published with the repository: reference structures and splits for 351 drugs, control answers, and the study's reference numbers (splits.csv, controls.csv,
 values.csv, and a README with checksums). The profile texts are private and are not released. The protocol is frozen by the git tag prereg-v1 (2026-10-18).
 The release tables hold no model score; the Test values of the controls are in section 6 and the full Test results are in the paper (`results/`, `docs/paper/draft.md`).
 
@@ -22,18 +22,17 @@ for any similarity-scored structure task.
 - So similarity alone cannot tell a system that reads the profile from one that learned a good generic molecule. The controls come first (docs/controls_checklist.md).
 
 ## 3. Data sources and licences
-| Part | Source | Terms |
+| Part | Source | Terms (checked 2026-10-18) |
 |---|---|---|
-| Reference structures, 333 of 351 drugs | ChEMBL parent structure found by drug name, cross-checked against the private dataset's answers | not recorded in the repository |
-| Reference structures, 18 of 351 | Resolved by hand from PubChem; metal complexes use the organic ligand (6 drugs) | not checked |
-| Approval years | ChEMBL first approval (285 drugs), openFDA (6), an audit of regulator pages for 43 candidates (42), hand dating (18) | not checked |
-| PubChem record year and PubMed count | NCBI, matched by name and structure | not checked |
+| Reference structures, 333 of 351 drugs | ChEMBL parent structure found by drug name, cross-checked against the private dataset's answers | ChEMBL: CC BY-SA 3.0 (attribution, share-alike) |
+| Reference structures, 18 of 351 | Resolved by hand from PubChem; metal complexes use the organic ligand (6 drugs) | NCBI places no restriction; submitters may claim rights |
+| Approval years | ChEMBL first approval (285 drugs), openFDA (6), an audit of regulator pages for 43 candidates (42), hand dating (18) | ChEMBL as above; openFDA CC0; regulator pages: dates are facts, the page is named in the audit |
+| PubChem record year and PubMed count | NCBI, matched by name and structure | NCBI: no restriction on use or distribution |
 | Control C3 pool | ChEMBL_37, released 2026-05-01, 1,587 approved drugs; not copied | as ChEMBL |
-| Profile texts, traces, samples, adapters | Private dataset, 1,146 rows | not released |
+| Profile texts, traces, samples, adapters | Private dataset, 1,146 rows | not released; its licence is not recorded |
 
-ChEMBL: the repository notes record neither a licence nor the ChEMBL release behind the per-drug reference table (only the C3 pool, ChEMBL_37). Verify the ChEMBL licence terms before
-redistributing. Not checked: the ChEMBL licence; the release behind the reference table; the terms of openFDA, the regulator pages (FDA, EMA, MHRA, PMDA, NMPA), PubChem and PubMed; the
-licence of the private dataset. No licence has been chosen yet for this repository or for the release files.
+The release tables are licensed CC BY-SA 4.0: they adapt ChEMBL data (CC BY-SA 3.0), and that licence allows a later version for adaptations. Attribute ChEMBL when you use them. The code is MIT and the text CC BY 4.0.
+The ChEMBL release behind the per-drug reference table was not recorded (only the C3 pool, ChEMBL_37). Not checked: the individual regulator pages beyond the fact that approval dates are facts, and the licence of the private dataset.
 
 ## 4. Splits
 | Split | Drugs | Rows | Components | Rule |
@@ -86,8 +85,8 @@ The C3 pool is not copied; controls.csv records its checksum and release/README.
   36 drugs (salt words dropped from the name) and 8 radiolabelled names may undercount (data/curated/exposure_notes.md).
 
 ## 10. How to cite
-No paper or DOI exists yet. Until it does, cite the repository (rl-exp), the tag prereg-v1 and the checksums in the locally built release/README.md. Working title of the paper:
-"Reinforcement learning did not beat a tuned constant answer at predicting drug structures from pharmacology profiles". Author and year fields will be added with the paper.
+No paper or DOI exists yet. Until it does, cite the repository (jnopareboateng/rl-exp), the tag prereg-v1 and the checksums in release/README.md. Working title of the paper:
+"Reinforcement learning did not beat a tuned constant answer at predicting the structures of newly approved drugs from their pharmacology profiles". Author and year fields will be added with the paper.
 
 ## 11. How to rerun the scoring
 Setup: `uv venv && uv pip install -e ".[dev]"`. Rebuild the release (needs the repository's curated files, its results and the ChEMBL pool): `python scripts/make_release.py`.

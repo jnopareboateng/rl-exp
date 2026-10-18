@@ -6,7 +6,7 @@ Read directly from a clone at the fork commit; evidence tag = read-in-code unles
 ## What it is
 
 `github.com/XiaomiMiMo/verl` is the **agentic RL training code for MiMo-V2.6**. It is a fork of
-verl at `2781c1e4` (0.9.0.dev) with **one** commit, `e2b9fc0` (shenbowen1@xiaomi.com, 2026-09-21):
+verl at `2781c1e4` (0.9.0.dev) with **one** commit, `e2b9fc0` (a Xiaomi author, 2026-09-21):
 **191 files changed, +30,672 / -88**. No upstream merges since. The recipe it reproduces is
 Section 7 of the MiMo-V2.6 technical report, *Scaling Reinforcement Learning Towards
 Self-Improvement* (`MiMo_V2_6_technical_report.pdf`, HF).

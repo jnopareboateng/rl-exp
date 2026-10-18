@@ -10,8 +10,8 @@ Change a contract only through the orchestrator, and update this file in the sam
     gpu/          STACK.md  env_check.py  sample_vllm.py  (training scripts later)      standalone, runs on Colab and Kaggle without installing rlexp
     tests/        pytest; tests/fixtures/answer_formats.json
     data/raw/         original row files (ignored by git): train_think.jsonl, val_think.jsonl
-    data/curated/     inputs and lookup caches, kept local and not published: chembl_refs.json, manual_refs.json, approval_audit.json, exposure.json (+ *_notes.md)
-    data/processed/   outputs of data_prep, all kept local and not published: refs.jsonl, split_report.json; train.jsonl, val.jsonl, test_r.jsonl, test_t.jsonl (hold prompt text)
+    data/curated/     inputs and lookup caches built from public databases (tracked; terms in data/README.md): chembl_refs.json, manual_refs.json, approval_audit.json, exposure.json (+ *_notes.md)
+    data/processed/   outputs of data_prep: refs.jsonl and split_report.json are tracked; train.jsonl, val.jsonl, test_r.jsonl, test_t.jsonl and arms/ hold prompt text and stay local (not published)
     runs/<run_id>/    samples.jsonl, scored.jsonl, meta.json (ignored)         results/  small tracked summaries of runs (JSON, CSV) used by the paper
     docs/         plan.md  contracts.md  scaling.md  memory/  paper/  research/  archive/
 
