@@ -9,7 +9,8 @@ Run only after the git tag `prereg-v1` exists. Nothing here chooses an arm, a de
    `python gpu/final_eval.py --spec results/frozen_arms.json --spec-sha256 $(cut -d' ' -f1 results/frozen_arms.sha256) --selection results/selection.json --manifest data/MANIFEST.sha256 --dry-run`
    (this validates the spec against the selection and the manifest, and writes nothing).
 3. `python3 scripts/data_manifest.py` (the manifest lists the Test files and the arm prompt files; the Test and variant files exist as inputs only: they hold prompts, no model output).
-4. Full test suite green; commit; `git tag -a prereg-v1 -m "<spec sha256> <selection sha256> <manifest sha256>"`.
+4. Full test suite green; commit; annotated tag whose message is exactly `prereg-v1 spec=<sha256> selection=<sha256> manifest=<sha256>` (the spec's sha256 is in `results/frozen_arms.sha256`;
+   `scripts/confirmatory.py` reads the expected spec hash from this message with `git tag -n99 prereg-v1`).
 
 ## 1. Runtime (GPU)
 1. Colab runtime A100-40GB, Drive mounted. Upload `runs/bootstrap.tgz` (`scripts/make_bootstrap_bundle.py`: refuses every file whose hash is a Test file's) and run `sh gpu/bootstrap_colab.sh`
@@ -23,7 +24,7 @@ It stops before anything runs if a spec arm belongs to no stage, and stops after
    `python gpu/prepare_final.py --spec results/frozen_arms.json --spec-sha256 <hex> --selection results/selection.json --models final_models --only A2,RL-full`.
    A merged 4B model is 9 GB: delete it after its Test samples exist.
 4. Pre-Test sanity on Val (the driver refuses Val, so call the sampler): sample each merged adapter arm on Val at its frozen temperature and settings with `gpu/sample_vllm.py --splits val`
-   and compare fv_tanimoto with the selection's score (a sampler-seed replicate moves it by about 0.003). Stop if it is off by more than 0.01: the model on disk is not the selected one.
+   and compare fv_tanimoto with the selection's score (a sampler-seed replicate moves it by about 0.003). Stop if it is off by more than 0.005: the model on disk is not the selected one. The result goes to `runs/final/sanity.json`, which `scripts/confirmatory.py` requires for every adapter arm of the pair.
 5. Sampling: `python gpu/final_eval.py --spec ... --spec-sha256 <hex> --selection ... --manifest data/MANIFEST.sha256 --data data --out runs/final --only <ids>`; resumable, so a killed
    run is started again with the same command. Order: the confirmatory pair first (the Val-selected A5, then A2, A0n, A4), then 9B, the profile diagnostics, the name and identification probes
    of 4B and 9B, then the 27B references (each needs the HF cache cleared first: `rm -rf ~/.cache/huggingface/hub`, 31 GB per model, `gpu_memory_utilization` 0.93 is in the spec). Omissions
@@ -32,9 +33,9 @@ It stops before anything runs if a spec arm belongs to no stage, and stops after
 
 ## 2. Scoring (CPU, repo)
 1. Extract the archive into `runs/final/`. `rlexp.metrics score --samples runs/final/<id>/samples.jsonl --data data/processed --out runs/final/<id>/scored.v3.jsonl` for every arm (ident probes through `rlexp.ident`).
-2. `.venv/bin/python scripts/final_controls.py --final runs/final` (C0 to C3, eight copies per row, scored).
-3. `.venv/bin/python scripts/confirmatory.py --selection results/selection.json --spec-sha256 <hex> --final runs/final --out results/confirmatory.json` (the one confirmatory contrast on test_t,
-   test_r exploratory; refuses a run not made under the frozen spec or a cohort of the wrong size).
+2. `.venv/bin/python scripts/final_controls.py --final runs/final --manifest data/MANIFEST.sha256` (C0 to C3, eight copies per row, scored; refuses Test files that are not the manifest's).
+3. `.venv/bin/python scripts/confirmatory.py --selection results/selection.json --final runs/final --manifest data/MANIFEST.sha256 --out results/confirmatory.json` (the one confirmatory contrast on test_t,
+   test_r exploratory; the spec hash comes from the tag message; refuses a run not made under the frozen spec, scored files that do not belong to their arm or samples, a cohort of the wrong size, a missing or failed Val sanity check).
 4. Tables and figures (a Test split needs `--allow-test` in each; run `final_table.py` first, the others read what it leaves in `runs/final/<id>/`):
    `scripts/final_table.py --final runs/final --splits test_t,test_r --spec results/frozen_arms.json --out results/test_baselines.json --md results/test_table.md --allow-test`,
    `scripts/paired_table.py --final runs/final --split test_t --selection results/selection.json --auto --out results/paired_test_t.json --md results/paired_test_t.md --allow-test` (and `--split test_r`),
