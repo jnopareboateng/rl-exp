@@ -1,0 +1,19 @@
+{
+ "tolerance": 0.005,
+ "attempts": [
+  {
+   "arm": "A2",
+   "value": 0.15567760756229113,
+   "selection_score": 0.15567760756229113,
+   "passed": true,
+   "time": "2026-10-18T01:35:52+00:00"
+  },
+  {
+   "arm": "RL-full",
+   "value": 0.19578500493775128,
+   "selection_score": 0.19490439119145103,
+   "passed": true,
+   "time": "2026-10-18T01:37:10+00:00"
+  }
+ ]
+}

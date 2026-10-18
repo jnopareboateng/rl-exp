@@ -1,0 +1,50 @@
+{
+ "split": "val",
+ "scorer": "rlexp.ident score (usable samples only; drug-balanced)",
+ "rows": {
+  "4B": {
+   "run": "ident-4b",
+   "split": "val",
+   "drugs": 20,
+   "rows": 58,
+   "samples": 464,
+   "pass_k": 8,
+   "name_match@1": 0.0099,
+   "name_pass@8": 0.0417,
+   "answered": 0.8797
+  },
+  "9B": {
+   "run": "ident-9b",
+   "split": "val",
+   "drugs": 20,
+   "rows": 58,
+   "samples": 464,
+   "pass_k": 8,
+   "name_match@1": 0.0198,
+   "name_pass@8": 0.0833,
+   "answered": 0.9552
+  },
+  "Qwen3.5-27B-FP8": {
+   "run": "ident-27b",
+   "split": "val",
+   "drugs": 20,
+   "rows": 58,
+   "samples": 116,
+   "pass_k": 2,
+   "name_match@1": 0.0688,
+   "name_pass@2": 0.1083,
+   "answered": 0.9
+  },
+  "Qwen3.8-27B-FP8": {
+   "run": "ident-38",
+   "split": "val",
+   "drugs": 20,
+   "rows": 58,
+   "samples": 116,
+   "pass_k": 2,
+   "name_match@1": 0.0417,
+   "name_pass@2": 0.0708,
+   "answered": 0.9938
+  }
+ }
+}
