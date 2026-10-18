@@ -31,13 +31,31 @@
    "step_seconds": 1858.6529666849892,
    "eval_seconds": 255.11576206999962,
    "seconds": 2113.768728754989
+  },
+  {
+   "label": "RL-full replicate R5 (seed 1)",
+   "kind": "RL",
+   "steps": 63,
+   "status": "stopped_collapse",
+   "step_seconds": 4660.7982152370005,
+   "eval_seconds": 593.4952411190025,
+   "seconds": 5254.293456356003
+  },
+  {
+   "label": "RL-validity R2",
+   "kind": "RL",
+   "steps": 40,
+   "status": "complete",
+   "step_seconds": 2297.1262109670024,
+   "eval_seconds": 337.80894243699913,
+   "seconds": 2634.9351534040015
   }
  ],
  "sampling": {
   "4B untrained and prompt probes": {
-   "runs": 8,
-   "wall_seconds": 1835.987084986998,
-   "generation_seconds": 1457.6222416910016
+   "runs": 11,
+   "wall_seconds": 2043.5296238809965,
+   "generation_seconds": 1534.621569920005
   },
   "A1 Val sampling": {
    "runs": 1,
@@ -45,9 +63,9 @@
    "generation_seconds": 1880.5260424200005
   },
   "Diagnostics: shuffled and blank profile": {
-   "runs": 4,
-   "wall_seconds": 422.2876901589997,
-   "generation_seconds": 107.36251650999998
+   "runs": 6,
+   "wall_seconds": 542.8754229610012,
+   "generation_seconds": 141.92307789500387
   },
   "A2 Val sampling": {
    "runs": 6,
@@ -75,9 +93,9 @@
    "generation_seconds": 526.1272128089968
   },
   "RL checkpoints: Val re-sampling": {
-   "runs": 12,
-   "wall_seconds": 914.6613957749994,
-   "generation_seconds": 391.1399828320002
+   "runs": 21,
+   "wall_seconds": 1587.691112279999,
+   "generation_seconds": 672.1860997500019
   }
  },
  "runs_without_meta": [
@@ -103,7 +121,7 @@
   "colab-s1/val8-control_copy_nearest"
  ],
  "runtime_sessions": {
-  "as_of": "2026-10-17T22:30:00Z",
+  "as_of": "2026-10-18T02:00:00Z",
   "runtimes": [
    {
     "start": "2026-10-17T12:10:00Z",
@@ -117,7 +135,7 @@
     "end": null,
     "gpu": "Colab A100-SXM4-40GB (runtime 2)",
     "note": "rebuilt from the bootstrap bundle; running",
-    "hours": 1.55
+    "hours": 5.05
    },
    {
     "hours": 0.29,
@@ -128,8 +146,8 @@
   "note": "Hand-kept from the agent session log: start is the first tool call to a runtime, end the call that found it gone; this is wall-clock time with the runtime attached, GPU idle time included."
  },
  "totals_hours": {
-  "training": 1.9623453265913906,
-  "sampling_wall": 2.6925680215186114,
-  "sampling_generation": 2.005276322653887
+  "training": 4.153797718191392,
+  "sampling_wall": 2.970668018241111,
+  "sampling_generation": 2.114333546690556
  }
 }

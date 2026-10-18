@@ -34,6 +34,9 @@
 | 4B A2 | T=0.3, k=8, think mode | 0.811 | 0.137 | 1.25 | 69.5 | +0.005 | +0.008 | 0.117 | 0.003 | 0.000 |
 | 4B RL-full step 40, sampler seed 1 | T=0.6, k=8, think mode | 0.977 | 0.189 | 1.07 | 33.2 | +0.008 | +0.005 | 0.181 | 0.000 | 0.000 |
 | 4B RL-full step 40, sampler seed 2 | T=0.6, k=8, think mode | 0.980 | 0.186 | 1.04 | 32.7 | +0.005 | +0.004 | 0.182 | 0.000 | 0.000 |
+| 4B RL-validity-only step 40 (control) | T=0.3, k=8, think mode | 0.998 | 0.074 | 1.00 | 18.0 | +0.002 | +0.006 | 0.078 | 0.000 | 0.000 |
+| 4B RL-validity-only step 40 (control) | T=0.6, k=8, think mode | 0.998 | 0.080 | 1.00 | 18.8 | +0.003 | +0.005 | 0.080 | 0.000 | 0.000 |
+| 4B RL-validity-only step 40 (control) | T=1.0, k=8, think mode | 0.995 | 0.076 | 1.01 | 17.3 | +0.001 | +0.004 | 0.080 | 0.002 | 0.000 |
 | 4B RL-contrastive step 10 (run cut short) | T=0.6, k=8, think mode | 0.961 | 0.122 | 1.05 | 27.0 | +0.005 | +0.010 | 0.127 | 0.046 | 0.000 |
 | 4B RL-contrastive step 10 (run cut short) | T=1.0, k=8, think mode | 0.885 | 0.123 | 1.08 | 27.0 | +0.005 | +0.008 | 0.115 | 0.045 | 0.000 |
 | 4B RL-contrastive step 20 (run cut short) | T=0.6, k=8, think mode | 0.994 | 0.113 | 1.00 | 22.9 | +0.010 | +0.009 | 0.114 | 0.021 | 0.000 |
@@ -43,6 +46,8 @@
 | 4B A2 shown another drug's profile (shuffled) | T=1.0, k=8, think mode | 0.565 | 0.131 | 1.76 | 69.2 | -0.007 | -0.002 | 0.074 | 0.002 | 0.000 |
 | 4B A2 with a blank profile | T=1.0, k=8, think mode | 0.721 | 0.168 | 1.00 | 28.0 | +0.000 | +0.000 | 0.114 | 0.000 | 0.000 |
 | 4B RL-full step 40 shown another drug's profile (shuffled) | T=0.6, k=8, think mode | 0.977 | 0.183 | 1.00 | 30.1 | +0.002 | -0.004 | 0.173 | 0.000 | 0.000 |
+| 4B RL-full replicate step 50 (the selected checkpoint) shown another drug's profile (shuffled) | T=0.3, k=8, think mode | 1.000 | 0.183 | 1.00 | 31.4 | +0.001 | -0.001 | 0.181 | 0.000 | 0.000 |
+| 4B RL-full replicate step 50 (the selected checkpoint) with a blank profile | T=0.3, k=8, think mode | 1.000 | 0.181 | 1.00 | 26.0 | +0.000 | +0.000 | 0.182 | 0.000 | 0.000 |
 | 4B RL-full step 40 with a blank profile | T=0.6, k=8, think mode | 1.000 | 0.089 | 1.00 | 104.0 | +0.000 | +0.000 | 0.165 | 0.000 | 0.000 |
 | 4B A1 (trace SFT, epoch 2) | T=1.0, k=4, think mode, 8192 tokens | 0.328 | n/a | n/a | n/a | n/a | +0.003 | 0.048 | 0.000 | 0.000 |
 | 4B untrained | T=0.6, k=8 | 0.254 | 0.099 | 4.34 | 351.5 | +0.011 | +0.008 | 0.042 | 0.013 | 0.000 |

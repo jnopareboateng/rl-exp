@@ -58,6 +58,8 @@ RUNS = [
     ("a2-shuffle-t1.0", "4B A2 shown another drug's profile (shuffled)", "T=1.0, k=8, think mode"),
     ("a2-blank-t1.0", "4B A2 with a blank profile", "T=1.0, k=8, think mode"),
     ("r1s40-shuffle-t0.6", "4B RL-full step 40 shown another drug's profile (shuffled)", "T=0.6, k=8, think mode"),
+    ("r5s50-shuffle-t0.3", "4B RL-full replicate step 50 (the selected checkpoint) shown another drug's profile (shuffled)", "T=0.3, k=8, think mode"),
+    ("r5s50-blank-t0.3", "4B RL-full replicate step 50 (the selected checkpoint) with a blank profile", "T=0.3, k=8, think mode"),
     ("r1s40-blank-t0.6", "4B RL-full step 40 with a blank profile", "T=0.6, k=8, think mode"),
     ("a1-val", "4B A1 (trace SFT, epoch 2)", "T=1.0, k=4, think mode, 8192 tokens"),
     ("b4-t0.6", "4B untrained", "T=0.6, k=8"),

@@ -98,7 +98,8 @@ def build(runs, sessions_path):
 def markdown(result):
     lines = ["| Stage | Runs or steps | GPU hours | Note |", "|---|---|---|---|"]
     for r in result["training"]:
-        note = f"{r['kind']}; status {r['status']}" + (f"; includes {r['eval_seconds'] / 60:.0f} min of Val evaluations" if r["kind"] == "RL" else "")
+        status = "last record 'running': the runtime was lost" if r["status"] == "running" else f"status {r['status']}"
+        note = f"{r['kind']}; {status}" + (f"; includes {r['eval_seconds'] / 60:.0f} min of Val evaluations" if r["kind"] == "RL" else "")
         lines.append(f"| {r['label']} | {r['steps']} steps | {r['seconds'] / 3600:.2f} | {note} |")
     for stage, v in sorted(result["sampling"].items()):
         lines.append(f"| {stage} | {v['runs']} runs | {v['wall_seconds'] / 3600:.2f} | vLLM; {v['generation_seconds'] / 3600:.2f} h of it generation |")

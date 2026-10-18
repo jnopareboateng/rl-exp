@@ -1275,6 +1275,117 @@
    ]
   },
   {
+   "run": "rlvalidity-s40-t0.3",
+   "label": "4B RL-validity-only step 40 (control)",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.9979166666666666,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.07827383546231077,
+   "fv_tanimoto": 0.07399413651472313,
+   "fv_samples": 1.0,
+   "fv_tokens": 17.979166666666664,
+   "fv_lift": 0.002459455370206735,
+   "lift": 0.0060567935931478654,
+   "tanimoto_valid": 0.0784603605072083,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09686013461071978,
+   "lift_ci": [
+    -0.007753677885988237,
+    0.019024572473259845
+   ],
+   "fv_tanimoto_ci": [
+    0.06034356482068014,
+    0.08563112050709107
+   ],
+   "mean_tanimoto_ci": [
+    0.06551177704957968,
+    0.09002578492765655
+   ],
+   "fv_lift_ci": [
+    -0.01134195210499443,
+    0.01458739915858818
+   ]
+  },
+  {
+   "run": "rlvalidity-s40-t0.6",
+   "label": "4B RL-validity-only step 40 (control)",
+   "decoding": "T=0.6, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.9979166666666668,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.08009559450443857,
+   "fv_tanimoto": 0.08027856794977695,
+   "fv_samples": 1.0,
+   "fv_tokens": 18.775,
+   "fv_lift": 0.002634671989326998,
+   "lift": 0.005130081545441577,
+   "tanimoto_valid": 0.08029745930087633,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09795319003599648,
+   "lift_ci": [
+    -0.007298231170131461,
+    0.015548376999539294
+   ],
+   "fv_tanimoto_ci": [
+    0.06501878282063793,
+    0.09165496305163119
+   ],
+   "mean_tanimoto_ci": [
+    0.06866977323771441,
+    0.08941075338950642
+   ],
+   "fv_lift_ci": [
+    -0.011335738072862615,
+    0.013501679425104754
+   ]
+  },
+  {
+   "run": "rlvalidity-s40-t1.0",
+   "label": "4B RL-validity-only step 40 (control)",
+   "decoding": "T=1.0, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.9947916666666666,
+   "exact@1": 0.0,
+   "core@1": 0.0020833333333333333,
+   "mean_tanimoto": 0.07976753241792574,
+   "fv_tanimoto": 0.07605561201918043,
+   "fv_samples": 1.0125,
+   "fv_tokens": 17.275,
+   "fv_lift": 0.0007312631692269478,
+   "lift": 0.0036771362276028065,
+   "tanimoto_valid": 0.08035115141749288,
+   "core@8": 0.016666666666666666,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09822510278408877,
+   "lift_ci": [
+    -0.00896818979347843,
+    0.014952427210569691
+   ],
+   "fv_tanimoto_ci": [
+    0.06206772272666634,
+    0.08758814635223415
+   ],
+   "mean_tanimoto_ci": [
+    0.06799745918001411,
+    0.09002213358224637
+   ],
+   "fv_lift_ci": [
+    -0.013842899365022606,
+    0.013931660248426077
+   ]
+  },
+  {
    "run": "r3s10-t0.6",
    "label": "4B RL-contrastive step 10 (run cut short)",
    "decoding": "T=0.6, k=8, think mode",
@@ -1605,6 +1716,80 @@
    "fv_lift_ci": [
     -0.01993081711082165,
     0.02644458593285343
+   ]
+  },
+  {
+   "run": "r5s50-shuffle-t0.3",
+   "label": "4B RL-full replicate step 50 (the selected checkpoint) shown another drug's profile (shuffled)",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.18130573345450327,
+   "fv_tanimoto": 0.1831391211993937,
+   "fv_samples": 1.0,
+   "fv_tokens": 31.39166666666667,
+   "fv_lift": 0.0005890609061655422,
+   "lift": -0.0012089270708917604,
+   "tanimoto_valid": 0.18130573345450327,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.15878344007270195,
+   "lift_ci": [
+    -0.026404339698142567,
+    0.029536965833820743
+   ],
+   "fv_tanimoto_ci": [
+    0.15876399388648355,
+    0.2120832684871792
+   ],
+   "mean_tanimoto_ci": [
+    0.1573900136306693,
+    0.21020785749786353
+   ],
+   "fv_lift_ci": [
+    -0.024628699788593632,
+    0.030989851406084366
+   ]
+  },
+  {
+   "run": "r5s50-blank-t0.3",
+   "label": "4B RL-full replicate step 50 (the selected checkpoint) with a blank profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.1818215339317407,
+   "fv_tanimoto": 0.181463458885523,
+   "fv_samples": 1.0,
+   "fv_tokens": 26.0,
+   "fv_lift": -5.551115123125783e-18,
+   "lift": -4.163336342344337e-18,
+   "tanimoto_valid": 0.1818215339317407,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.1590929203590444,
+   "lift_ci": [
+    -0.02328258190796617,
+    0.025904082986366823
+   ],
+   "fv_tanimoto_ci": [
+    0.15942134532981003,
+    0.2060268095569888
+   ],
+   "mean_tanimoto_ci": [
+    0.15970308111917284,
+    0.20643041276878918
+   ],
+   "fv_lift_ci": [
+    -0.023202224795487312,
+    0.025856158601542948
    ]
   },
   {

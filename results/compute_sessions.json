@@ -1,9 +1,23 @@
 {
- "as_of": "2026-10-17T22:30:00Z",
+ "as_of": "2026-10-18T02:00:00Z",
  "note": "Hand-kept from the agent session log: start is the first tool call to a runtime, end the call that found it gone; this is wall-clock time with the runtime attached, GPU idle time included.",
  "runtimes": [
-  {"start": "2026-10-17T12:10:00Z", "end": "2026-10-17T20:35:00Z", "gpu": "Colab A100-SXM4-40GB (runtime 1)", "note": "disappeared; adapters and Val evaluations were on Drive, resumable RL checkpoints were not"},
-  {"start": "2026-10-17T20:57:00Z", "end": null, "gpu": "Colab A100-SXM4-40GB (runtime 2)", "note": "rebuilt from the bootstrap bundle; running"},
-  {"hours": 0.29, "gpu": "Kaggle T4 quota", "note": "a 14-minute probe session billed before it was cancelled, plus one 3.3-minute smoke run"}
+  {
+   "start": "2026-10-17T12:10:00Z",
+   "end": "2026-10-17T20:35:00Z",
+   "gpu": "Colab A100-SXM4-40GB (runtime 1)",
+   "note": "disappeared; adapters and Val evaluations were on Drive, resumable RL checkpoints were not"
+  },
+  {
+   "start": "2026-10-17T20:57:00Z",
+   "end": null,
+   "gpu": "Colab A100-SXM4-40GB (runtime 2)",
+   "note": "rebuilt from the bootstrap bundle; running"
+  },
+  {
+   "hours": 0.29,
+   "gpu": "Kaggle T4 quota",
+   "note": "a 14-minute probe session billed before it was cancelled, plus one 3.3-minute smoke run"
+  }
  ]
 }
