@@ -65,7 +65,7 @@ Test run list (spec ids in `results/frozen_arms.json`; ids in the confirmatory p
 | A2-shuffle, A2-blank, RL-full-shuffle, RL-full-blank | profile diagnostics | both |
 | name-4B, name-9B, name-27B, name-3.8, ident-4B, ident-9B, ident-27B, ident-3.8 | name-given and identification | both (4B, 9B), test_t (27B) |
 
-If compute runs out, arms are dropped from the end of this list and reported as omissions; the confirmatory pair is run first.
+If compute runs out, arms are dropped in the reverse of the stage order of `gpu/run_final.py` (the 4B arms and diagnostics first, then 9B, then Qwen3.5-27B, then Qwen3.8-27B last) and reported as omissions; the confirmatory pair is run first.
 Planned only if budget allows, otherwise reported as omissions (`docs/plan.md` section 2(d) wants them before any RL claim): profile-free RL, validity-only RL, cold-start RL,
 continued SFT with a small learning-rate and step search, dense-reward-ranked rejection-sampling FT (A3 as specified keeps only identity hits and would starve), and the
 profile-plus-name variant of the name-given diagnostic.
@@ -90,10 +90,13 @@ tokens for answer-only arms; mode (think/no-think) as trained. RL checkpoint: am
 fv_tanimoto when re-sampled with vLLM at k=8, at each grid temperature; an exact tie goes to the lower temperature, then the earlier step, then the run name (R1 before R5). RL runs evaluate Val at EVAL_K=8 in training from the second pilot on (the first used 4).
 The untrained size references are not tuned: 9B uses its Val-best grid temperature, the 27B models T=1.0. Merged exports are made from the adapters with `gpu/merge_lora.py`
 at the pinned base revision and checked against the adapter hashes in `results/frozen_arms.json`; before any Test sampling, each merged adapter arm is sampled on Val at its frozen settings
-(seed 0) and must reproduce its Val fv_tanimoto in `results/selection.json` within 0.005 (the sanity gate of `gpu/run_final.py`; its result is recorded in `runs/final/sanity.json`). Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
+(seed 0) and must reproduce its Val fv_tanimoto in `results/selection.json` within 0.005 (the sanity gate of `gpu/run_final.py`; every attempt is recorded in `runs/final/sanity.json`, and the tolerance is a constant of the frozen code,
+not a flag). The gate runs before any Test sample exists, so repeating it after fixing a cause (wrong files, a stale merge) is not a Test choice; a failing arm is not sampled on Test and is reported as an omission, and the confirmatory contrast requires
+the RL arm to have passed. Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
 settings, 3 temperatures per arm (RL-contrastive was sampled at 0.6 and 1.0 only; it is not selected).
 
 ## 6. What is not allowed after the tag
+The tag `prereg-v1` is annotated and its message is `prereg-v1 spec=<sha256> selection=<sha256> manifest=<sha256>`; the locked scripts read these hashes from it. Its time is the local clock of the committing machine unless the tag is pushed to a remote at once.
 The first complete locked sampling run (`runs/final`, made by `gpu/run_final.py` under the frozen spec) is the result. A second sampling run of any frozen arm is a deviation, reported with both results;
 vLLM batching is not bit-reproducible, so a re-run can differ and reporting the better one would be a forking path. A run killed and resumed through the same command is not a second run.
 Looking at Test results to change an arm, decoding, endpoint, selection rule or comparator set; re-scoring an arm on Test with a different
@@ -129,5 +132,5 @@ condition. Identical blank prompts give identical draws for every row, so its fi
 - **D4 (references).** The 27B reference models run on Test-T only (cost); the Qwen3.8-27B Val run used k=4 and the Qwen3.5-27B run k=8, and neither was tuned for temperature.
 - **D5 (shuffle control).** The shuffled-profile control keeps task type and prompt-length tercile, not format beyond that; it replaced a first version that only paired
   donors at random, before any Test file was built.
-- **D6 (replicate run).** The pilot R1 was still improving at step 40 (Val 0.163, 0.175, 0.178, 0.186 at steps 10 to 40, T=0.3), so a replicate R5 with another seed and up to 100 steps was added before the freeze; its checkpoints from step 40 are RL-full candidates. R1 ran an earlier
+- **D6 (replicate run).** The pilot R1 was still improving at step 40 (Val 0.163, 0.175, 0.178, 0.186 at steps 10 to 40, T=0.3), so a replicate R5 with another seed and a budget of 100 steps was added before the freeze (it stopped itself at step 63 on its collapse rule); its checkpoints from step 40 are RL-full candidates. R1 ran an earlier
   version of the RL pack (patience followed the Val mean reward and the resume identity had no objective hash); the training maths is the same, and R5 runs the pack committed in `1f44e4d` (objective hash 8f4d26b5; its rollouts also stop at the endoftext token). Both choices use Val only.

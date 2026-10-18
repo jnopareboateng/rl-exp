@@ -20,6 +20,9 @@ Run only after the git tag `prereg-v1` exists. Nothing here chooses an arm, a de
 Steps 3 to 5 are scripted: `python gpu/run_final.py --drive /content/drive/MyDrive/rl-exp` (`--dry-run` prints the plan; to resume after a stop add `--skip-sanity --from-stage <stage name> [--keep-cache]`).
 It stops before anything runs if a spec arm belongs to no stage, and stops after the sanity step if a merged model does not reproduce its Val score. What it does:
 
+3. Adapters from Drive to the paths the spec names: plain copies `.agent-runs/adapters_plain/{A2-epoch1,R5-step-50}` with THREE files each (`adapter_model.safetensors`, `adapter_config.json` and `revision.json`, the base revision pin), not the run directories
+   (`gpu/merge_lora.py` treats `<run>/adapters/step-N` as owned by a run and needs that run's checkpoint state). The bundle must be built at the tagged commit with a clean tree (`scripts/make_bootstrap_bundle.py` refuses otherwise).
+   After a lost runtime: bootstrap again, upload again, run `gpu/run_final.py --drive ...` again: it restores `runs/final` from Drive first and resumes; never start with an empty `runs/final` while Drive holds a partial one.
 3. Adapters from Drive to the paths the spec names (`adapter.path`); `gpu/prepare_final.py` checks both adapter files against the frozen hashes before merging:
    `python gpu/prepare_final.py --spec results/frozen_arms.json --spec-sha256 <hex> --selection results/selection.json --models final_models --only A2,RL-full`.
    A merged 4B model is 9 GB: delete it after its Test samples exist.
