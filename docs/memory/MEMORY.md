@@ -15,7 +15,7 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — Test run done and analysed, paper has results; R4 (Val-only) running; review and polish next
+- [status-main](status-main.md) — Test run done, paper restructured with results; Fable round 3 and final handoff pending
 
 ## Decisions
 - [decision-comparator-c3-registered](decision-comparator-c3-registered.md) — C3 joins the comparator set and A1 leaves it; prereg deviations D1 and D2, before any Test sample
@@ -35,6 +35,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [gotcha-approval-audit-wording](gotcha-approval-audit-wording.md) — approval_audit_notes.md says 'not seen' but PubChem records predate approval by years
 - [gotcha-base-model-verbosity](gotcha-base-model-verbosity.md) — Qwen3.5-4B rambles under the dataset's xhigh prompt (0% valid); a direct-answer prompt works
 - [gotcha-blank-profile-shared-draws](gotcha-blank-profile-shared-draws.md) — Blank-profile runs give every row one prompt, so draws repeat across rows; read mean_tanimoto
+- [gotcha-colab-disk-full-merge-fails](gotcha-colab-disk-full-merge-fails.md) — merge_lora 'SafetensorError: Data values are omitted' means the Colab VM disk is full (27B cache)
 - [gotcha-colab-mcp-hang](gotcha-colab-mcp-hang.md) — A dropped Colab tab hangs MCP calls for 30 min; poll in short calls and reconnect with authuser=1
 - [gotcha-core-endpoint-low-power](gotcha-core-endpoint-low-power.md) — core@1 is near 0 for every arm at 4B-27B and untestable; the endpoint is fv_tanimoto instead
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
