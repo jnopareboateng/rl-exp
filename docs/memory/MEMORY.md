@@ -15,7 +15,7 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — Val phase done and committed; RL replicate R5 training on runtime 2; freeze, tag and Test run next
+- [status-main](status-main.md) — Test run done and analysed, paper has results; R4 (Val-only) running; review and polish next
 
 ## Decisions
 - [decision-comparator-c3-registered](decision-comparator-c3-registered.md) — C3 joins the comparator set and A1 leaves it; prereg deviations D1 and D2, before any Test sample
@@ -32,6 +32,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 ## Gotchas
 - [gotcha-agent-restarts](gotcha-agent-restarts.md) — A session restart kills background agents and wipes scratch; workers must save after every item
 - [gotcha-answer-extractor](gotcha-answer-extractor.md) — extract_answer misfires in 11 of 77 fixtures; 2.2% of Val samples differ from the strict rule
+- [gotcha-approval-audit-wording](gotcha-approval-audit-wording.md) — approval_audit_notes.md says 'not seen' but PubChem records predate approval by years
 - [gotcha-base-model-verbosity](gotcha-base-model-verbosity.md) — Qwen3.5-4B rambles under the dataset's xhigh prompt (0% valid); a direct-answer prompt works
 - [gotcha-blank-profile-shared-draws](gotcha-blank-profile-shared-draws.md) — Blank-profile runs give every row one prompt, so draws repeat across rows; read mean_tanimoto
 - [gotcha-colab-mcp-hang](gotcha-colab-mcp-hang.md) — A dropped Colab tab hangs MCP calls for 30 min; poll in short calls and reconnect with authuser=1
