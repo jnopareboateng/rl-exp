@@ -457,7 +457,7 @@ def draw_scatter(rows, xkey, xlabel, ylabel, constant, size, symlog=False, zero_
 def draw_f3(rows, runs, constant):
     plt = plt_()
     from matplotlib.lines import Line2D
-    colours = ("#0072B2", "#D55E00", "#009E73", "#CC79A7")
+    colours = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00")
     fig, axes = plt.subplots(2, 3, figsize=(7.2, 4.0), sharex=True)
     similarity, validity, reward, lift, collapse, top = axes[0][0], axes[1][0], axes[0][1], axes[1][1], axes[0][2], axes[1][2]
 
@@ -669,7 +669,7 @@ def main(argv=None):
     ap.add_argument("--data", type=Path, default=Path("data/processed"), help="folder with refs.jsonl and split_report.json (F1)")
     ap.add_argument("--calibration", type=Path, default=Path("results/random_pair_calibration.json"), help="random-pair similarity percentiles (the band of F2 and F4); no band if absent")
     ap.add_argument("--rl-dir", type=Path, default=Path("runs/rl"))
-    ap.add_argument("--rl-runs", default="R1,R3,R4", help="RL run folders under --rl-dir, comma separated; absent ones are skipped")
+    ap.add_argument("--rl-runs", default="R1,R5,R2,R3,R4", help="RL run folders under --rl-dir, comma separated; absent ones are skipped")
     ap.add_argument("--tables", action="store_true", help="write only the tables, no figures")
     ap.add_argument("--allow-test", action="store_true", help="accept a Test split and Test-named inputs (locked evaluation, after the prereg-v1 tag)")
     args = ap.parse_args(argv)
