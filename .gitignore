@@ -14,6 +14,7 @@ data/processed/*
 !data/processed/split_report.json
 # heavy run outputs; small summaries belong in results/
 runs/
+final_models/
 *.safetensors
 *.gguf
 *.bin

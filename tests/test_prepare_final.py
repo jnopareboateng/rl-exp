@@ -2,12 +2,15 @@ import hashlib
 import importlib.util
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
-GPU = Path(__file__).resolve().parents[1] / "gpu"
+REPO = Path(__file__).resolve().parents[1]
+GPU = REPO / "gpu"
 MODELS = "final_models"          # the models directory, relative to the working directory (a selected adapter arm samples final_models/<id>)
+REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8c3d0"          # the base commit the adapters were trained on (40 hex digits)
 
 
 @pytest.fixture(scope="module")
@@ -32,7 +35,13 @@ def adapter(tmp_path):
     d.mkdir()
     (d / "adapter_model.safetensors").write_bytes(b"weights")
     (d / "adapter_config.json").write_text("{}")
+    (d / "revision.json").write_text(json.dumps({"revision": REVISION}))
     return d, {f: sha(d / f) for f in ("adapter_model.safetensors", "adapter_config.json")}
+
+
+def blk(d, hashes, **kw):
+    """An adapter block of the spec: the directory, the base model and its pinned revision, the frozen file hashes."""
+    return {"path": str(d), "base": "Qwen/Qwen3.5-4B", "revision": REVISION, "sha256": hashes, **kw}
 
 
 def write_spec(tmp_path, block, temperature=0.6, model=None, extra=()):
@@ -85,7 +94,7 @@ def prepared_marker(models, spec_block):
 
 def test_a_matching_adapter_is_merged_once_and_the_merged_files_are_hashed(pf, tmp_path, monkeypatch):
     d, hashes = adapter(tmp_path)
-    block = {"path": str(d), "base": "Qwen/Qwen3.5-4B", "sha256": hashes}
+    block = blk(d, hashes)
     calls = []
     monkeypatch.setattr(pf.subprocess, "run", fake_merge(calls))
     run_main(pf, tmp_path, write_spec(tmp_path, block))
@@ -99,7 +108,7 @@ def test_a_matching_adapter_is_merged_once_and_the_merged_files_are_hashed(pf, t
 def test_what_prepare_final_records_is_what_final_eval_checks_before_sampling(pf, tmp_path, monkeypatch):
     """The two scripts share one definition of the merged files (final_eval.merged_hashes): a freshly prepared export passes final_eval's check, a changed one does not."""
     d, hashes = adapter(tmp_path)
-    block = {"path": str(d), "base": "Qwen/Qwen3.5-4B", "sha256": hashes}
+    block = blk(d, hashes)
     monkeypatch.setattr(pf.subprocess, "run", fake_merge([]))
     run_main(pf, tmp_path, write_spec(tmp_path, block))
     arm = {"id": "RL-full", "model": f"{MODELS}/RL-full", "adapter": block}
@@ -114,13 +123,13 @@ def test_a_merge_that_wrote_no_weights_is_an_error(pf, tmp_path, monkeypatch):
     d, hashes = adapter(tmp_path)
     monkeypatch.setattr(pf.subprocess, "run", fake_merge([], weights=None))
     with pytest.raises(SystemExit, match="wrote no"):
-        run_main(pf, tmp_path, write_spec(tmp_path, {"path": str(d), "sha256": hashes}))
+        run_main(pf, tmp_path, write_spec(tmp_path, blk(d, hashes)))
     assert not (tmp_path / MODELS / "RL-full" / "PREPARED.json").exists()
 
 
 def test_a_changed_adapter_file_is_refused(pf, tmp_path):
     d, hashes = adapter(tmp_path)
-    spec = write_spec(tmp_path, {"path": str(d), "sha256": hashes})
+    spec = write_spec(tmp_path, blk(d, hashes))
     (d / "adapter_model.safetensors").write_bytes(b"tampered")
     with pytest.raises(SystemExit, match="differs from the frozen hash"):
         run_main(pf, tmp_path, spec, MODELS, "--dry-run")
@@ -128,7 +137,7 @@ def test_a_changed_adapter_file_is_refused(pf, tmp_path):
 
 def test_every_adapter_file_must_be_frozen_and_the_spec_hash_checked(pf, tmp_path):
     d, hashes = adapter(tmp_path)
-    path, digest, sel_path = write_spec(tmp_path, {"path": str(d), "sha256": {"adapter_model.safetensors": hashes["adapter_model.safetensors"]}})
+    path, digest, sel_path = write_spec(tmp_path, blk(d, {"adapter_model.safetensors": hashes["adapter_model.safetensors"]}))
     with pytest.raises(SystemExit, match="every adapter file"):
         run_main(pf, tmp_path, (path, digest, sel_path), MODELS, "--dry-run")
     with pytest.raises(SystemExit, match="sha256 differs"):
@@ -138,15 +147,15 @@ def test_every_adapter_file_must_be_frozen_and_the_spec_hash_checked(pf, tmp_pat
 def test_an_adapter_file_that_is_missing_is_a_plain_error_not_a_traceback(pf, tmp_path):
     d, hashes = adapter(tmp_path)
     with pytest.raises(SystemExit, match="lacks.*notes.txt"):
-        run_main(pf, tmp_path, write_spec(tmp_path, {"path": str(d), "sha256": {**hashes, "notes.txt": "0" * 64}}), MODELS, "--dry-run")
+        run_main(pf, tmp_path, write_spec(tmp_path, blk(d, {**hashes, "notes.txt": "0" * 64})), MODELS, "--dry-run")
     (d / "adapter_config.json").unlink()
     with pytest.raises(SystemExit, match="lacks.*adapter_config.json"):
-        run_main(pf, tmp_path, write_spec(tmp_path, {"path": str(d), "sha256": hashes}), MODELS, "--dry-run")
+        run_main(pf, tmp_path, write_spec(tmp_path, blk(d, hashes)), MODELS, "--dry-run")
 
 
 def test_a_prepared_arm_is_skipped_and_dry_run_merges_nothing(pf, tmp_path, monkeypatch, capsys):
     d, hashes = adapter(tmp_path)
-    block = {"path": str(d), "sha256": hashes}
+    block = blk(d, hashes)
     spec = write_spec(tmp_path, block)
     prepared_marker(MODELS, block)
     monkeypatch.setattr(pf.subprocess, "run", lambda cmd: pytest.fail("must not merge"))
@@ -160,7 +169,7 @@ def test_a_prepared_arm_is_skipped_and_dry_run_merges_nothing(pf, tmp_path, monk
 @pytest.mark.parametrize("stale", ["weights changed", "weights deleted", "old marker without merged hashes", "other adapter", "marker is not json"])
 def test_a_marker_is_trusted_only_when_the_merged_files_still_hash_as_recorded(pf, tmp_path, monkeypatch, stale):
     d, hashes = adapter(tmp_path)
-    block = {"path": str(d), "sha256": hashes}
+    block = blk(d, hashes)
     spec = write_spec(tmp_path, block)
     out = prepared_marker(MODELS, block)
     if stale == "weights changed":
@@ -184,12 +193,12 @@ def test_an_only_typo_is_refused_before_anything_is_merged(pf, tmp_path, monkeyp
     d, hashes = adapter(tmp_path)
     monkeypatch.setattr(pf.subprocess, "run", lambda cmd: pytest.fail("must not merge"))
     with pytest.raises(SystemExit, match="--only names"):
-        run_main(pf, tmp_path, write_spec(tmp_path, {"path": str(d), "sha256": hashes}), MODELS, "--only", "RL-full,RL-fulll")
+        run_main(pf, tmp_path, write_spec(tmp_path, blk(d, hashes)), MODELS, "--only", "RL-full,RL-fulll")
 
 
 def test_the_spec_is_validated_like_final_eval_does(pf, tmp_path, monkeypatch):
     d, hashes = adapter(tmp_path)
-    block = {"path": str(d), "sha256": hashes}
+    block = blk(d, hashes)
     monkeypatch.setattr(pf.subprocess, "run", lambda cmd: pytest.fail("must not merge"))
     with pytest.raises(SystemExit, match="frozen grid"):                  # a setting final_eval refuses
         run_main(pf, tmp_path, write_spec(tmp_path, block, temperature=0.5))
@@ -208,7 +217,7 @@ def test_the_spec_is_validated_like_final_eval_does(pf, tmp_path, monkeypatch):
 
 def test_the_selection_is_a_required_argument(pf, tmp_path):
     d, hashes = adapter(tmp_path)
-    path, digest, _ = write_spec(tmp_path, {"path": str(d), "sha256": hashes})
+    path, digest, _ = write_spec(tmp_path, blk(d, hashes))
     with pytest.raises(SystemExit) as e:
         pf.main(["--spec", str(path), "--spec-sha256", digest, "--models", MODELS, "--dry-run"])
     assert e.value.code == 2
@@ -216,7 +225,7 @@ def test_the_selection_is_a_required_argument(pf, tmp_path):
 
 def test_a_diagnostic_of_an_adapter_arm_is_not_merged_again(pf, tmp_path, monkeypatch):
     d, hashes = adapter(tmp_path)
-    block = {"path": str(d), "sha256": hashes}
+    block = blk(d, hashes)
     base = json.loads(write_spec(tmp_path, block)[0].read_text())["arms"][0]
     shuffle = {**base, "id": "RL-full-shuffle", "role": "diagnostic", "of": "RL-full", "data": "shuffle"}       # samples the merged model of RL-full
     calls = []
@@ -230,5 +239,49 @@ def test_the_merge_target_must_be_the_model_the_spec_samples(pf, tmp_path, monke
     monkeypatch.setattr(pf.subprocess, "run", lambda cmd: pytest.fail("must not merge"))
     for models in ("elsewhere", str(tmp_path / "elsewhere"), "final_models/sub"):           # the spec samples final_models/RL-full
         with pytest.raises(SystemExit, match="samples from .* but the merge is written to"):
-            run_main(pf, tmp_path, write_spec(tmp_path, {"path": str(d), "sha256": hashes}), models, "--dry-run")
-    run_main(pf, tmp_path, write_spec(tmp_path, {"path": str(d), "sha256": hashes}), str(tmp_path / MODELS), "--dry-run")      # the same directory, spelled absolutely
+            run_main(pf, tmp_path, write_spec(tmp_path, blk(d, hashes)), models, "--dry-run")
+    run_main(pf, tmp_path, write_spec(tmp_path, blk(d, hashes)), str(tmp_path / MODELS), "--dry-run")      # the same directory, spelled absolutely
+
+
+def test_the_merge_is_asked_for_the_frozen_base_revision(pf, tmp_path, monkeypatch):
+    d, hashes = adapter(tmp_path)
+    calls = []
+    monkeypatch.setattr(pf.subprocess, "run", fake_merge(calls))
+    run_main(pf, tmp_path, write_spec(tmp_path, blk(d, hashes)))
+    assert calls[0][calls[0].index("--revision") + 1] == REVISION
+    assert pf.merge_command("RL-full", blk(d, hashes), MODELS)[-4:-2] == ["--revision", REVISION]
+
+
+def test_an_adapter_directory_must_hold_a_revision_json_that_names_the_frozen_revision(pf, tmp_path, monkeypatch):
+    d, hashes = adapter(tmp_path)
+    spec = write_spec(tmp_path, blk(d, hashes))
+    monkeypatch.setattr(pf.subprocess, "run", lambda cmd: pytest.fail("must not merge"))
+    (d / "revision.json").write_text(json.dumps({"revision": "0" * 40}))
+    with pytest.raises(SystemExit, match=r"revision.json names the base revision '0{40}', the spec freezes '851bf6e8"):
+        run_main(pf, tmp_path, spec, MODELS, "--dry-run")
+    (d / "revision.json").write_text(json.dumps({"note": "no revision key"}))
+    with pytest.raises(SystemExit, match="revision.json names the base revision None"):
+        run_main(pf, tmp_path, spec, MODELS, "--dry-run")
+    (d / "revision.json").unlink()
+    with pytest.raises(SystemExit, match=r"lacks \['revision.json'\]"):
+        run_main(pf, tmp_path, spec, MODELS, "--dry-run")
+
+
+def test_a_spec_whose_adapter_block_names_no_revision_is_refused_before_anything_is_merged(pf, tmp_path, monkeypatch):
+    d, hashes = adapter(tmp_path)
+    monkeypatch.setattr(pf.subprocess, "run", lambda cmd: pytest.fail("must not merge"))
+    block = blk(d, hashes)
+    del block["revision"]
+    with pytest.raises(SystemExit, match='carries no "revision"'):
+        run_main(pf, tmp_path, write_spec(tmp_path, block), MODELS, "--dry-run")
+
+
+def test_the_merged_models_are_git_ignored(pf):
+    """The merged 4B weights and their config files must never be committed or bundled by a stray `git add -A`; the repo's .gitignore names the directory."""
+    try:
+        done = subprocess.run(["git", "-C", str(REPO), "check-ignore", "-q", f"{MODELS}/RL-full/config.json"], capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        pytest.skip("needs git")
+    if done.returncode == 128:
+        pytest.skip("not a git checkout")
+    assert done.returncode == 0

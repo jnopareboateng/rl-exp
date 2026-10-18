@@ -241,7 +241,7 @@ def test_collect_skips_names_controls_other_splits_and_partial_copies(oa, tmp_pa
 
 
 KEEP = ["a-direct", "a1-val", "a2-t0.3", "a2-val", "a4-icl", "b27-direct", "b4-t0.6", "g-9b-name", "name-4b", "nothink-val", "rlfull-s40-t0.6", "think-val", "rl-s40",
-        "rlfull-s20-t0.6", "rlfull-s30-t1.0", "rlfull-s40-t1.0", "rlfull-s100-t0.6", "a2-t1.0", "b9-t0.3", "x-seedy", "seed7", "rlfull-s5-t0.6", "rlfull5", "arlfull5-s40-t0.6"]      # near misses of the patterns below stay audited
+        "rlfull-s20-t0.6", "rlfull-s30-t1.0", "rlfull-s40-t1.0", "rlfull-s100-t0.6", "a2-t1.0", "b9-t0.3", "x-seedy", "seed7", "rlfull-s5-t0.6", "rlfull5", "arlfull5-s40-t0.6", "arlvalidity-s40-t0.6", "rlvalid-s40-t0.6", "validity-s40-t0.6"]      # near misses of the patterns below stay audited
 SKIPPED = {"ident-4b": "the answer is a drug name", "val-control_constant": "CPU control", "val8-control_constant_pool": "CPU control",
            "control_copy_nearest": "CPU control", "x-control_y": "CPU control", "strict-a2-val": "a strict-reader rescoring",
            "a2-shuffle-t1.0": "Val diagnostic family", "r1s40-shuffle-t0.6": "Val diagnostic family", "a2-blank-t1.0": "Val diagnostic family",
@@ -250,7 +250,7 @@ SKIPPED = {"ident-4b": "the answer is a drug name", "val-control_constant": "CPU
            "rlfull-s40-t0.6-seed12": "Val run made after", "rlfull-s10-t0.6": "Val run made after", "rlfull-s10-t1.0": "Val run made after",
            "rlfull-s10-t0.3": "Val run made after", "rlfull-s20-t0.3": "Val run made after", "rlfull-s30-t0.3": "Val run made after",
            "rlfull-s40-t0.3": "Val run made after", "rlfull-s100-t0.3": "Val run made after", "rlfull5-s40-t0.3": "Val run made after", "rlfull5-s50-t0.6": "Val run made after",
-           "rlfull12-s40-t1.0": "Val run made after"}
+           "rlfull12-s40-t1.0": "Val run made after", "rlvalidity-s40-t0.3": "Val run made after", "rlvalidity-s40-t0.6": "Val run made after", "rlvalidity-s40-t1.0": "Val run made after"}
 
 
 def test_collect_skips_controls_anywhere_strict_rescorings_the_later_families_and_seed_repeats_but_keeps_the_rest(oa, tmp_path):

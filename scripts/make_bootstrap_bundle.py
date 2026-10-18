@@ -8,14 +8,21 @@ Contents: gpu/ (only .py .sh .md .txt .json files; the others are listed as skip
 per arm directory, only val.jsonl and its meta file. The Test splits are never packed: they reach the GPU runtime only through the locked-evaluation
 step after the tag. Three guards, each an error: a file whose name contains `test_`; a file whose sha256 equals that of any `test_*` entry of
 data/MANIFEST.sha256 (a Test split under a neutral name, in gpu/ or an arm directory); a symlink (the file or a directory above it).
+
+The code on the GPU runtime must be the code of the tag. The bundle is refused unless HEAD is the commit of the annotated tag `prereg-v1`, no tracked file
+differs from HEAD, and every packed code file (all but data/) is tracked; it then holds the member BUNDLE_COMMIT with that commit id. `--allow-untagged` skips
+those checks for the Val runs before the tag exists: its BUNDLE_COMMIT reads `untagged`, and the locked evaluation's code hashes still decide at confirmation.
 """
 import argparse
 import hashlib
+import io
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+TAG = "prereg-v1"
 ARM_DIRS = ("name", "ident", "shuffle", "blank", "a4")
 ARM_FILES = ("a2_answer_train.jsonl", "a2_answer_train.meta.json", "a2_answer_val.jsonl", "a2_answer_val.meta.json")
 GPU_SUFFIXES = (".py", ".sh", ".md", ".txt", ".json")
@@ -68,19 +75,58 @@ def members(root=ROOT, skipped=None):
     return rel
 
 
+def git(root, *args):
+    """stdout of `git -C <root> <args>`; ValueError when git is missing or exits non-zero."""
+    try:
+        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise ValueError(f"git is not usable ({e})") from e
+    if done.returncode != 0:
+        raise ValueError(f"git {args[0]} failed: {done.stderr.strip()}")
+    return done.stdout
+
+
+def bundle_commit(root, files, tag=TAG):
+    """The commit the bundle is made from. ValueError unless HEAD is the commit of the annotated `tag`, no tracked file differs from HEAD and every packed
+    code file (all but data/, whose files are ignored by git and pinned by data/MANIFEST.sha256) is tracked, so the code is exactly the tag's."""
+    try:
+        kind = git(root, "cat-file", "-t", f"refs/tags/{tag}").strip()
+    except ValueError as e:
+        raise ValueError(f"cannot read the tag {tag} ({e}): tag the frozen commit first, or pass --allow-untagged for a bundle that only samples Val") from e
+    if kind != "tag":
+        raise ValueError(f"{tag} is not an annotated tag (git cat-file -t says {kind!r})")
+    head, tagged = git(root, "rev-parse", "HEAD").strip(), git(root, "rev-parse", f"refs/tags/{tag}^{{commit}}").strip()
+    if head != tagged:
+        raise ValueError(f"HEAD ({head[:12]}) is not the commit of {tag} ({tagged[:12]}): check out the tag")
+    changed = [line[3:] for line in git(root, "status", "--porcelain", "--untracked-files=no").splitlines()]
+    if changed:
+        raise ValueError(f"{len(changed)} tracked file(s) differ from {tag}: {changed}: commit or restore them")
+    tracked = set(git(root, "ls-files", "-z").split("\0"))
+    loose = [r for r in files if not r.startswith("data/") and r not in tracked]
+    if loose:
+        raise ValueError(f"code that git does not track would be bundled, so it is not in {tag}: {loose}")
+    return head
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--allow-untagged", action="store_true", help="skip the tag and clean-tree checks (Val runs before the tag exists); BUNDLE_COMMIT reads 'untagged'")
     args = ap.parse_args(argv)
     skipped = []
-    files = members(skipped=skipped)
+    files = members(ROOT, skipped=skipped)
+    commit = "untagged" if args.allow_untagged else bundle_commit(ROOT, files)
     if skipped:
         print(f"skipped {len(skipped)} gpu/ file(s) with another suffix: {skipped}")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(args.out, "w:gz") as tar:
         for rel in files:
             tar.add(ROOT / rel, arcname=rel)
-    print(f"{len(files)} files, {args.out.stat().st_size / 2**20:.1f} MiB -> {args.out}")
+        text = f"{commit}\n".encode()
+        info = tarfile.TarInfo("BUNDLE_COMMIT")
+        info.size = len(text)
+        tar.addfile(info, io.BytesIO(text))
+    print(f"{len(files)} files at {commit[:12]}, {args.out.stat().st_size / 2**20:.1f} MiB -> {args.out}")
 
 
 if __name__ == "__main__":

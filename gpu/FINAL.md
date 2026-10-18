@@ -13,26 +13,20 @@ Run only after the git tag `prereg-v1` exists. Nothing here chooses an arm, a de
    `scripts/confirmatory.py` reads the expected spec hash from this message with `git tag -n99 prereg-v1`).
 
 ## 1. Runtime (GPU)
-1. Colab runtime A100-40GB, Drive mounted. Upload `runs/bootstrap.tgz` (`scripts/make_bootstrap_bundle.py`: refuses every file whose hash is a Test file's) and run `sh gpu/bootstrap_colab.sh`
-   (fails without CUDA in both venvs; refuses any `test_` file under data/).
-2. Upload, after the bootstrap and never inside the bundle: `results/frozen_arms.json`, `results/frozen_arms.sha256` (the committed one, never regenerated on the runtime), `results/selection.json`, `data/MANIFEST.sha256`, `data/processed/test_t.jsonl`, `test_r.jsonl`
-   and `data/processed/arms/{a4,name,ident,shuffle,blank}/test_{t,r}.jsonl`; `cd data && sha256sum -c` on those paths against the manifest must pass.
-Steps 3 to 5 are scripted: `python gpu/run_final.py --drive /content/drive/MyDrive/rl-exp` (`--dry-run` prints the plan; to resume after a stop add `--skip-sanity --from-stage <stage name> [--keep-cache]`).
-It stops before anything runs if a spec arm belongs to no stage, and stops after the sanity step if a merged model does not reproduce its Val score. What it does:
-
-3. Adapters from Drive to the paths the spec names: plain copies `.agent-runs/adapters_plain/{A2-epoch1,R5-step-50}` with THREE files each (`adapter_model.safetensors`, `adapter_config.json` and `revision.json`, the base revision pin), not the run directories
-   (`gpu/merge_lora.py` treats `<run>/adapters/step-N` as owned by a run and needs that run's checkpoint state). The bundle must be built at the tagged commit with a clean tree (`scripts/make_bootstrap_bundle.py` refuses otherwise).
-   After a lost runtime: bootstrap again, upload again, run `gpu/run_final.py --drive ...` again: it restores `runs/final` from Drive first and resumes; never start with an empty `runs/final` while Drive holds a partial one.
-3. Adapters from Drive to the paths the spec names (`adapter.path`); `gpu/prepare_final.py` checks both adapter files against the frozen hashes before merging:
-   `python gpu/prepare_final.py --spec results/frozen_arms.json --spec-sha256 <hex> --selection results/selection.json --models final_models --only A2,RL-full`.
-   A merged 4B model is 9 GB: delete it after its Test samples exist.
-4. Pre-Test sanity on Val (the driver refuses Val, so call the sampler): sample each merged adapter arm on Val at its frozen temperature and settings with `gpu/sample_vllm.py --splits val`
-   and compare fv_tanimoto with the selection's score (a sampler-seed replicate moves it by about 0.003). Stop if it is off by more than 0.005: the model on disk is not the selected one. The result goes to `runs/final/sanity.json`, which `scripts/confirmatory.py` requires for every adapter arm of the pair.
-5. Sampling: `python gpu/final_eval.py --spec ... --spec-sha256 <hex> --selection ... --manifest data/MANIFEST.sha256 --data data --out runs/final --only <ids>`; resumable, so a killed
-   run is started again with the same command. Order: the confirmatory pair first (the Val-selected A5, then A2, A0n, A4), then 9B, the profile diagnostics, the name and identification probes
-   of 4B and 9B, then the 27B references (each needs the HF cache cleared first: `rm -rf ~/.cache/huggingface/hub`, 31 GB per model, `gpu_memory_utilization` 0.93 is in the spec). Omissions
-   from running out of compute are listed, in the order of the protocol's Test run list, in the paper.
-6. `tar czf runs_final.tgz runs/final` on the runtime (samples.jsonl, meta.json, manifest.json per arm) and download it; copy to Drive as well.
+1. Colab runtime A100-40GB, Drive mounted. Build the bundle at the tagged commit only: `.venv/bin/python scripts/make_bootstrap_bundle.py --out runs/bootstrap.tgz` refuses unless HEAD is the commit of the annotated tag `prereg-v1`
+   and no code file differs (`--allow-untagged` is for Val-only bundles before the tag), and refuses every file whose hash is a Test file's. Upload it, extract it, `sh gpu/bootstrap_colab.sh` (fails without CUDA in both venvs; refuses any `test_` file under data/).
+   Do not extract it over a running RL job (`gpu/run_rl.sh` is read by the shell while it runs).
+2. Upload, after the bootstrap and never inside the bundle (one archive: `tar czf runs/final_inputs.tgz data/MANIFEST.sha256 results/frozen_arms.json results/frozen_arms.sha256 results/selection.json data/processed/test_t.jsonl data/processed/test_r.jsonl data/processed/arms/{a4,name,ident,shuffle,blank}/test_{t,r}.jsonl`):
+   the frozen spec, its committed sha256 file (never regenerate it on the runtime), the selection, the manifest and the 12 Test prompt files; `final_eval` hashes every file it reads against the manifest.
+3. Adapters from Drive to the paths the spec names: plain copies `.agent-runs/adapters_plain/{A2-epoch1,R5-step-50}` with THREE files each (`adapter_model.safetensors`, `adapter_config.json`, `revision.json` with the base revision pin of the spec),
+   not the run directories (`gpu/merge_lora.py` treats `<run>/adapters/step-N` as owned by a run and needs that run's checkpoint state). `gpu/prepare_final.py` checks the files against the frozen hashes and revision before merging.
+4. `python gpu/run_final.py --drive /content/drive/MyDrive/rl-exp` (run it in the background with nohup and poll its log; `--dry-run` prints the plan). It: restores `runs/final` from Drive first if an earlier runtime left a partial run there;
+   merges the adapters of the stages still to run (A2, RL-full) with `gpu/prepare_final.py`; runs the Val gate for each (the merged model sampled on Val at its frozen settings, seed 0, must reproduce the selection's score within
+   `final_eval.SANITY_TOLERANCE` = 0.005; every attempt is appended to `runs/final/sanity.json`, the latest of an arm decides, a failure stops the run and stays on record); then samples the stages of the protocol's list in their fixed order
+   with `gpu/final_eval.py` (4B arms with the confirmatory pair first, 9B, Qwen3.5-27B, Qwen3.8-27B), clearing the Hugging Face cache and the merged models before each later family, and copying `runs/final` to Drive every 3 minutes and at the end.
+   A stage that stops is resumed by the same command; to resume further on add `--skip-sanity` (it needs passed gate records already in `sanity.json`), `--from-stage <stage name>` and, inside a stage, `--keep-cache`.
+   Omissions from running out of compute are the last stages, reported in the paper.
+5. `tar czf runs_final.tgz runs/final` on the runtime (samples.jsonl, meta.json, manifest.json, sanity.json) and download it; the Drive copy is the second one.
 
 ## 2. Scoring (CPU, repo)
 1. Extract the archive into `runs/final/`. `rlexp.metrics score --samples runs/final/<id>/samples.jsonl --data data/processed --out runs/final/<id>/scored.v3.jsonl` for every arm (ident probes through `rlexp.ident`).

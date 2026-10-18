@@ -23,6 +23,7 @@ def cf():
 SEL = {"rl": "RL-full", "comparator": "C3", "arms": {"RL-full": {"temperature": 0.6}, "C3": {"temperature": None}}}
 SEL_ADAPTER = {"rl": "RL-full", "comparator": "C3", "arms": {"RL-full": {"temperature": 0.6, "adapter_sha256": ADAPTER, "score": 0.1887}, "C3": {"temperature": None}}}
 SETTINGS = {"model": "final_models/RL-full", "mode": "nothink", "temperature": 0.6, "max_tokens": 256, "k": 8}
+CODE = {f"gpu/{name}": f"{i}" * 64 for i, name in enumerate(("final_eval.py", "sample_vllm.py", "run_final.py", "prepare_final.py", "merge_lora.py"), 1)}      # what the run manifest records
 IDS = [f"drug{i}/{j}" for i in range(3) for j in range(2)]
 
 
@@ -55,7 +56,7 @@ def test_commands_pair_the_chosen_arms_on_both_test_splits(cf):
     for split, cmd in cmds.items():
         assert cmd[cmd.index("--scored") + 1] == "runs/final/RL-full/scored.v3.jsonl" and cmd[cmd.index("--vs") + 1] == "runs/final/C3/scored.v3.jsonl"
         assert cmd[cmd.index("--split") + 1] == split and cmd[cmd.index("--boot") + 1] == "100" and cmd[cmd.index("--seed") + 1] == "3"
-        assert cmd[cmd.index("--json") + 1] == f"results/paired_{split}.json"
+        assert cmd[cmd.index("--json") + 1] == f"results/confirmatory_paired_{split}.json"
 
 
 def test_dry_run_prints_and_runs_nothing_and_needs_no_hash_manifest_or_tag(cf, tmp_path, capsys, monkeypatch):
@@ -63,7 +64,7 @@ def test_dry_run_prints_and_runs_nothing_and_needs_no_hash_manifest_or_tag(cf, t
     sel = tmp_path / "sel.json"
     sel.write_text(json.dumps(SEL))
     cf.main(["--selection", str(sel), "--out", str(tmp_path / "r.json"), "--dry-run"])
-    assert "paired_test_t.json" in capsys.readouterr().out and not (tmp_path / "r.json").exists()
+    assert "confirmatory_paired_test_t.json" in capsys.readouterr().out and not (tmp_path / "r.json").exists()
 
 
 def make_report(split, drugs=None, rows=None, fv_drugs=None, p=0.0312):
@@ -96,10 +97,12 @@ def world(cf, tmp_path, monkeypatch):
     (final / "RL-full" / "meta.json").write_text(json.dumps({"configuration": {**SETTINGS, "data_sha256": DATA_HASH, "top_p": 1.0, "seed": 0}}))
     (final / "C3" / "meta.json").write_text(json.dumps(control_meta()))
     entry = {"spec_sha256": SPEC, **SETTINGS, "k": 8, "splits": ["test_t", "test_r"], "data_sha256": DATA_HASH, "command": ["x"]}
-    (final / "manifest.json").write_text(json.dumps({"spec_sha256": SPEC, "selection_sha256": sha(sel), "arms": {"RL-full": entry}}))
+    (final / "manifest.json").write_text(json.dumps({"spec_sha256": SPEC, "selection_sha256": sha(sel), "code_sha256": CODE, "arms": {"RL-full": entry}}))
     reports = {"overrides": {}}
-    tag = {"message": f"prereg-v1        prereg-v1 spec={SPEC} selection={sha(sel)} manifest={sha(manifest_file)}\n"}
+    tag = {"message": f"prereg-v1        prereg-v1 spec={SPEC} selection={sha(sel)} manifest={sha(manifest_file)}\n", "kind": "tag", "files": dict(CODE)}
     monkeypatch.setattr(cf, "read_tag", lambda name, cwd=None: tag["message"])
+    monkeypatch.setattr(cf, "tag_object_type", lambda name, cwd=None: tag["kind"])
+    monkeypatch.setattr(cf, "tag_file_sha256", lambda name, path, cwd=None: tag["files"].get(path))
 
     def fake_run(cmd, capture_output, text):
         split = cmd[cmd.index("--split") + 1]
@@ -139,18 +142,18 @@ def test_a_run_collects_both_pairs_the_input_hashes_and_the_provenance(world):
     world.run()
     res = json.loads(world.out.read_text())
     assert res["paired"]["test_t"]["splits"]["test_t"]["paired"]["n_drugs"] == 41 and res["paired"]["test_r"]["splits"]["test_r"]["paired"]["n_drugs"] == 30
-    assert len(res["input_sha256"]) == 2 and (world.out.parent / "paired_test_t.txt").read_text() == "table"
+    assert len(res["input_sha256"]) == 2 and (world.out.parent / "confirmatory_paired_test_t.txt").read_text() == "table"
     assert res["spec_sha256"] == SPEC and res["selection_sha256"] == sha(world.sel) and res["run_manifest_sha256"] == sha(world.final / "manifest.json")
     assert res["input_sha256"][str(world.final / "RL-full" / "scored.v3.jsonl")] == sha(world.final / "RL-full" / "scored.v3.jsonl")
     assert res["data_manifest_sha256"] == sha(world.manifest) and res["test_files_sha256"] == {s: sha(world.data / f"{s}.jsonl") for s in ("test_t", "test_r")}
     assert res["tag"] == {"name": "prereg-v1", "spec": SPEC, "selection": sha(world.sel), "manifest": sha(world.manifest)} and "git tag prereg-v1" in res["spec_sha256_source"]
-    assert res["sanity"] == {} and res["sanity_skipped_and_allowed"] == []
+    assert res["sanity"] == {}
 
 
 def test_the_output_directory_is_created_before_anything_is_written_into_it(world):
     out = world.tmp / "deep" / "er" / "confirmatory.json"
     world.run(out=out)
-    assert out.is_file() and (out.parent / "paired_test_t.json").is_file()
+    assert out.is_file() and (out.parent / "confirmatory_paired_test_t.json").is_file()
 
 
 @pytest.mark.parametrize("split,override,message", [
@@ -172,11 +175,7 @@ def test_a_pair_that_does_not_cover_the_cohort_is_an_error_and_writes_no_result(
 
 
 # ------------------------------------------------------------------------------------------------ the pair comes from the frozen spec
-def test_the_manifest_must_exist_and_name_the_given_spec_in_itself_and_in_every_arm(world):
-    with pytest.raises(SystemExit, match="not .*from the spec given"):
-        world.tag["message"] = None
-        world.run(spec="0" * 64)
-    world.tag["message"] = f"prereg-v1 spec={SPEC} selection={sha(world.sel)} manifest={sha(world.manifest)}"
+def test_the_manifest_must_exist_and_name_the_tags_spec_in_itself_and_in_every_arm(world):
     world.edit(lambda m: m["arms"].__setitem__("stale", {**m["arms"]["RL-full"], "spec_sha256": "0" * 64}))      # an arm left over from another spec
     with pytest.raises(SystemExit, match="not .*from the spec given"):
         world.run()
@@ -192,7 +191,7 @@ def test_the_manifest_must_exist_and_name_the_given_spec_in_itself_and_in_every_
 
 def test_the_selection_file_must_be_the_one_the_spec_was_frozen_against(world):
     world.sel.write_text(json.dumps({**SEL, "comparator": "C0"}))
-    world.tag["message"] = f"prereg-v1 spec={SPEC}"
+    world.tag["message"] = f"prereg-v1 spec={SPEC} selection={sha(world.sel)} manifest={sha(world.manifest)}"          # the tag follows the file, the run manifest does not
     with pytest.raises(SystemExit, match="selection file is not the one"):
         world.run()
     assert not world.out.exists()
@@ -355,10 +354,11 @@ def test_the_test_files_must_be_the_ones_the_manifest_lists(world):
         world.run()
     (world.data / "test_r.jsonl").write_text("synthetic rows of test_r\n")
     world.manifest.write_text("".join(line + "\n" for line in world.manifest.read_text().splitlines() if "test_t" not in line))
-    world.tag["message"] = f"prereg-v1 spec={SPEC}"
+    world.tag["message"] = f"prereg-v1 spec={SPEC} selection={sha(world.sel)} manifest={sha(world.manifest)}"
     with pytest.raises(SystemExit, match="processed/test_t.jsonl has no entry"):
         world.run()
     world.manifest.write_text("garbage\n")
+    world.tag["message"] = f"prereg-v1 spec={SPEC} selection={sha(world.sel)} manifest={sha(world.manifest)}"
     with pytest.raises(SystemExit, match="not a sha256 manifest"):
         world.run()
     assert not world.out.exists()
@@ -370,32 +370,46 @@ def test_the_manifest_is_required_for_a_real_run(cf, world):
     assert e.value.code == 2
 
 
-# ------------------------------------------------------------------------------------------------ the spec hash comes from the tag
-def test_without_an_argument_the_spec_hash_is_the_tags_and_a_missing_tag_is_refused(world):
+# ------------------------------------------------------------------------------------------------ the spec hash comes from the annotated tag
+def test_the_spec_hash_is_the_tags_and_an_argument_may_only_repeat_it(world):
     world.run()
-    assert json.loads(world.out.read_text())["spec_sha256"] == SPEC
+    res = json.loads(world.out.read_text())
+    assert res["spec_sha256"] == SPEC and res["spec_sha256_source"] == "git tag prereg-v1"
     world.out.unlink()
+    world.run(spec=SPEC)
+    assert json.loads(world.out.read_text())["spec_sha256_source"] == "git tag prereg-v1 (agrees with --spec-sha256)"
+    with pytest.raises(SystemExit, match="--spec-sha256 differs from the spec= of git tag prereg-v1"):
+        world.run(spec="0" * 64)
+
+
+def test_a_missing_tag_is_refused_with_or_without_a_typed_hash(world):
     world.tag["message"] = None
-    with pytest.raises(SystemExit, match="no --spec-sha256 and no git tag prereg-v1"):
-        world.run()
+    for argument in (None, SPEC):
+        with pytest.raises(SystemExit, match="git tag prereg-v1 does not exist: the locked result is checked against it, and a typed --spec-sha256 alone is no anchor"):
+            world.run(spec=argument)
     assert not world.out.exists()
 
 
-def test_an_argument_must_agree_with_the_tag_and_stands_alone_only_without_one(world):
-    world.run(spec=SPEC)
-    assert "agrees with --spec-sha256" in json.loads(world.out.read_text())["spec_sha256_source"]
-    with pytest.raises(SystemExit, match="--spec-sha256 differs from the spec= of git tag prereg-v1"):
-        world.run(spec="0" * 64)
-    world.tag["message"] = None
-    world.run(spec=SPEC)                                                    # a rehearsal before the tag exists
-    assert json.loads(world.out.read_text())["spec_sha256_source"] == "--spec-sha256 (no git tag)"
+def test_a_lightweight_tag_whose_message_is_a_commits_is_refused(world):
+    world.tag["kind"] = "commit"                                                  # `git cat-file -t` says commit; `git tag -n` then shows the commit message
+    for argument in (None, SPEC):
+        with pytest.raises(SystemExit, match=r"not an annotated tag \(git cat-file -t says 'commit'\)"):
+            world.run(spec=argument)
+    world.tag["kind"] = None
+    with pytest.raises(SystemExit, match="not an annotated tag"):
+        world.run()
 
 
-@pytest.mark.parametrize("message", ["prereg-v1  Freeze 2026-10-18", f"prereg-v1  spec={SPEC[:63]}", f"prereg-v1  spec={('ab' * 32).upper()}", f"prereg-v1  myspec={SPEC}", f"prereg-v1  spec = {SPEC}"])
-def test_a_tag_without_a_usable_spec_hash_is_refused_even_with_an_argument(world, message):
+@pytest.mark.parametrize("message,missing", [
+    ("prereg-v1  Freeze 2026-10-18", "spec=<sha256>, selection=<sha256>, manifest=<sha256>"),
+    (f"prereg-v1  spec={SPEC[:63]}", "spec=<sha256>, selection=<sha256>, manifest=<sha256>"), (f"prereg-v1  spec={('ab' * 32).upper()}", "spec=<sha256>"),
+    (f"prereg-v1  myspec={SPEC} selection={'1' * 64} manifest={'2' * 64}", "spec=<sha256>"), (f"prereg-v1  spec = {SPEC}", "spec=<sha256>"),
+    (f"prereg-v1  spec={SPEC}", "selection=<sha256>, manifest=<sha256>"), (f"prereg-v1  spec={SPEC} selection={'1' * 64}", "manifest=<sha256>"),
+    (f"prereg-v1  spec={SPEC} manifest={'2' * 64}", "selection=<sha256>")])
+def test_a_tag_must_carry_all_three_hashes_so_a_regenerated_manifest_cannot_vouch_for_other_files(world, message, missing):
     world.tag["message"] = message
     for argument in (None, SPEC):
-        with pytest.raises(SystemExit, match="has no spec=<sha256> in its message"):
+        with pytest.raises(SystemExit, match=rf"git tag prereg-v1 lacks {missing}"):
             world.run(spec=argument)
 
 
@@ -406,8 +420,6 @@ def test_the_tags_selection_and_manifest_hashes_must_be_those_of_the_files_given
     world.tag["message"] = f"prereg-v1  spec={SPEC} selection={sha(world.sel)} manifest={'0' * 64}"
     with pytest.raises(SystemExit, match="names another manifest="):
         world.run()
-    world.tag["message"] = f"prereg-v1  spec={SPEC}"                         # a tag that names only the spec checks only the spec
-    world.run()
 
 
 def test_tag_hashes_reads_the_first_token_of_each_key(cf):
@@ -417,63 +429,135 @@ def test_tag_hashes_reads_the_first_token_of_each_key(cf):
     assert cf.tag_hashes(f"spec={a[:-1]} selection={b.upper()} nospec={c}") == {}
 
 
-def test_read_tag_asks_git_for_the_message_of_a_real_tag(cf, tmp_path):
+def git_repo(tmp_path):
     repo = tmp_path / "repo"
-    repo.mkdir()
-    git = lambda *a: subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.org", *a], capture_output=True, text=True, check=True)
+    (repo / "gpu").mkdir(parents=True)
+    git = lambda *a, **kw: subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.org", *a], capture_output=True, text=True, check=True, **kw)
     git("init", "-q")
-    git("commit", "-q", "--allow-empty", "-m", "x")
-    assert cf.read_tag("prereg-v1", cwd=repo) is None                          # no such tag
+    (repo / "gpu" / "final_eval.py").write_text("the code at the tag\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "x")
+    return repo, git
+
+
+def test_the_real_git_distinguishes_a_missing_a_lightweight_and_an_annotated_tag_and_reads_the_files_of_the_tag(cf, tmp_path):
+    repo, git = git_repo(tmp_path)
+    assert cf.read_tag("prereg-v1", cwd=repo) is None and cf.tag_object_type("prereg-v1", cwd=repo) is None
+    git("tag", "prereg-v1")                                                                    # lightweight: `git tag -n` shows the commit message
+    assert cf.tag_object_type("prereg-v1", cwd=repo) == "commit" and "x" in cf.read_tag("prereg-v1", cwd=repo)
+    git("tag", "-d", "prereg-v1")
     git("tag", "-a", "prereg-v1", "-m", f"prereg-v1 spec={SPEC} selection={'1' * 64} manifest={'2' * 64}")
+    assert cf.tag_object_type("prereg-v1", cwd=repo) == "tag"
     assert cf.tag_hashes(cf.read_tag("prereg-v1", cwd=repo)) == {"spec": SPEC, "selection": "1" * 64, "manifest": "2" * 64}
-    assert cf.read_tag("prereg-v1", cwd=tmp_path / "not-a-repo") is None
+    (repo / "gpu" / "final_eval.py").write_text("edited after the tag\n")                    # the working tree moves on, the tag does not
+    assert cf.tag_file_sha256("prereg-v1", "gpu/final_eval.py", cwd=repo) == hashlib.sha256(b"the code at the tag\n").hexdigest()
+    assert cf.tag_file_sha256("prereg-v1", "gpu/sample_vllm.py", cwd=repo) is None and cf.tag_file_sha256("prereg-v2", "gpu/final_eval.py", cwd=repo) is None
+    assert cf.read_tag("prereg-v1", cwd=tmp_path / "not-a-repo") is None and cf.tag_object_type("prereg-v1", cwd=tmp_path / "not-a-repo") is None
+
+
+def test_the_real_gits_lightweight_tag_is_refused_by_expected_spec_sha256(cf, tmp_path, monkeypatch):
+    repo, git = git_repo(tmp_path)
+    git("commit", "-q", "--allow-empty", "-m", f"spec={SPEC} selection={'1' * 64} manifest={'2' * 64}")      # a commit message that looks like a freeze
+    git("tag", "prereg-v1")
+    real_read, real_type = cf.read_tag, cf.tag_object_type
+    monkeypatch.setattr(cf, "read_tag", lambda tag, cwd=repo: real_read(tag, cwd))
+    monkeypatch.setattr(cf, "tag_object_type", lambda tag, cwd=repo: real_type(tag, cwd))
+    with pytest.raises(ValueError, match=r"not an annotated tag \(git cat-file -t says 'commit'\)"):
+        cf.expected_spec_sha256(SPEC, "prereg-v1")
+    git("tag", "-d", "prereg-v1")
+    git("tag", "-a", "prereg-v1", "-m", f"prereg-v1 spec={SPEC} selection={'1' * 64} manifest={'2' * 64}")
+    assert cf.expected_spec_sha256(None, "prereg-v1")[0] == SPEC and cf.expected_spec_sha256(SPEC, "prereg-v1")[0] == SPEC
+
+
+# ------------------------------------------------------------------------------------------------ the code that sampled is the tagged code
+def test_the_gpu_code_that_sampled_must_be_the_code_of_the_tag(world):
+    world.tag["files"]["gpu/sample_vllm.py"] = "0" * 64                              # sample_vllm.py was edited after the tag
+    world.tag["files"]["gpu/merge_lora.py"] = None                                   # merge_lora.py is not in the tag at all
+    with pytest.raises(SystemExit) as e:
+        world.run()
+    assert "the code that sampled is not the code of git tag prereg-v1: gpu/merge_lora.py, gpu/sample_vllm.py differ" in str(e.value) and "final_eval" not in str(e.value)
+    assert not world.out.exists()
+    world.tag["files"] = dict(CODE)
+    world.run()
+
+
+def test_the_run_manifest_must_record_exactly_the_five_files(world):
+    for edit in (lambda m: m.pop("code_sha256"), lambda m: m["code_sha256"].pop("gpu/run_final.py"), lambda m: m["code_sha256"].update({"gpu/extra.py": "9" * 64}), lambda m: m.update(code_sha256="x")):
+        world.edit(edit)
+        with pytest.raises(SystemExit, match="does not record the sha256 of exactly"):
+            world.run()
+        world.edit(lambda m: m.update(code_sha256=dict(CODE)))
+    world.run()
 
 
 # ------------------------------------------------------------------------------------------------ the Val reproduction of an adapter arm
-def sanity_record(**kw):
-    return {"value": 0.1884, "selection_score": 0.1887, "tolerance": 0.005, "passed": True, "seed": 0, **kw}
+def attempt(arm="RL-full", **kw):
+    return {"arm": arm, "value": 0.1884, "selection_score": 0.1887, "passed": True, "time": "2026-10-18T01:00:00+00:00", **kw}
 
 
-def with_adapter_arm(world, record):
+def with_adapter_arm(world, attempts, tolerance=0.005):
     world.use_selection(SEL_ADAPTER)
-    if record is not None:
-        (world.final / "sanity.json").write_text(json.dumps({"RL-full": record}))
+    if attempts is not None:
+        (world.final / "sanity.json").write_text(json.dumps({"tolerance": tolerance, "attempts": attempts}))
 
 
-def test_an_adapter_arm_needs_a_passed_val_reproduction(world):
+def test_an_adapter_arm_needs_a_passed_latest_val_attempt_and_the_attempts_are_printed(world, capsys):
     with_adapter_arm(world, None)
     with pytest.raises(SystemExit, match="sanity.json is missing: gpu/run_final.py writes"):
         world.run()
-    (world.final / "sanity.json").write_text(json.dumps({"A2": sanity_record()}))
-    with pytest.raises(SystemExit, match="has no Val reproduction for the adapter arm RL-full"):
+    (world.final / "sanity.json").write_text(json.dumps({"tolerance": 0.005, "attempts": [attempt("A2")]}))
+    with pytest.raises(SystemExit, match="has no Val attempt for the adapter arm RL-full"):
         world.run()
-    (world.final / "sanity.json").write_text(json.dumps({"RL-full": sanity_record()}))
+    (world.final / "sanity.json").write_text(json.dumps({"tolerance": 0.005, "attempts": [attempt()]}))
     world.run()
+    assert "Val reproduction of RL-full: 1 attempt(s), the latest passed (value 0.1884, selection 0.1887)" in capsys.readouterr().out
     res = json.loads(world.out.read_text())
-    assert res["sanity"] == {"RL-full": sanity_record()} and res["sanity_skipped_and_allowed"] == []
+    assert res["sanity"] == {"RL-full": {"attempts": 1, "latest": attempt()}}
 
 
-@pytest.mark.parametrize("change", [{"passed": False}, {"passed": "true"}, {"passed": None}, {"value": 0.17}, {"tolerance": 0.0001}, {"selection_score": 0.19}, {"value": None},
-                                    {"tolerance": "<drop>"}, {"selection_score": "<drop>"}, {"value": "<drop>"}])
-def test_a_failed_or_inconsistent_val_reproduction_is_refused(world, change):
-    record = {k: v for k, v in sanity_record(**change).items() if v != "<drop>"}
-    with_adapter_arm(world, record)
-    with pytest.raises(SystemExit, match="the Val reproduction of RL-full did not pass"):
+def test_a_retry_after_a_failure_counts_and_shows_but_a_failed_latest_attempt_decides(world, capsys):
+    failed, passed = attempt(value=0.17, passed=False), attempt()
+    with_adapter_arm(world, [failed, attempt("A2"), passed])
+    world.run()
+    assert "RL-full: 2 attempt(s), the latest passed" in capsys.readouterr().out and json.loads(world.out.read_text())["sanity"]["RL-full"]["attempts"] == 2
+    (world.final / "sanity.json").write_text(json.dumps({"tolerance": 0.005, "attempts": [passed, failed]}))
+    with pytest.raises(SystemExit, match=r"latest Val reproduction of RL-full \(attempt 2 of 2\) did not pass"):
+        world.run(out=world.tmp / "again" / "confirmatory.json")
+
+
+@pytest.mark.parametrize("tolerance", [0.05, 1.0, 0.0, None, "0.005", 0.006, 0.004])
+def test_the_files_tolerance_must_be_the_gates_one_constant(world, tolerance):
+    with_adapter_arm(world, [attempt(value=0.17, passed=True) if tolerance == 1.0 else attempt()], tolerance=tolerance)
+    with pytest.raises(SystemExit, match=r"was made with tolerance .*, the gate's \(SANITY_TOLERANCE of gpu/final_eval.py\) is 0.005"):
         world.run()
     assert not world.out.exists()
 
 
-def test_a_skipped_val_reproduction_is_refused_unless_allowed_and_then_it_is_printed_and_recorded(world, capsys):
-    with_adapter_arm(world, {"skipped": True})
-    with pytest.raises(SystemExit, match="was skipped .*--allow-skipped-sanity"):
+@pytest.mark.parametrize("change", [{"passed": False}, {"passed": "true"}, {"passed": None}, {"value": 0.17}, {"value": 0.1937}, {"selection_score": 0.19}, {"value": None},
+                                    {"selection_score": "<drop>"}, {"value": "<drop>"}])
+def test_a_failed_or_inconsistent_latest_attempt_is_refused(world, change):
+    record = {k: v for k, v in attempt(**change).items() if v != "<drop>"}
+    with_adapter_arm(world, [record])
+    with pytest.raises(SystemExit, match="the latest Val reproduction of RL-full .* did not pass"):
         world.run()
-    world.run("--allow-skipped-sanity")
-    assert "WARNING: the Val reproduction of RL-full was skipped; accepted by --allow-skipped-sanity" in capsys.readouterr().out
-    res = json.loads(world.out.read_text())
-    assert res["sanity_skipped_and_allowed"] == ["RL-full"] and res["sanity"] == {"RL-full": {"skipped": True}}
-    (world.final / "sanity.json").write_text(json.dumps({"RL-full": sanity_record(passed=False)}))        # allowing skips does not allow failures
+    assert not world.out.exists()
+
+
+def test_a_value_exactly_at_the_tolerance_edge_follows_the_constant_not_the_recorded_flag(world):
+    with_adapter_arm(world, [attempt(value=0.1837, passed=True)])                     # 0.005 + float noise away from 0.1887: over the line whatever the flag says
     with pytest.raises(SystemExit, match="did not pass"):
-        world.run("--allow-skipped-sanity")
+        world.run()
+    with_adapter_arm(world, [attempt(value=0.1862)])                                  # 0.0025 away
+    world.run()
+
+
+def test_the_skipped_record_of_earlier_versions_is_no_longer_accepted(world):
+    with_adapter_arm(world, None)
+    (world.final / "sanity.json").write_text(json.dumps({"RL-full": {"skipped": True}}))
+    with pytest.raises(SystemExit, match="was made with tolerance None"):
+        world.run()
+    with pytest.raises(SystemExit):
+        world.run("--allow-skipped-sanity")                                            # the flag is gone: argparse exits with 2
 
 
 def test_an_untrained_pair_needs_no_sanity_file(world):

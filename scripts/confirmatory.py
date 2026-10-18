@@ -2,7 +2,7 @@
 """The one confirmatory contrast and its exploratory siblings (docs/prereg-v1.md section 4), run ONLY after the lock.
 
   .venv/bin/python scripts/confirmatory.py --selection results/selection.json --manifest data/MANIFEST.sha256 --final runs/final --out results/confirmatory.json \
-      [--spec-sha256 <hex>] [--tag prereg-v1] [--data data/processed] [--allow-skipped-sanity]
+      [--spec-sha256 <hex>] [--tag prereg-v1] [--data data/processed]
 
 For the pair chosen on Val (selection.json: "rl" and "comparator" arm ids) this scores nothing new: it reads the scored Test samples
 (runs/final/<arm>/scored.v3.jsonl, made by `rlexp.metrics score`) and calls `rlexp.metrics report --scored RL --vs COMPARATOR` on test_t (the
@@ -10,19 +10,24 @@ confirmatory split) and test_r (exploratory), 10,000 bootstrap resamples, seed 0
 sign-flip p-value) into one JSON with the command lines, the sha256 of the input files and of the spec, selection, manifest and run manifest. No arm, decoding or comparator is chosen here.
 
 Checks that stand between the files and a result (any failure: exit 1, no result file):
- - The frozen spec's sha256 is read from the git tag message (`git tag -n99 <tag>`: `prereg-v1 spec=<sha256> selection=<sha256> manifest=<sha256>`); --spec-sha256 may
-   give it too and must then agree; with no tag the argument is required. The tag's selection= and manifest= must be the hashes of --selection and --manifest.
+ - The git tag (--tag, default prereg-v1) must exist, be an ANNOTATED tag (`git cat-file -t`), and its message must carry spec=<sha256> selection=<sha256> manifest=<sha256>
+   (`prereg-v1 spec=... selection=... manifest=...`); the spec hash read from it is the one the run is held to. --spec-sha256 may repeat it and must then agree; a typed hash with no tag is refused.
+   selection= and manifest= must be the hashes of --selection and --manifest.
  - --data's test_t.jsonl and test_r.jsonl are the files data/MANIFEST.sha256 lists (processed/test_t.jsonl, processed/test_r.jsonl).
- - <final>/manifest.json (written by gpu/final_eval.py) carries the spec hash (itself and every arm entry) and the sha256 of --selection; each sampled arm of the pair has an
-   entry whose settings (model, mode, temperature, max_tokens, k and, when recorded, data_sha256) equal the sampler's own <final>/<arm>/meta.json.
+ - <final>/manifest.json (written by gpu/final_eval.py) carries the spec hash (itself and every arm entry), the sha256 of --selection and the sha256 of the five gpu/ files that sampled
+   (final_eval, sample_vllm, run_final, prepare_final, merge_lora), each equal to `git show <tag>:<path>`; each sampled arm of the pair has an entry whose settings (model, mode,
+   temperature, max_tokens, k and, when recorded, data_sha256) equal the sampler's own <final>/<arm>/meta.json.
  - The scored file of each arm is that arm's: its (id, sample_idx) pairs are those of its samples.jsonl, and its rows carry the manifest entry's model, mode and temperature.
  - A CPU control (null temperature in the selection) has no sampler: its <final>/<arm>/meta.json, as scripts/final_controls.py writes it, says control == the arm id, k == 8,
    splits test_t and test_r, rows == 180, a source_sha256 (C3 also a pool_sha256) and a model named control_*, which every scored row carries.
- - Every adapter arm of the pair has a passed Val reproduction in <final>/sanity.json (gpu/run_final.py); a skipped one is refused unless --allow-skipped-sanity, which is printed.
+ - Every adapter arm of the pair has a Val reproduction in <final>/sanity.json (gpu/run_final.py): the file's tolerance is gpu/final_eval.py's SANITY_TOLERANCE and the latest attempt of
+   the arm passed. The attempts of each arm are printed.
  - The pair covers the whole cohort, test_t 41 drugs and 100 prompt rows, test_r 30 and 80, with fv_tanimoto defined for every drug.
+The per-split paired reports are written beside --out as confirmatory_paired_<split>.json and .txt (paired_table.py has its own names).
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import subprocess
@@ -36,6 +41,19 @@ COHORT = {CONFIRMATORY: (41, 100), EXPLORATORY: (30, 80)}           # (drugs, pr
 SAMPLER = ("model", "mode", "temperature", "max_tokens", "k")        # the sampler fields of a run manifest entry that meta.json must repeat
 CONTROL_ROWS = sum(rows for _, rows in COHORT.values())              # 180 prompt rows with one answer each, replicated to k=8 by scripts/final_controls.py
 TEST_FILES = {split: f"processed/{split}.jsonl" for split in COHORT}  # the manifest's names of the Test files that `rlexp.metrics --data` reads
+
+
+_FINAL_EVAL = []
+
+
+def final_eval():
+    """gpu/final_eval.py loaded by path (it imports the standard library only): the SANITY_TOLERANCE the gate used and the CODE_FILES the run manifest records."""
+    if not _FINAL_EVAL:
+        spec = importlib.util.spec_from_file_location("final_eval_for_confirmatory", ROOT / "gpu" / "final_eval.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _FINAL_EVAL.append(module)
+    return _FINAL_EVAL[0]
 
 
 def sha256(path):
@@ -83,6 +101,24 @@ def read_tag(tag, cwd=ROOT):
     return done.stdout if done.returncode == 0 and done.stdout.strip() else None
 
 
+def tag_object_type(tag, cwd=ROOT):
+    """`git cat-file -t refs/tags/<tag>`: 'tag' for an annotated tag, 'commit' for a lightweight one, None when there is no such tag (or no git)."""
+    try:
+        done = subprocess.run(["git", "-C", str(cwd), "cat-file", "-t", f"refs/tags/{tag}"], capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def tag_file_sha256(tag, path, cwd=ROOT):
+    """sha256 of `git show <tag>:<path>`, or None when the tag has no such file (or no git)."""
+    try:
+        done = subprocess.run(["git", "-C", str(cwd), "show", f"{tag}:{path}"], capture_output=True, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return hashlib.sha256(done.stdout).hexdigest() if done.returncode == 0 else None
+
+
 def tag_hashes(message):
     """{'spec': sha256, 'selection': ..., 'manifest': ...} from the `key=<64 hex digits>` tokens of a tag message (the first of each key; absent keys are left out)."""
     return {key: m.group(1) for key in ("spec", "selection", "manifest") if (m := re.search(rf"\b{key}=([0-9a-f]{{64}})\b", message))}
@@ -93,7 +129,7 @@ def commands(selection, final, data, out_dir, boot=10000, seed=0):
     rl, comparator = selection["rl"], selection["comparator"]
     a, b = Path(final) / rl / "scored.v3.jsonl", Path(final) / comparator / "scored.v3.jsonl"
     return {split: [sys.executable, "-m", "rlexp.metrics", "report", "--scored", str(a), "--vs", str(b), "--split", split, "--data", str(data),
-                    "--boot", str(boot), "--seed", str(seed), "--json", str(Path(out_dir) / f"paired_{split}.json")]
+                    "--boot", str(boot), "--seed", str(seed), "--json", str(Path(out_dir) / f"confirmatory_paired_{split}.json")]
             for split in (CONFIRMATORY, EXPLORATORY)}
 
 
@@ -136,39 +172,52 @@ def check_control(final, arm):
     check_scored(final, arm, {"model": meta["model"]})
 
 
-def check_sanity(final, selection, arms, allow_skipped):
-    """The Val reproduction of each adapter arm of the pair (a selection arm with adapter_sha256) in <final>/sanity.json: passed, consistent with its own numbers and with the
-    selection's score. Returns ({arm: record}, [arms whose check was skipped and is allowed]); ValueError otherwise."""
+def check_sanity(final, selection, arms):
+    """The Val reproduction of each adapter arm of the pair (a selection arm with adapter_sha256) in <final>/sanity.json, as gpu/run_final.py appends it: the file's tolerance is the
+    gate's (final_eval.SANITY_TOLERANCE), the arm has an attempt, and its LATEST attempt passed, is consistent with its own numbers and carries the selection's score.
+    Returns {arm: {"attempts": n, "latest": the latest attempt}}; ValueError otherwise."""
     adapter_arms = [a for a in arms if "adapter_sha256" in selection["arms"][a]]
     if not adapter_arms:
-        return {}, []
+        return {}
     path = Path(final) / "sanity.json"
     if not path.is_file():
         raise ValueError(f"{path} is missing: gpu/run_final.py writes the Val reproduction of every adapter arm there")
-    sanity = json.loads(path.read_text(encoding="utf-8"))
-    skipped = []
+    data, tolerance = json.loads(path.read_text(encoding="utf-8")), final_eval().SANITY_TOLERANCE
+    if data.get("tolerance") != tolerance:
+        raise ValueError(f"{path} was made with tolerance {data.get('tolerance')}, the gate's (SANITY_TOLERANCE of gpu/final_eval.py) is {tolerance}")
+    attempts, out = data.get("attempts"), {}
+    if not isinstance(attempts, list):
+        raise ValueError(f"{path} has no list of attempts")
     for arm in adapter_arms:
-        record = sanity.get(arm)
-        if not isinstance(record, dict):
-            raise ValueError(f"{path} has no Val reproduction for the adapter arm {arm}")
-        if record.get("skipped") is True:
-            if not allow_skipped:
-                raise ValueError(f"the Val reproduction of {arm} was skipped (--skip-sanity); --allow-skipped-sanity accepts that and says so in the output")
-            skipped.append(arm)
-            continue
+        mine = [a for a in attempts if isinstance(a, dict) and a.get("arm") == arm]
+        if not mine:
+            raise ValueError(f"{path} has no Val attempt for the adapter arm {arm}")
+        last = mine[-1]
         try:
-            consistent = abs(record["value"] - record["selection_score"]) <= record["tolerance"] and record["selection_score"] == selection["arms"][arm]["score"]
+            consistent = abs(last["value"] - last["selection_score"]) <= tolerance and last["selection_score"] == selection["arms"][arm]["score"]
         except (KeyError, TypeError):
             consistent = False
-        if record.get("passed") is not True or not consistent:
-            raise ValueError(f"the Val reproduction of {arm} did not pass: {path} says {{'value': {record.get('value')}, 'selection_score': {record.get('selection_score')}, "
-                             f"'tolerance': {record.get('tolerance')}, 'passed': {record.get('passed')}}}, the selection's score is {selection['arms'][arm].get('score')}")
-    return {a: sanity[a] for a in adapter_arms}, skipped
+        if last.get("passed") is not True or not consistent:
+            raise ValueError(f"the latest Val reproduction of {arm} (attempt {len(mine)} of {len(mine)}) did not pass: {path} says {{'value': {last.get('value')}, "
+                             f"'selection_score': {last.get('selection_score')}, 'passed': {last.get('passed')}}}, the selection's score is {selection['arms'][arm].get('score')}, tolerance {tolerance}")
+        out[arm] = {"attempts": len(mine), "latest": last}
+    return out
 
 
-def check_runs(selection, selection_path, final, spec_sha256, allow_skipped_sanity=False):
-    """Check that the pair to be reported was sampled under the frozen spec and that its scored files are its own (see the module docstring); ValueError if not.
-    Returns (the run manifest's path, {arm: sanity record}, [arms whose skipped sanity check was allowed])."""
+def check_code(manifest, tag):
+    """The five gpu/ files whose sha256 gpu/final_eval.py recorded in the run manifest are the files of the tag: `git show <tag>:<path>` hashes the same. ValueError lists the differences."""
+    wanted = {f"gpu/{name}" for name in final_eval().CODE_FILES}
+    code = manifest.get("code_sha256")
+    if not isinstance(code, dict) or set(code) != wanted:
+        raise ValueError(f"the run manifest does not record the sha256 of exactly {sorted(wanted)} under code_sha256")
+    differs = sorted(path for path, digest in code.items() if tag_file_sha256(tag, path) != digest)
+    if differs:
+        raise ValueError(f"the code that sampled is not the code of git tag {tag}: {', '.join(differs)} differ")
+
+
+def check_runs(selection, selection_path, final, spec_sha256, tag="prereg-v1"):
+    """Check that the pair to be reported was sampled under the frozen spec by the tagged code and that its scored files are its own (see the module docstring); ValueError if not.
+    Returns (the run manifest's path, {arm: {"attempts", "latest"}} of the Val reproductions)."""
     path = Path(final) / "manifest.json"
     if not path.is_file():
         raise ValueError(f"{path} is missing: the samples were not made by gpu/final_eval.py")
@@ -180,6 +229,7 @@ def check_runs(selection, selection_path, final, spec_sha256, allow_skipped_sani
         raise ValueError("the run manifest is not (entirely) from the spec given by --spec-sha256")
     if manifest.get("selection_sha256") != sha256(selection_path):
         raise ValueError("the selection file is not the one the spec was frozen against (the run manifest's selection_sha256)")
+    check_code(manifest, tag)
     arms = (selection["rl"], selection["comparator"])
     for arm in arms:
         try:
@@ -203,8 +253,7 @@ def check_runs(selection, selection_path, final, spec_sha256, allow_skipped_sani
         if differs:
             raise ValueError(f"arm {arm}: the run's meta.json differs from the run manifest in {differs}")
         check_scored(final, arm, {key: entry[key] for key in ("model", "mode", "temperature")})
-    sanity, skipped = check_sanity(final, selection, arms, allow_skipped_sanity)
-    return path, sanity, skipped
+    return path, check_sanity(final, selection, arms)
 
 
 def check_cohort(split, report):
@@ -219,32 +268,33 @@ def check_cohort(split, report):
 
 
 def expected_spec_sha256(argument, tag):
-    """(the spec sha256 to hold the run manifest to, the tag's hashes or {}, where it came from). The tag message is the anchor: with no argument it is required; with an argument
-    that the tag also names they must agree; an existing tag without spec=<sha256> is refused. SystemExit-free: ValueError."""
+    """(the spec sha256 the run manifest is held to, the tag's hashes, where it came from). The annotated git tag is the anchor and must exist: its message carries spec=, selection= and
+    manifest= (all three), and a typed --spec-sha256 must agree with it; a typed hash alone, a lightweight tag (whose "message" is a commit's) or a tag without the three keys is refused."""
     message = read_tag(tag)
-    hashes = tag_hashes(message) if message is not None else {}
-    if message is not None and "spec" not in hashes:
-        raise ValueError(f"git tag {tag} has no spec=<sha256> in its message")
-    if argument is None:
-        if message is None:
-            raise ValueError(f"no --spec-sha256 and no git tag {tag} to read it from")
-        return hashes["spec"], hashes, f"git tag {tag}"
-    if hashes and hashes["spec"] != argument:
+    if message is None:
+        raise ValueError(f"git tag {tag} does not exist: the locked result is checked against it, and a typed --spec-sha256 alone is no anchor")
+    kind = tag_object_type(tag)
+    if kind != "tag":
+        raise ValueError(f"git tag {tag} is not an annotated tag (git cat-file -t says {kind!r}): a lightweight tag has no message of its own")
+    hashes = tag_hashes(message)
+    missing = [f"{key}=<sha256>" for key in ("spec", "selection", "manifest") if key not in hashes]
+    if missing:
+        raise ValueError(f"git tag {tag} lacks {', '.join(missing)} in its message")
+    if argument is not None and hashes["spec"] != argument:
         raise ValueError(f"--spec-sha256 differs from the spec= of git tag {tag}")
-    return argument, hashes, f"git tag {tag} (agrees with --spec-sha256)" if hashes else "--spec-sha256 (no git tag)"
+    return hashes["spec"], hashes, f"git tag {tag}" + (" (agrees with --spec-sha256)" if argument is not None else "")
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--selection", type=Path, required=True)
-    ap.add_argument("--spec-sha256", help="sha256 of the frozen spec; read from the git tag message when absent (required, or the tag, unless --dry-run)")
-    ap.add_argument("--tag", default="prereg-v1", help="the git tag whose message names spec=, selection= and manifest= hashes")
+    ap.add_argument("--spec-sha256", help="sha256 of the frozen spec; the annotated git tag's spec= is the anchor (it must exist), a typed hash must agree with it")
+    ap.add_argument("--tag", default="prereg-v1", help="the annotated git tag whose message names spec=, selection= and manifest= hashes")
     ap.add_argument("--manifest", type=Path, help="data/MANIFEST.sha256: the Test files read through --data must be the ones it lists (required unless --dry-run)")
     ap.add_argument("--final", type=Path, default=Path("runs/final"))
     ap.add_argument("--data", type=Path, default=Path("data/processed"))
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--boot", type=int, default=10000)
-    ap.add_argument("--allow-skipped-sanity", action="store_true", help="accept an adapter arm whose Val reproduction was skipped (gpu/run_final.py --skip-sanity)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if not args.dry_run and not args.manifest:
@@ -257,21 +307,21 @@ def main(argv=None):
     try:
         spec_sha256, tag, source = expected_spec_sha256(args.spec_sha256, args.tag)
         for key, path in (("selection", args.selection), ("manifest", args.manifest)):
-            if key in tag and tag[key] != sha256(path):
+            if tag[key] != sha256(path):
                 raise ValueError(f"git tag {args.tag} names another {key}= than the sha256 of {path}")
         test_files = check_test_files(args.data, args.manifest)
-        manifest_path, sanity, skipped = check_runs(selection, args.selection, args.final, spec_sha256, args.allow_skipped_sanity)
+        manifest_path, sanity = check_runs(selection, args.selection, args.final, spec_sha256, args.tag)
     except (OSError, ValueError) as e:
         sys.exit(f"error: {e}")
     print(f"spec sha256 from {source}")
-    for arm in skipped:
-        print(f"WARNING: the Val reproduction of {arm} was skipped; accepted by --allow-skipped-sanity")
+    for arm, record in sanity.items():
+        print(f"Val reproduction of {arm}: {record['attempts']} attempt(s), the latest passed (value {record['latest']['value']:.4f}, selection {record['latest']['selection_score']:.4f})")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     inputs = {}
     result = {"rl": selection["rl"], "comparator": selection["comparator"], "confirmatory_split": CONFIRMATORY, "commands": cmds, "paired": {},
               "spec_sha256": spec_sha256, "spec_sha256_source": source, "tag": {"name": args.tag, **tag}, "selection_sha256": sha256(args.selection),
               "data_manifest_sha256": sha256(args.manifest), "test_files_sha256": test_files, "run_manifest_sha256": sha256(manifest_path),
-              "sanity": sanity, "sanity_skipped_and_allowed": skipped}
+              "sanity": sanity}
     for split, cmd in cmds.items():
         for path in (cmd[cmd.index("--scored") + 1], cmd[cmd.index("--vs") + 1]):
             if not Path(path).is_file():
@@ -286,7 +336,7 @@ def main(argv=None):
         except ValueError as e:
             sys.exit(f"error: {e}")
         result["paired"][split] = paired
-        (args.out.parent / f"paired_{split}.txt").write_text(done.stdout, encoding="utf-8")
+        (args.out.parent / f"confirmatory_paired_{split}.txt").write_text(done.stdout, encoding="utf-8")
     result["input_sha256"] = inputs
     args.out.write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
     print(f"wrote {args.out}: {selection['rl']} against {selection['comparator']} on {CONFIRMATORY} (confirmatory) and {EXPLORATORY} (exploratory)")

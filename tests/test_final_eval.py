@@ -8,6 +8,7 @@ import pytest
 
 GPU = Path(__file__).resolve().parents[1] / "gpu"
 ADAPTER = "a" * 64
+REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8c3d0"          # the base commit the adapters were trained on
 
 
 @pytest.fixture(scope="module")
@@ -94,7 +95,7 @@ def test_the_blank_profile_diagnostic_is_in_the_vocabulary(fe, tmp_path):
 
 # ------------------------------------------------------------------------------------------------ the spec against the Val selection
 def rl_adapter(digest=ADAPTER):
-    return {"path": "adapters/rl-full/step-40", "base": "Qwen/Qwen3.5-4B", "sha256": {"adapter_model.safetensors": digest, "adapter_config.json": "b" * 64}}
+    return {"path": "adapters/rl-full/step-40", "base": "Qwen/Qwen3.5-4B", "revision": REVISION, "sha256": {"adapter_model.safetensors": digest, "adapter_config.json": "b" * 64}}
 
 
 def selected_arms():
@@ -217,6 +218,13 @@ CASES = {
     "a reference is called C2": (lambda a, e, s: e.append(reference(id="C2")), "CPU control; runs/final/C2"),
     "a probe is called C0": (lambda a, e, s: e.append(probe(id="C0")), "CPU control; runs/final/C0"),
     "a diagnostic is called C1": (lambda a, e, s: e.append(diagnostic(id="C1")), "CPU control; runs/final/C1"),
+    "an adapter block without a revision": (lambda a, e, s: a["RL-full"]["adapter"].pop("revision"), 'carries no "revision"'),
+    "an adapter block with a short revision": (lambda a, e, s: a["RL-full"]["adapter"].update(revision=REVISION[:8]), 'carries no "revision"'),
+    "an adapter block with an uppercase revision": (lambda a, e, s: a["RL-full"]["adapter"].update(revision=REVISION.upper().replace("E", "G")), 'carries no "revision"'),
+    "an adapter block with a revision that is not text": (lambda a, e, s: a["RL-full"]["adapter"].update(revision=851), 'carries no "revision"'),
+    "an adapter block with a revision that runs past 40 digits": (lambda a, e, s: a["RL-full"]["adapter"].update(revision=REVISION + "0"), 'carries no "revision"'),
+    "an adapter block with a revision that has text after 40 digits": (lambda a, e, s: a["RL-full"]["adapter"].update(revision=REVISION + "\n"), 'carries no "revision"'),
+    "a diagnostic trained on another revision": (lambda a, e, s: e.append(diagnostic("RL-full", adapter={**rl_adapter(), "revision": "0" * 40})), "changes only data"),
     "a diagnostic on name prompts": (lambda a, e, s: e.append(diagnostic(data="name")), "shuffle or blank"),
     "a diagnostic on the real prompts": (lambda a, e, s: e.append(diagnostic(data="direct", system="dataset")), "shuffle or blank"),
     "a reference with an adapter": (lambda a, e, s: e.append(reference(adapter=rl_adapter())), "untrained model"),
@@ -408,6 +416,31 @@ def test_the_run_manifest_accumulates_per_arm_and_records_the_sampler_data_hash(
     assert sorted(json.loads((world.tmp / "out" / "manifest.json").read_text())["arms"]) == ["A0n", "RL-full"]
 
 
+def test_the_run_manifest_records_the_sha256_of_the_code_that_samples(fe, world):
+    cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n")
+    recorded = json.loads((world.tmp / "out" / "manifest.json").read_text())["code_sha256"]
+    assert recorded == {f"gpu/{name}": sha(GPU / name) for name in ("final_eval.py", "sample_vllm.py", "run_final.py", "prepare_final.py", "merge_lora.py")} == fe.code_hashes()
+    assert fe.CODE_FILES == ("final_eval.py", "sample_vllm.py", "run_final.py", "prepare_final.py", "merge_lora.py")
+
+
+def test_a_run_directory_started_with_other_code_is_never_continued_with_this_code(fe, world):
+    cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n")
+    path = world.tmp / "out" / "manifest.json"
+    original = path.read_text()
+    for edit, names in ((lambda m: m["code_sha256"].update({"gpu/sample_vllm.py": "0" * 64}), "gpu/sample_vllm.py"),
+                        (lambda m: m["code_sha256"].pop("gpu/merge_lora.py"), "gpu/merge_lora.py"), (lambda m: m.pop("code_sha256"), "gpu/final_eval.py")):
+        data = json.loads(original)
+        edit(data)
+        path.write_text(json.dumps(data))
+        world.calls.clear()
+        for flags in ((), ("--dry-run",)):
+            with pytest.raises(SystemExit, match=rf"started with other code \(.*{names}"):
+                cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n", *flags)
+        assert not world.calls and json.loads(path.read_text()) == data                # nothing sampled, nothing rewritten
+    path.write_text(original)
+    cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n-shuffle")
+
+
 def test_a_manifest_written_under_another_spec_is_never_overwritten(fe, world):
     cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n")
     before = (world.tmp / "out" / "manifest.json").read_text()
@@ -554,3 +587,26 @@ def test_the_prepared_check_covers_the_diagnostics_of_an_adapter_arm_and_skips_u
     with pytest.raises(SystemExit, match="is not an export"):
         cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "RL-full-shuffle")       # samples the same directory
     assert len(world.calls) == 2
+
+
+def test_every_adapter_arms_export_is_checked_not_only_the_first(fe, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    make_export(tmp_path, "RL-full")
+    make_export(tmp_path, "A2", digest="d" * 64)
+    arms = [{"id": "RL-full", "model": "final_models/RL-full", "adapter": rl_adapter()}, {"id": "A2", "model": "final_models/A2", "adapter": rl_adapter("d" * 64)}]
+    fe.check_prepared(arms)
+    second = tmp_path / "final_models" / "A2"
+    marker = (second / "PREPARED.json").read_text()
+    (second / "PREPARED.json").write_text(json.dumps({**json.loads(marker), "adapter_sha256": rl_adapter("e" * 64)["sha256"]}))       # another adapter's export
+    with pytest.raises(fe.SpecError, match="records other adapter hashes than the spec's for arm A2"):
+        fe.check_prepared(arms)
+    (second / "PREPARED.json").write_text(marker)
+    (second / "model-00001-of-00001.safetensors").write_bytes(b"changed")
+    with pytest.raises(fe.SpecError, match="files of final_models/A2 no longer hash"):
+        fe.check_prepared(arms)
+    (second / "model-00001-of-00001.safetensors").write_bytes(b"merged weights")
+    (second / "PREPARED.json").unlink()
+    with pytest.raises(fe.SpecError, match="final_models/A2/PREPARED.json is missing"):
+        fe.check_prepared(arms)
+    (second / "PREPARED.json").write_text(marker)
+    fe.check_prepared(arms)                                                          # restored: both pass again

@@ -24,7 +24,7 @@ Skipped (SKIP, matched on the run folder's name): ident- at the start (the answe
 val8-control_, not model output); strict- at the start (a rescoring of another run, same samples); and the Val diagnostic families made after the committed
 audit, so that the audited run list stays the 29 runs of results/extractor_audit.json: -shuffle- and -blank- anywhere, r1s and r3s at the start (RL
 checkpoint families), a4-t at the start (extra A4 temperatures), -seed<n> at the end (seed repeats), rlfull-s10- at the start and rlfull-s<n>-t0.3 (the RL
-step-10 and T=0.3 sweeps), rlfull<n>- at the start (a later RL replicate: rlfull5-...). The population is pinned by tests/test_offline_audit.py: a run folder that none of these names must be added to SKIP, or the audit
+step-10 and T=0.3 sweeps), rlfull<n>- at the start (a later RL replicate: rlfull5-...), rlvalidity- at the start (the RL validity runs). The population is pinned by tests/test_offline_audit.py: a run folder that none of these names must be added to SKIP, or the audit
 artefacts regenerated and the numbers quoted in docs/prereg-v1.md section 8 restated. Also skipped: a run whose every sample (same model, mode, temperature, top-p, token cap,
 seed, id, sample index and text) is also in another run: a partial copy adds nothing.
 """
@@ -52,7 +52,7 @@ SKIP = ((r"^ident-", "the answer is a drug name, not a structure"),
         (r"control_", "CPU control, not model output"),
         (r"^strict-", "a strict-reader rescoring of another run, not new samples"),
         (r"-shuffle-|-blank-|^r1s|^r3s|^a4-t", "Val diagnostic family made after the committed audit"),
-        (r"-seed\d+$|^rlfull-s10-|^rlfull-s\d+-t0\.3$|^rlfull\d+-", "Val run made after the committed audit: a seed repeat, the RL step-10 and T=0.3 sweeps, or a later RL replicate"))   # (regex on the run folder's name, why)
+        (r"-seed\d+$|^rlfull-s10-|^rlfull-s\d+-t0\.3$|^rlfull\d+-|^rlvalidity-", "Val run made after the committed audit: a seed repeat, the RL step-10 and T=0.3 sweeps, a later RL replicate or the RL validity runs"))   # (regex on the run folder's name, why)
 SWITCH_RATE, MIN_STD, T5_BAR, T5_MIN_K = 0.01, 0.05, 0.30, 4
 STRIP = chem._STRIP                                            # ` * . , ; : : what chem.extract_answer strips from a token (code fences, bold, a closing full stop)
 SAMPLING = ("model", "mode", "temperature", "top_p", "max_tokens", "seed")     # runs that differ in any of these are not copies

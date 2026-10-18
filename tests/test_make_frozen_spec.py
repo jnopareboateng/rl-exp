@@ -24,7 +24,8 @@ def selection(rl_run="rlfull-s40-t0.6", rl_ckpt="step-40"):
         "RL-full": {"temperature": 0.6, "run": rl_run, "checkpoint": rl_ckpt, "spec": BLOCK}}}
 
 
-HASHES = {k: {W: k[:2] * 32, C: "c" * 64} for k in ("A2-epoch1", "R1-step-40", "R5-step-60")}
+REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8c3d0"
+HASHES = {k: {W: k[:2] * 32, C: "c" * 64, "revision": REVISION} for k in ("A2-epoch1", "R1-step-40", "R5-step-60")}
 
 
 def test_the_spec_copies_what_the_selection_decided():
@@ -59,3 +60,27 @@ def test_main_writes_the_spec_and_its_hash_file(tmp_path):
 def test_a_missing_hash_fails_loudly():
     with pytest.raises(KeyError):
         mf.build(selection("rlfull5-s70-t0.6", "step-70"), HASHES, "m" * 64)
+
+
+def test_every_adapter_block_names_the_base_revision_of_its_hash_entry():
+    hashes = {**HASHES, "A2-epoch1": {**HASHES["A2-epoch1"], "revision": "a" * 40}}
+    out = mf.build(selection(), hashes, "m" * 64)
+    blocks = {a["id"]: a["adapter"] for a in out["arms"] if "adapter" in a}
+    assert sorted(blocks) == ["A2", "A2-blank", "A2-shuffle", "RL-full", "RL-full-blank", "RL-full-shuffle"]
+    assert blocks["A2"]["revision"] == "a" * 40 == blocks["A2-shuffle"]["revision"] == blocks["A2-blank"]["revision"]
+    assert blocks["RL-full"]["revision"] == REVISION == blocks["RL-full-blank"]["revision"] and blocks["RL-full-shuffle"] == blocks["RL-full"]
+
+
+def test_a_hash_entry_without_a_revision_fails_loudly_instead_of_freezing_an_unpinned_adapter():
+    for key in ("A2-epoch1", "R1-step-40"):
+        hashes = {**HASHES, key: {W: "1" * 64, C: "c" * 64}}
+        with pytest.raises(KeyError, match="revision"):
+            mf.build(selection(), hashes, "m" * 64)
+
+
+def test_the_written_spec_passes_the_drivers_revision_rule(tmp_path):
+    import importlib.util as iu
+    fe_spec = iu.spec_from_file_location("final_eval_for_frozen_spec", ROOT / "gpu" / "final_eval.py")
+    fe = iu.module_from_spec(fe_spec)
+    fe_spec.loader.exec_module(fe)
+    assert all(fe.REVISION.fullmatch(a["adapter"]["revision"]) for a in mf.build(selection(), HASHES, "m" * 64)["arms"] if "adapter" in a)

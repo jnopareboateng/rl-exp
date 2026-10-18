@@ -12,8 +12,8 @@ the selected arms exactly, every other arm a "reference", a "diagnostic" of a se
 are the frozen ones. Before it samples an adapter arm (not in --dry-run) <model>/PREPARED.json must name the spec's adapter hashes and the merged files must still hash
 as it recorded (gpu/prepare_final.py).
 It calls gpu/sample_vllm.py once per arm over both splits; that script is resumable and prompt-atomic, so a killed run can be started again with
-the same command. <out>/manifest.json collects, per finished arm, the spec hash, the settings and the command; it is never overwritten by another
-spec (use a new --out) and --dry-run does not write it. Scoring happens later, on the CPU, with rlexp.metrics. Needs the GPU environment of
+the same command. <out>/manifest.json collects, per finished arm, the spec hash, the settings and the command, and records the sha256 of the gpu/ code that samples
+(final_eval, sample_vllm, run_final, prepare_final, merge_lora); it is never overwritten by another spec or other code (use a new --out) and --dry-run does not write it. Scoring happens later, on the CPU, with rlexp.metrics. Needs the GPU environment of
 gpu/sample_vllm.py (Colab A100).
 """
 import argparse
@@ -36,6 +36,9 @@ SYSTEM_TEXTS = {"direct": "Reply with only the SMILES string of the drug describ
 REQUIRED = ("id", "model", "mode", "data", "system", "temperature", "k", "max_tokens")
 SELECTED_DATA = ("direct", "icl")        # the real profile (with retrieved examples for A4); the other variants are diagnostics or probes
 SELECTED_K = 8                           # the endpoint's k
+SANITY_TOLERANCE = 0.005                 # largest |Val first-valid similarity - the selection's score| of a merged adapter arm: the gate of gpu/run_final.py, read by scripts/confirmatory.py. Defined here once.
+REVISION = re.compile(r"[0-9a-f]{40}")   # a base-model commit: every adapter block of the spec names the one its adapter was trained on
+CODE_FILES = ("final_eval.py", "sample_vllm.py", "run_final.py", "prepare_final.py", "merge_lora.py")      # the gpu/ code whose sha256 the run manifest records (scripts/confirmatory.py compares them with the tag)
 SPEC_KEYS = ("mode", "max_tokens", "data", "system", "model")     # what a selected arm's "spec" block of the selection repeats (scripts/select_arms.py)
 SPEC_OPTIONAL = ("quantization", "gpu_memory_utilization")         # sampler options a selected arm may carry only if its block names them
 CONTROL_IDS = ("C0", "C1", "C2", "C3")                            # runs/final/<id> of the CPU controls (scripts/final_controls.py): no spec arm may use them
@@ -110,7 +113,7 @@ def check_against_selection(spec, selection):
     k=8, both Test splits (no "splits" key), the real-profile data and exactly the selection's "spec" block (model, mode, max_tokens, data, system; a sampled arm
     without one is an error; quantization and gpu_memory_utilization only if the block names them). An arm the selection gives no adapter_sha256 (and it must
     give one for an arm with a checkpoint) is the untrained hub model of its block with no adapter block; an arm with one samples final_models/<id> and carries
-    exactly that adapter. A CPU control (temperature null: C0 to C3, scored from its own samples) is not a spec arm. The other arms of selection["rl_set"] are
+    exactly that adapter, whose block names the base "revision" it was trained on (40 hex digits; a diagnostic repeats the block). A CPU control (temperature null: C0 to C3, scored from its own samples) is not a spec arm. The other arms of selection["rl_set"] are
     Val-only candidates: a spec arm that carries their id is refused (only the Val-selected RL arm is scored on Test). Every other spec arm has a role, does not
     reuse an id of the selection and is not named C0 to C3:
       "reference": an untrained model (a plain hub id, no adapter) on the direct-answer text (data and system "direct") at a grid temperature;
@@ -162,6 +165,8 @@ def check_against_selection(spec, selection):
             raise SpecError(f"arm {i}: the selected checkpoint is merged into {MODELS_DIR}/{i}, not {arm['model']!r}")
         if want is not None and have != want:
             raise SpecError(f"arm {i}: the spec's adapter is not the selected checkpoint (adapter_model.safetensors sha256 differs)")
+        if want is not None and not (isinstance(arm["adapter"].get("revision"), str) and REVISION.fullmatch(arm["adapter"]["revision"])):
+            raise SpecError(f"arm {i}: its adapter block carries no \"revision\" (the 40-digit commit of the base model the adapter was trained on)")
     for arm in spec["arms"]:
         if arm["id"] in val_only:
             raise SpecError(f"arm {arm['id']} is a Val-only RL candidate: only the Val-selected RL arm ({rl}) is scored on Test")
@@ -266,15 +271,25 @@ def command(arm, data_root, out_root):
     return out
 
 
-def read_run_manifest(path, spec_sha256, selection_sha256):
-    """The run manifest of an --out directory, or a new one. One directory holds one spec: a manifest of another spec is an error, never overwritten."""
+def code_hashes():
+    """{'gpu/<name>': sha256} of the gpu/ code that samples (CODE_FILES): what the run manifest records and scripts/confirmatory.py compares with the tag."""
+    return {f"gpu/{name}": file_sha256(HERE / name) for name in CODE_FILES}
+
+
+def read_run_manifest(path, spec_sha256, selection_sha256, code=None):
+    """The run manifest of an --out directory, or a new one that records `code` (code_hashes()). One directory holds one spec and one version of the code: a manifest of another spec,
+    or written by other code, is an error, never overwritten."""
+    code = code_hashes() if code is None else code
     if not path.exists():
-        return {"spec_sha256": spec_sha256, "selection_sha256": selection_sha256, "arms": {}}
+        return {"spec_sha256": spec_sha256, "selection_sha256": selection_sha256, "code_sha256": code, "arms": {}}
     manifest = json.loads(path.read_text(encoding="utf-8"))
     if manifest.get("spec_sha256") != spec_sha256:
         raise SpecError(f"{path} was written under another spec: use a new --out directory")
     if not isinstance(manifest.get("arms"), dict):
         raise SpecError(f"{path} is not a manifest of this driver")
+    if manifest.get("code_sha256") != code:
+        changed = sorted(name for name in code if (manifest.get("code_sha256") or {}).get(name) != code[name])
+        raise SpecError(f"{path} was started with other code ({', '.join(changed) or 'no code hashes recorded'}): the code of one locked run must not change; use a new --out directory")
     return manifest
 
 

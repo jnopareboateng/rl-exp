@@ -4,7 +4,8 @@
   .venv/bin/python scripts/make_frozen_spec.py [--selection results/selection.json] [--hashes results/adapter_hashes.json] [--manifest data/MANIFEST.sha256]
                                               [--out results/frozen_arms.json]
 
-Everything the selection decides (temperatures, the RL checkpoint and its run, the comparators) is copied from it; the lead's choices (references, diagnostics, probes) are the constants below, the
+Each adapter block carries the base "revision" of its hash-file entry (the commit the adapter was trained on; gpu/prepare_final.py passes it to merge_lora.py and checks the adapter directory's
+revision.json against it; a hash-file entry without one is a KeyError). Everything the selection decides (temperatures, the RL checkpoint and its run, the comparators) is copied from it; the lead's choices (references, diagnostics, probes) are the constants below, the
 Test run list of the protocol. gpu/final_eval.py then refuses the spec if it is not what the selection chose, so a slip here fails loudly instead of being sampled.
 """
 import argparse
@@ -29,7 +30,7 @@ def hash_key(run, checkpoint):
 
 def build(selection, hashes, manifest_sha256):
     chosen = selection["arms"]
-    adapter = lambda path, key: {"path": path, "base": Q4, "sha256": {W: hashes[key][W], C: hashes[key][C]}}
+    adapter = lambda path, key: {"path": path, "base": Q4, "revision": hashes[key]["revision"], "sha256": {W: hashes[key][W], C: hashes[key][C]}}
     rl_id = selection["rl"]
     rl = chosen[rl_id]
     a2 = chosen["A2"]

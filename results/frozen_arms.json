@@ -43,6 +43,7 @@
    "adapter": {
     "path": ".agent-runs/adapters_plain/A2-epoch1",
     "base": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
     "sha256": {
      "adapter_model.safetensors": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd",
      "adapter_config.json": "bde8fbad67cad709bba943f01a0b8996f2799c3ba62d0442a8e4c8d4ed7fc294"
@@ -62,6 +63,7 @@
    "adapter": {
     "path": ".agent-runs/adapters_plain/R5-step-50",
     "base": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
     "sha256": {
      "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",
      "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
@@ -126,6 +128,7 @@
    "adapter": {
     "path": ".agent-runs/adapters_plain/A2-epoch1",
     "base": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
     "sha256": {
      "adapter_model.safetensors": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd",
      "adapter_config.json": "bde8fbad67cad709bba943f01a0b8996f2799c3ba62d0442a8e4c8d4ed7fc294"
@@ -147,6 +150,7 @@
    "adapter": {
     "path": ".agent-runs/adapters_plain/A2-epoch1",
     "base": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
     "sha256": {
      "adapter_model.safetensors": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd",
      "adapter_config.json": "bde8fbad67cad709bba943f01a0b8996f2799c3ba62d0442a8e4c8d4ed7fc294"
@@ -168,6 +172,7 @@
    "adapter": {
     "path": ".agent-runs/adapters_plain/R5-step-50",
     "base": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
     "sha256": {
      "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",
      "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
@@ -189,6 +194,7 @@
    "adapter": {
     "path": ".agent-runs/adapters_plain/R5-step-50",
     "base": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
     "sha256": {
      "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",
      "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"

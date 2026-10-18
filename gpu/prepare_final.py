@@ -6,9 +6,10 @@ the hashes recorded at the freeze, then merge it into <models>/<arm id> with gpu
 
 The spec is validated by gpu/final_eval.py's load_spec (the same frozen grid, and it must be what --selection chose), so a spec that final_eval would
 refuse is refused here before anything is merged.
-An arm with an "adapter" block {"path", "base", "sha256": {file: hex}} is merged into <models>/<arm id>, which must be the arm's "model" (what final_eval
+An arm with an "adapter" block {"path", "base", "revision", "sha256": {file: hex}} is merged into <models>/<arm id>, which must be the arm's "model" (what final_eval
 samples); an arm without one (untrained models) is left alone, and so is a "diagnostic" arm, which samples the merged model of the selected arm it belongs to.
-PREPARED.json records the adapter hashes and the sha256 of the merged export's *.safetensors and config.json. Re-running skips an arm only when the marker
+The adapter directory must hold revision.json naming the block's revision (the base commit it was trained on), which is passed to merge_lora.py as --revision: a plain adapter
+directory has no other pin, and merge_lora would take the hub's current main. PREPARED.json records the adapter hashes and the sha256 of the merged export's *.safetensors and config.json. Re-running skips an arm only when the marker
 records the same adapter hashes AND the merged files on disk still hash as recorded; otherwise merge_lora.py runs (it checks an existing export itself).
 Needs the CPU only (merge runs in bf16 on the CPU), a few minutes and 9 GB of disk per 4B arm: delete a merged model after its Test samples exist.
 """
@@ -29,7 +30,7 @@ ADAPTER_FILES = ("adapter_model.safetensors", "adapter_config.json")
 def check_adapter(block):
     """The adapter directory's files match the frozen hashes, else ValueError (nothing is merged from an unregistered adapter)."""
     directory = Path(block["path"])
-    missing = [f for f in (*ADAPTER_FILES, *block["sha256"]) if not (directory / f).is_file()]
+    missing = [f for f in (*ADAPTER_FILES, "revision.json", *block["sha256"]) if not (directory / f).is_file()]
     if missing:
         raise ValueError(f"adapter {block['path']} lacks {sorted(set(missing))}")
     for name, expected in block["sha256"].items():
@@ -37,6 +38,9 @@ def check_adapter(block):
             raise ValueError(f"adapter file {name} differs from the frozen hash")
     if set(block["sha256"]) < set(ADAPTER_FILES):
         raise ValueError("the spec must freeze the hash of every adapter file")
+    recorded = json.loads((directory / "revision.json").read_text(encoding="utf-8")).get("revision")
+    if recorded != block.get("revision"):
+        raise ValueError(f"adapter {block['path']}: revision.json names the base revision {recorded!r}, the spec freezes {block.get('revision')!r}")
 
 
 def is_prepared(marker, block, out):
@@ -49,7 +53,8 @@ def is_prepared(marker, block, out):
 
 
 def merge_command(arm_id, block, models):
-    return [sys.executable, str(HERE / "merge_lora.py"), "--base", block.get("base", "Qwen/Qwen3.5-4B"), "--adapter", block["path"], "--out", str(Path(models) / arm_id)]
+    return [sys.executable, str(HERE / "merge_lora.py"), "--base", block.get("base", "Qwen/Qwen3.5-4B"), "--adapter", block["path"], "--revision", block["revision"],
+            "--out", str(Path(models) / arm_id)]
 
 
 def main(argv=None):

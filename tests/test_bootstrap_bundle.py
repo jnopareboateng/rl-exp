@@ -116,10 +116,98 @@ def test_main_writes_a_readable_archive_and_reports_what_it_skipped(mb, tmp_path
         return ["gpu/a.py", "pyproject.toml"]
 
     monkeypatch.setattr(mb, "members", members)
-    mb.main(["--out", str(tmp_path / "out" / "b.tgz")])
+    mb.main(["--out", str(tmp_path / "out" / "b.tgz"), "--allow-untagged"])
     with tarfile.open(tmp_path / "out" / "b.tgz") as tar:
-        assert sorted(tar.getnames()) == ["gpu/a.py", "pyproject.toml"]
+        assert sorted(tar.getnames()) == ["BUNDLE_COMMIT", "gpu/a.py", "pyproject.toml"]
     assert "skipped 1 gpu/ file(s)" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------------------------------------ the bundle is the tagged commit
+def git_tree(tmp_path, tag="annotated"):
+    """The synthetic tree as a git repository: the code committed, the data left untracked (the real data is git-ignored), prereg-v1 on HEAD as an
+    'annotated' or 'lightweight' tag, or no tag (None). Returns the function that runs git in it."""
+    build(tmp_path)
+    run = lambda *a: subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@example.org", "-c", "commit.gpgsign=false",
+                                     "-c", "tag.gpgsign=false", *a], capture_output=True, text=True, check=True).stdout.strip()
+    run("init", "-q")
+    run("add", "gpu/a.py", "gpu/sub/b.sh", "src", "pyproject.toml", "data/MANIFEST.sha256")
+    run("commit", "-q", "-m", "freeze")
+    if tag == "annotated":
+        run("tag", "-a", "prereg-v1", "-m", "prereg-v1")
+    elif tag == "lightweight":
+        run("tag", "prereg-v1")
+    return run
+
+
+def bundle(mb, tmp_path, monkeypatch, *flags):
+    monkeypatch.setattr(mb, "ROOT", tmp_path)
+    out = tmp_path / "out" / "b.tgz"
+    mb.main(["--out", str(out), *flags])
+    with tarfile.open(out) as tar:
+        return tar.extractfile("BUNDLE_COMMIT").read().decode(), sorted(tar.getnames())
+
+
+def test_a_bundle_of_the_tagged_clean_tree_names_its_commit(mb, tmp_path, monkeypatch):
+    git = git_tree(tmp_path)
+    commit, names = bundle(mb, tmp_path, monkeypatch)
+    assert commit == git("rev-parse", "HEAD") + "\n" and len(commit.strip()) == 40
+    assert "gpu/a.py" in names and "data/processed/val.jsonl" in names and "data/processed/test_t.jsonl" not in names       # the untracked data files are bundled, not checked by git
+
+
+@pytest.mark.parametrize("state, message", [
+    ("no tag", "cannot read the tag prereg-v1"),
+    ("lightweight tag", "not an annotated tag"),
+    ("a later commit", "is not the commit of prereg-v1"),
+    ("an edited file", "1 tracked file.s. differ from prereg-v1: .'gpu/a.py'."),
+    ("a deleted file", "1 tracked file.s. differ from prereg-v1: .'src/rlexp/x.py'."),
+    ("an untracked code file", "code that git does not track would be bundled.*'gpu/new.py'"),
+    ("an untracked file in src", "code that git does not track would be bundled.*'src/rlexp/y.py'"),
+])
+def test_a_bundle_not_made_from_the_tagged_clean_tree_is_refused_and_nothing_is_written(mb, tmp_path, monkeypatch, state, message):
+    git = git_tree(tmp_path, tag={"no tag": None, "lightweight tag": "lightweight"}.get(state, "annotated"))
+    if state == "a later commit":
+        (tmp_path / "gpu" / "a.py").write_text("later\n")
+        git("commit", "-q", "-am", "after the tag")
+    elif state == "an edited file":
+        (tmp_path / "gpu" / "a.py").write_text("edited\n")
+    elif state == "a deleted file":
+        (tmp_path / "src" / "rlexp" / "x.py").unlink()
+    elif state == "an untracked code file":
+        (tmp_path / "gpu" / "new.py").write_text("x\n")
+    elif state == "an untracked file in src":
+        (tmp_path / "src" / "rlexp" / "y.py").write_text("x\n")
+    monkeypatch.setattr(mb, "ROOT", tmp_path)
+    with pytest.raises(ValueError, match=message):
+        mb.main(["--out", str(tmp_path / "out" / "b.tgz")])
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_tag_that_is_not_the_head_commit_is_refused_even_when_the_tree_is_clean(mb, tmp_path):
+    git = git_tree(tmp_path)
+    git("checkout", "-q", "-b", "other")
+    git("commit", "-q", "--allow-empty", "-m", "another commit, same files")
+    with pytest.raises(ValueError, match="is not the commit of prereg-v1"):
+        mb.bundle_commit(tmp_path, mb.members(tmp_path))
+    git("checkout", "-q", "prereg-v1")                                     # a detached HEAD on the tag is the intended state
+    assert mb.bundle_commit(tmp_path, mb.members(tmp_path)) == git("rev-parse", "HEAD")
+
+
+def test_outside_a_repository_the_bundle_is_refused_without_the_flag(mb, tmp_path, monkeypatch):
+    build(tmp_path)
+    monkeypatch.setattr(mb, "ROOT", tmp_path)
+    with pytest.raises(ValueError, match="cannot read the tag prereg-v1"):
+        mb.main(["--out", str(tmp_path / "out" / "b.tgz")])
+
+
+def test_allow_untagged_skips_the_tag_checks_only_and_marks_the_bundle(mb, tmp_path, monkeypatch):
+    git_tree(tmp_path, tag=None)
+    (tmp_path / "gpu" / "a.py").write_text("edited\n")
+    (tmp_path / "gpu" / "new.py").write_text("untracked\n")
+    commit, names = bundle(mb, tmp_path, monkeypatch, "--allow-untagged")
+    assert commit == "untagged\n" and "gpu/new.py" in names
+    (tmp_path / "gpu" / "test_leak.py").write_text("x")                    # the Test-file guards do not depend on the flag
+    with pytest.raises(ValueError, match="Test file"):
+        bundle(mb, tmp_path, monkeypatch, "--allow-untagged")
 
 
 def test_the_real_tree_passes_its_own_guards(mb):
