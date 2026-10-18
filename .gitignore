@@ -23,3 +23,6 @@ final_models/
 .DS_Store
 Thumbs.db
 *.Zone.Identifier
+
+# browser evidence and files the user opens from Windows (never tracked)
+tmp/
