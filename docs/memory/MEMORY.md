@@ -15,7 +15,7 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — Test run done, paper restructured with results; Fable round 3 and final handoff pending
+- [status-main](status-main.md) — Test run done and analysed, paper final-draft after three advisor rounds; handoff to the user
 
 ## Decisions
 - [decision-comparator-c3-registered](decision-comparator-c3-registered.md) — C3 joins the comparator set and A1 leaves it; prereg deviations D1 and D2, before any Test sample
