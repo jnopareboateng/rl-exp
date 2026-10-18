@@ -1,0 +1,19 @@
+{
+ "a": "RL-full",
+ "b": "C3",
+ "split": "test_t",
+ "n_drugs": 41,
+ "mean_a": 0.18567250077552563,
+ "mean_b": 0.19905183395134235,
+ "difference": -0.01337933317581674,
+ "wins": 10,
+ "losses": 31,
+ "ties": 0,
+ "sign_flip_p": 0.05952235119412201,
+ "flips": 400000,
+ "bootstrap_ci": [
+  -0.026536642161835985,
+  0.0004715699909721616
+ ],
+ "independent_of": "rlexp.metrics (numpy and json only)"
+}
