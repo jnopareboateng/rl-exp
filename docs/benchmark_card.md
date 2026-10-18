@@ -1,6 +1,6 @@
 # Benchmark card: an approved drug's structure from its pharmacology profile
 
-This card describes the public release in `release/`: reference structures and splits for 351 drugs, control answers, and the study's reference numbers (splits.csv, controls.csv,
+This card describes the release tables that `scripts/make_release.py` builds in `release/`, which are kept local and are not published with the repository: reference structures and splits for 351 drugs, control answers, and the study's reference numbers (splits.csv, controls.csv,
 values.csv, and a README with checksums). The profile texts are private and are not released. The protocol is frozen by the git tag prereg-v1 (2026-10-18).
 The release tables hold no model score; the Test values of the controls are in section 6 and the full Test results are in the paper (`results/`, `docs/paper/draft.md`).
 
@@ -86,7 +86,7 @@ The C3 pool is not copied; controls.csv records its checksum and release/README.
   36 drugs (salt words dropped from the name) and 8 radiolabelled names may undercount (data/curated/exposure_notes.md).
 
 ## 10. How to cite
-No paper or DOI exists yet. Until it does, cite the repository (rl-exp), the tag prereg-v1 and the checksums in release/README.md. Working title of the paper:
+No paper or DOI exists yet. Until it does, cite the repository (rl-exp), the tag prereg-v1 and the checksums in the locally built release/README.md. Working title of the paper:
 "Reinforcement learning did not beat a tuned constant answer at predicting drug structures from pharmacology profiles". Author and year fields will be added with the paper.
 
 ## 11. How to rerun the scoring
