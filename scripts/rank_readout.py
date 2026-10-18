@@ -11,9 +11,13 @@ Ties share their mid-rank, so hit@1 needs a strictly nearest reference. A row wi
 rows that did have one is reported beside the result as fv_rate: read the two together, because an arm can look good here by failing on the rows it would score badly.
 Per drug we average over its rows, then over drugs, so drugs count equally (`rlexp.metrics`' unit).
 
-Why this readout exists: any policy whose output does not depend on the drug gives every row the SAME ranking, so its hit@1 is exactly 1/N and its mean percentile
-rank is exactly (N+1)/2N, whatever molecule it emits. A constant answer therefore cannot score above chance here, which the delivered-similarity endpoint allows it to
-do. Both chance values are printed beside every result. Nothing here is confirmatory (addendum 1, section 5).
+Why this readout exists: a policy whose output does not depend on the drug gives every row the SAME ranking. For ONE fixed answer that is valid on every row, the mean
+percentile rank is exactly (N+1)/2N and hit@1 is 1/N (at most 1/N when its nearest references tie), whatever molecule it is; failures and ties only lower it. A drug-independent
+policy whose answers vary scores those values in expectation, with a spread (Val: sd 0.02 to 0.035 on the percentile rank), so the number of distinct first-valid answers is
+reported beside every arm. A constant answer therefore cannot score above chance here, which the delivered-similarity endpoint allows it to do. Both chance values are printed
+beside every result. Nothing here is confirmatory (addendum 1, section 5).
+A scored file must cover the split completely (every data row with at least 8 samples, nothing else, no repeated (id, sample_idx), the data's group on every sample):
+`check_arm` stops otherwise, because the readout is defined on the endpoint's cohort.
 
 Contrasts (--a/--b, or --pairs A:B,...): the per-drug difference A minus B, summed within each component (cluster_id) and tested by the cluster-level sign-flip of
 `rlexp.metrics.sign_flip_p`, the same exchangeable units and the same test as the endpoint. Wins, losses and ties count drugs. A Test split needs --allow-test.
@@ -40,8 +44,11 @@ def candidates(data_rows, split):
     """(groups, mols) of the split's distinct drugs, in a fixed order. Raises InputError on a drug whose reference will not parse."""
     refs = {}
     for r in data_rows:
-        if r.get("split") == split and r.get("group") and r.get("ref_smiles"):
-            refs.setdefault(r["group"], r["ref_smiles"])
+        if r.get("split") == split and r.get("group"):
+            if not r.get("ref_smiles"):
+                raise metrics.InputError(f"a {split} drug has a row without a reference structure: the candidate set would be incomplete")
+            if refs.setdefault(r["group"], r["ref_smiles"]) != r["ref_smiles"]:
+                raise metrics.InputError(f"the rows of one {split} drug disagree on the reference structure")
     if not refs:
         raise metrics.InputError(f"no {split} rows with a group and a reference structure")
     groups, mols = [], []
@@ -68,6 +75,26 @@ def first_valid(scored_rows, split, k=metrics.K):
                 out[key] = s.get("answer")
                 break
     return out
+
+
+def check_arm(scored_rows, split, data_rows, arm):
+    """InputError unless the scored file covers the split as the endpoint needs: every data row of the split with at least K samples, no row or group the data does not have,
+    no (id, sample_idx) twice. The readout is defined on the endpoint's cohort, so a partial arm (a constant scored on one drug would 'beat' chance) is refused, not scored."""
+    want = {d["id"]: d["group"] for d in data_rows if d.get("split") == split}
+    seen, per_row, stray, wrong, twice = set(), {}, 0, 0, 0
+    for r in scored_rows:
+        if r.get("split") != split:
+            continue
+        key = (r["id"], r["sample_idx"])
+        twice += key in seen
+        seen.add(key)
+        per_row[r["id"]] = per_row.get(r["id"], 0) + 1
+        stray += r["id"] not in want
+        wrong += r["id"] in want and want[r["id"]] != r["group"]
+    short = sum(1 for i in want if per_row.get(i, 0) < metrics.K)
+    if short or stray or wrong or twice:
+        raise metrics.InputError(f"{arm} does not cover {split} as the endpoint needs: {short} of {len(want)} rows have fewer than {metrics.K} samples, {stray} samples are of rows "
+                                 f"the data does not have, {wrong} carry another drug than the data, {twice} repeat an (id, sample_idx)")
 
 
 def rank_of(answer, group, groups, mols):
@@ -101,10 +128,12 @@ def chance(n):
 
 
 def arm_record(final, arm, split, groups, mols):
-    drugs = per_drug(metrics.read_jsonl(Path(final) / arm / SCORED), split, groups, mols)
+    rows = metrics.read_jsonl(Path(final) / arm / SCORED)
+    drugs = per_drug(rows, split, groups, mols)
     if not drugs:
-        return {"arm": arm, "n_drugs": 0, HIT: None, PCT: None, "fv_rate": None, "n_rows": 0}
-    return {"arm": arm, "n_drugs": len(drugs), "n_rows": sum(d["rows"] for d in drugs.values()),
+        return {"arm": arm, "n_drugs": 0, HIT: None, PCT: None, "fv_rate": None, "n_rows": 0, "n_distinct": 0}
+    answers = {chem.canonical(m) for m in (chem.standardize(a) for a in first_valid(rows, split).values() if a) if m is not None}
+    return {"arm": arm, "n_drugs": len(drugs), "n_rows": sum(d["rows"] for d in drugs.values()), "n_distinct": len(answers),
             **{k: float(np.mean([d[k] for d in drugs.values()])) for k in (HIT, PCT, "fv_rate")}}
 
 
@@ -113,7 +142,7 @@ def clusters(data_rows, split):
     out = {}
     for r in data_rows:
         if r.get("split") == split and r.get("group"):
-            out.setdefault(r["group"], r.get("cluster_id", r["group"]))
+            out.setdefault(r["group"], r["group"] if r.get("cluster_id") is None else r["cluster_id"])
     return out
 
 
@@ -157,14 +186,15 @@ def markdown(res):
     name, n = SPLIT_NAMES[res["split"]], res["n_candidates"]
     out = [f"# Rank readout on {name}", "",
            f"The answer ranks the {n} {name} drugs by similarity to itself; the table shows where the row's own drug lands. Lower percentile rank is better. "
-           f"Any policy that does not depend on the drug scores exactly {res['chance'][HIT]:.3f} on top-1 and {res['chance'][PCT]:.3f} on percentile rank, "
-           "whatever it answers, so a constant answer cannot beat chance here. Rows with no valid answer among their first eight samples take the worst rank and "
-           "lower the valid-answer share beside it. Nothing in this table is confirmatory.", ""]
+           f"One fixed answer that is valid on every row scores exactly {res['chance'][PCT]:.3f} on percentile rank and at most {res['chance'][HIT]:.3f} on top-1, "
+           "whatever it is; failures and tied nearest references only lower it. A policy whose answers vary without using the drug scores those values in expectation "
+           "(Val spread, sd 0.02 to 0.035 on the percentile rank), so read the number of distinct answers beside it. Rows with no valid answer among their first eight "
+           "samples take the worst rank and lower the valid-answer share. Nothing in this table is confirmatory.", ""]
     if res["arms"]:
-        out += ["| Arm | Top-1 | Mean percentile rank | Valid answers | Drugs |", "|---|---:|---:|---:|---:|"]
+        out += ["| Arm | Top-1 | Mean percentile rank | Valid answers | Distinct answers | Drugs |", "|---|---:|---:|---:|---:|---:|"]
         for r in res["arms"]:
-            out.append(f"| {r['arm']} | {cell(r[HIT], 3, False)} | {cell(r[PCT], 3, False)} | {cell(r['fv_rate'], 3, False)} | {r['n_drugs']} |")
-        out += [f"| chance (any drug-independent policy) | {res['chance'][HIT]:.3f} | {res['chance'][PCT]:.3f} | | {n} |", ""]
+            out.append(f"| {r['arm']} | {cell(r[HIT], 3, False)} | {cell(r[PCT], 3, False)} | {cell(r['fv_rate'], 3, False)} | {r['n_distinct']} | {r['n_drugs']} |")
+        out += [f"| chance (one fixed answer, valid on every row) | {res['chance'][HIT]:.3f} | {res['chance'][PCT]:.3f} | | 1 | {n} |", ""]
     for c in res["contrasts"]:
         out += [f"### {c['a']} minus {c['b']} ({name})", ""]
         if not c["measures"]:
@@ -210,6 +240,11 @@ def main(argv=None):
     if missing:
         sys.exit("error: missing scored file(s) (run `rlexp.metrics score` first): " + ", ".join(missing))
     data_rows = metrics.load_data(args.data, splits=(args.split,))
+    for arm in dict.fromkeys(arms + [x for p in pairs for x in p]):
+        try:
+            check_arm(metrics.read_jsonl(args.final / arm / SCORED), args.split, data_rows, arm)
+        except metrics.InputError as e:
+            sys.exit(f"error: {e}")
     groups, mols = candidates(data_rows, args.split)
     cluster_of = clusters(data_rows, args.split)
     n = len(groups)
