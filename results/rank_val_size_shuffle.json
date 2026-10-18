@@ -1,0 +1,114 @@
+{
+ "split": "val",
+ "n_candidates": 20,
+ "chance": {
+  "hit@1": 0.05,
+  "pct_rank": 0.525
+ },
+ "confirmatory": false,
+ "sign": "A minus B; for the percentile rank a lower value is better, so a win is a negative difference",
+ "arms": [
+  {
+   "arm": "b9-t0.6",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 57,
+   "hit@1": 0.1125,
+   "pct_rank": 0.42354166666666665,
+   "fv_rate": 0.9875
+  },
+  {
+   "arm": "b9-shuffle-t0.6",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 56,
+   "hit@1": 0.0125,
+   "pct_rank": 0.598125,
+   "fv_rate": 0.9625
+  },
+  {
+   "arm": "b27-direct",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 58,
+   "hit@1": 0.19583333333333333,
+   "pct_rank": 0.37854166666666667,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "b27-shuffle-t1.0",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 58,
+   "hit@1": 0.016666666666666666,
+   "pct_rank": 0.5606249999999999,
+   "fv_rate": 1.0
+  }
+ ],
+ "contrasts": [
+  {
+   "a": "b9-t0.6",
+   "b": "b9-shuffle-t0.6",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.42354166666666676,
+     "b": 0.598125,
+     "diff": -0.1745833333333333,
+     "wins": 15,
+     "losses": 5,
+     "ties": 0,
+     "n_clusters": 16,
+     "non_tied": 16,
+     "p_value": 0.032623291015625,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.1125,
+     "b": 0.0125,
+     "diff": 0.1,
+     "wins": 5,
+     "losses": 1,
+     "ties": 14,
+     "n_clusters": 16,
+     "non_tied": 4,
+     "p_value": 0.125,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "b27-direct",
+   "b": "b27-shuffle-t1.0",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.37854166666666667,
+     "b": 0.560625,
+     "diff": -0.18208333333333332,
+     "wins": 14,
+     "losses": 4,
+     "ties": 2,
+     "n_clusters": 16,
+     "non_tied": 15,
+     "p_value": 0.0474853515625,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.19583333333333333,
+     "b": 0.016666666666666666,
+     "diff": 0.17916666666666664,
+     "wins": 6,
+     "losses": 0,
+     "ties": 14,
+     "n_clusters": 16,
+     "non_tied": 4,
+     "p_value": 0.125,
+     "p_method": "exact"
+    }
+   }
+  }
+ ]
+}
