@@ -24,7 +24,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [decision-decoding-grid-k8](decision-decoding-grid-k8.md) — Selectable temperatures {0.3, 0.6, 1.0} at k=8; 0.01 is a k=1 near-greedy report, never selected
 - [decision-endpoint-fv-tanimoto](decision-endpoint-fv-tanimoto.md) — Confirmatory endpoint is fv_tanimoto: Tanimoto of the first valid answer of 8; lift is a diagnostic
 - [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — Synthetic profiles for more training drugs are deprioritised: class facts add little over a constant
-- [decision-open-release-scope](decision-open-release-scope.md) — Public repo: code, docs, results and public-database tables; private rows and runs stay local
+- [decision-open-release-scope](decision-open-release-scope.md) — Public repo: code, docs, results, public-database tables; in-house rows and runs stay local
 - [decision-review-policy](decision-review-policy.md) — Reviews are same-vendor now; reviewers list GPU checks, the lead runs them on Colab
 - [decision-reward-v2](decision-reward-v2.md) — Reward: 1.0 on connectivity match, else 0.05+0.6*Tanimoto+0.3*scaffold match; no similarity floor
 - [decision-split-design](decision-split-design.md) — Splits by components (Tanimoto>=0.4 or same scaffold); Test-T = approved 2025-26, a temporal cohort
