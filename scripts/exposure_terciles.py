@@ -29,6 +29,9 @@ TERCILES = ("low", "middle", "high")
 COVARIATES = (("pubmed_count", "PubMed articles"), ("record_age", "Years the structure was public before approval"))
 SIGN = "A minus B: a positive difference means run A is higher"
 STAT = ("n_drugs", "n_clusters", "wins", "losses", "ties", "p_value", "p_method", "p_unit")
+DEFINITIONS = {"pubmed_count": "PubMed article count of the drug (refs.jsonl; data/curated/exposure.json fills a missing value)",
+               "record_age": "years the structure was public before first approval: approval year minus the creation year of its PubChem record",
+               "terciles": "rank * 3 // n over the drugs that have the covariate, ordered by (covariate, drug id), lowest first"}
 
 
 def number(v):
@@ -87,7 +90,7 @@ def analyse(ra, rb, refs, exposure, split):
         sys.exit(f"error: fv_tanimoto is defined for {0 if overall is None else overall['n_drugs']} of {len(drugs)} common drugs "
                  "(fewer than 8 samples per prompt row in a run): the contrast cannot be split")
     pubmed, age, missing = covariates(refs, exposure, split, drugs)
-    out = {"split": split, "metric": "fv_tanimoto", "sign": SIGN, "label": "exploratory", "n_drugs": len(drugs), "overall": stats(overall), "missing": missing, "covariates": {}}
+    out = {"split": split, "metric": "fv_tanimoto", "sign": SIGN, "label": "exploratory", "definitions": DEFINITIONS, "n_drugs": len(drugs), "overall": stats(overall), "missing": missing, "covariates": {}}
     for key, _ in COVARIATES:
         values = pubmed if key == "pubmed_count" else age
         if len(values) < 3:

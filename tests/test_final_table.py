@@ -273,7 +273,7 @@ def test_label_and_decoding_come_from_the_spec_else_the_id(ft, tmp_path, monkeyp
     assert got["A2"] == ("4B answer-only SFT", "T=1.0, k=8, think mode") and got["RL-full"] == ("RL-full", "T=0.6, k=8, no-think")
     assert got["27B-3.8"] == ("Qwen3.8-27B", "T=1.0, k=2, no-think, Test-T only")
     assert got["C3"] == ("C3", "deterministic, copied to eight samples") and got["Other"] == ("Other", "n/a")        # not in the spec: the id
-    assert "| 4B answer-only SFT | 4B arm | T=1.0, k=8, think mode |" in md
+    assert "| A2: 4B answer-only SFT | 4B arm | T=1.0, k=8, think mode |" in md and "| RL-full | 4B arm |" in md              # id: label, or the id alone when there is no label
 
 
 def test_a_pipe_in_a_label_or_decoding_does_not_break_the_markdown_table(ft, tmp_path, monkeypatch):
@@ -282,8 +282,45 @@ def test_a_pipe_in_a_label_or_decoding_does_not_break_the_markdown_table(ft, tmp
     Fake(ft, monkeypatch, {"A2": serve(test_t=split_block())})
     res, md = go(ft, tmp_path, "--spec", str(tmp_path / "spec.json"), splits="test_t")
     assert res["rows"][0]["label"] == "SFT | answers only"                                   # the data keeps the label, the table shows a slash
-    cells = row_cells(md, "SFT / answers only")
-    assert cells["Arm"] == "SFT / answers only" and cells["Group"] == "4B arm" and cells["Decoding"] == "T=1.0, k=8, think mode" and len(cells) == 12
+    cells = row_cells(md, "A2: SFT / answers only")
+    assert cells["Arm"] == "A2: SFT / answers only" and cells["Group"] == "4B arm" and cells["Decoding"] == "T=1.0, k=8, think mode" and len(cells) == 12
+
+
+def test_every_markdown_row_names_the_arm_by_id_and_label_so_a_swapped_label_cannot_rename_it(ft, tmp_path, monkeypatch):
+    for name in ("A2", "RL-full", "ident-4B"):
+        arm_dir(tmp_path / "final", name)
+    spec = {"splits": ["test_t"], "arms": [{"id": "A2", "label": "RL-full", "temperature": 1.0, "k": 8, "mode": "think"},          # A2 wearing RL-full's name
+                                            {"id": "RL-full", "label": "A2", "temperature": 0.6, "k": 8, "mode": "think"},
+                                            {"id": "ident-4B", "label": "Identification, 4B", "data": "ident", "temperature": 1.0, "k": 2, "mode": "nothink", "role": "probe"}]}
+    (tmp_path / "spec.json").write_text(json.dumps(spec))
+    ident = [{"split": "test_t", "drugs": 41, "samples": 100, "name_match@1": 0.01, "pass_k": 2, "name_pass@2": 0.02, "answered": 0.9}]
+    Fake(ft, monkeypatch, {n: serve(test_t=split_block()) for n in ("A2", "RL-full")}, {"ident-4B": ident})
+    res, md = go(ft, tmp_path, "--spec", str(tmp_path / "spec.json"), splits="test_t")
+    assert "| A2: RL-full | 4B arm |" in md and "| RL-full: A2 | 4B arm |" in md and "| ident-4B: Identification, 4B |" in md
+    assert [r["label"] for r in res["rows"] if r["run"] == "A2"] == ["RL-full"]                  # the data keeps the label; the table shows both
+
+
+def test_the_spec_must_be_the_one_the_run_manifest_names_when_there_is_a_run_manifest(ft, tmp_path, monkeypatch):
+    import hashlib
+    arm_dir(tmp_path / "final", "A2")
+    spec = {"splits": ["test_t"], "arms": [{"id": "A2", "label": "A2", "temperature": 1.0, "k": 8, "mode": "think"}]}
+    spec_path = tmp_path / "spec.json"
+    spec_path.write_text(json.dumps(spec))
+    Fake(ft, monkeypatch, {"A2": serve(test_t=split_block())})
+    go(ft, tmp_path, "--spec", str(spec_path), splits="test_t")                                      # no run manifest: nothing to compare (a Val directory, a rehearsal)
+    manifest = tmp_path / "final" / "manifest.json"
+    manifest.write_text(json.dumps({"spec_sha256": hashlib.sha256(spec_path.read_bytes()).hexdigest(), "arms": {}}))
+    go(ft, tmp_path, "--spec", str(spec_path), splits="test_t")                                      # the spec the run was made under
+    spec_path.write_text(json.dumps({**spec, "arms": [{**spec["arms"][0], "label": "Something else"}]}))      # a label edited after the run
+    with pytest.raises(SystemExit, match="--spec is not the spec the run in .* was made under"):
+        go(ft, tmp_path, "--spec", str(spec_path), splits="test_t")
+    manifest.write_text("{")
+    with pytest.raises(SystemExit, match="cannot read the run manifest"):
+        go(ft, tmp_path, "--spec", str(spec_path), splits="test_t")
+    manifest.write_text(json.dumps({"arms": {}}))                                                      # a manifest that names no spec
+    with pytest.raises(SystemExit, match="was made under"):
+        go(ft, tmp_path, "--spec", str(spec_path), splits="test_t")
+    go(ft, tmp_path, splits="test_t")                                                                  # without --spec there is nothing to check
 
 
 def test_without_a_spec_the_label_is_the_id(ft, tmp_path, monkeypatch):

@@ -9,12 +9,14 @@ block of fv_tanimoto (the confirmatory endpoint, first everywhere), mean_tanimot
 everywhere), the descriptive interval, wins, losses and ties (drugs), the cluster-level sign-flip p-value and its method, the studentized line, drugs and rows. Metrics the
 report does not test (tanimoto_valid, valid_closed) have no wins, losses or p-value. Two runs that cover different drugs are paired on the prompt rows they share, exactly as the
 CLI does; n is reported with the size of the split's cohort and `partial` when the pair covers less. A pair with no rows in common is listed with n = 0.
-A pair is labelled "confirmatory" only for (selection rl, selection comparator) on test_t, every other pair is "exploratory" (no adjustment for multiplicity).
+A pair is labelled "confirmatory" only for (selection rl, selection comparator) on test_t, every other pair is "exploratory" (no adjustment for multiplicity); and only when the sha256
+of --selection equals the selection_sha256 in <final>/manifest.json (the selection the run was frozen against): otherwise a warning is printed and no pair is confirmatory.
 --auto (needs --selection) adds: the selected RL arm against every arm of the selection's comparator_set and against each reference arm present (ids like 9B, 27B-3.5), and the
 selected RL arm and A2 each against their own `-shuffle` run (the profile test of section 7: real minus shuffled); nothing else. A pair is refused, with the missing files named,
 unless both scored files exist. A Test split needs --allow-test (like make_figures.py); the split is named in every block.
 """
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -54,6 +56,20 @@ def auto_pairs(selection, present):
         sys.exit(f"error: the selection lacks {e}")
     return ([(rl, c) for c in comparators if c != rl] + [(rl, r) for r in present if REFERENCE.match(r)]
             + [(a, f"{a}-shuffle") for a in dict.fromkeys((rl, "A2"))])
+
+
+def selection_is_the_runs(selection_path, final):
+    """(True, None) when the sha256 of the selection file equals selection_sha256 of <final>/manifest.json (written by gpu/final_eval.py), else (False, why)."""
+    manifest = Path(final) / "manifest.json"
+    if not manifest.is_file():
+        return False, f"{manifest} does not exist"
+    try:
+        recorded = json.loads(manifest.read_text(encoding="utf-8")).get("selection_sha256")
+    except ValueError:
+        return False, f"{manifest} is not JSON"
+    if recorded != hashlib.sha256(Path(selection_path).read_bytes()).hexdigest():
+        return False, f"its sha256 is not the selection_sha256 of {manifest}"
+    return True, None
 
 
 def label(pair, split, selection):
@@ -104,6 +120,8 @@ def markdown(res):
            "exploratory, with no adjustment for multiplicity.", ""]
     for rec in res["pairs"]:
         out += pair_md(rec)
+    if res.get("selection_is_the_runs") is False:
+        out += ["The selection file given is not the one the run was frozen against (its sha256 differs from the run manifest's): no pair above is registered, every one is exploratory."]
     if any(rec["b"].endswith("-shuffle") for rec in res["pairs"]):
         out += ["A pair whose second arm is a shuffled-profile run is the profile test of the protocol: the real profile minus another drug's profile, on the same prompts."]
     return "\n".join(out) + "\n"
@@ -144,17 +162,23 @@ def main(argv=None):
     missing = sorted({str(args.final / arm / SCORED) for pair in pairs for arm in pair if not (args.final / arm / SCORED).is_file()})
     if missing:
         sys.exit("error: missing scored file(s) (run final_table.py or `rlexp.metrics score` first): " + ", ".join(missing))
+    registered = selection
+    if selection is not None:
+        ok, why = selection_is_the_runs(args.selection, args.final)
+        if not ok:
+            registered = None
+            print(f"warning: --selection cannot be shown to be the selection the run was frozen against ({why}): no pair is labelled confirmatory", file=sys.stderr, flush=True)
     records = []
     with tempfile.TemporaryDirectory() as tmp:
         for pair in pairs:
-            rec = paired_record(args.final, pair, args.split, args.data, args.boot, tmp, selection)
+            rec = paired_record(args.final, pair, args.split, args.data, args.boot, tmp, registered)
             records.append(rec)
             e = rec["metrics"]["fv_tanimoto"] if rec["metrics"] else None
             print(f"[{args.split}] {rec['a']} minus {rec['b']} ({rec['label']}): " + ("no rows in common" if e is None else
                   "fv_tanimoto undefined (fewer than 8 samples per row in a run)" if not e["n_drugs"] else
                   f"fv_tanimoto {cell(e['diff'], 4, True)} (A {cell(e['a'], 4, False)}, B {cell(e['b'], 4, False)}), wins {e['wins']} losses {e['losses']} ties {e['ties']}, "
                   f"p {p_text(e['p_value'])}, {rec['n_drugs']} drugs"), flush=True)
-    res = {"split": args.split, "sign": SIGN, "boot": args.boot, "seed": 0,
+    res = {"split": args.split, "sign": SIGN, "boot": args.boot, "seed": 0, "selection_is_the_runs": None if selection is None else registered is not None,
            "selection": None if selection is None else {k: selection.get(k) for k in ("rl", "comparator")}, "pairs": records}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(res, indent=1, allow_nan=False) + "\n", encoding="utf-8")

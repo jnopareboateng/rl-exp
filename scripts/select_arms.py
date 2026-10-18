@@ -4,8 +4,11 @@
 
   .venv/bin/python scripts/select_arms.py --candidates results/arm_candidates.json --runs runs/colab-s1 --out results/selection.json
 
-candidates file: {"arms": {id: {"label", "spec"?: {"mode", "max_tokens", "data", "system"}, "candidates": [{"run", "temperature", "checkpoint"?, "adapter_sha256"?}]}},
-"comparator_set": [ids], "rl_set": [ids]}. An arm's optional "spec" block (what its Test run must repeat) is validated and copied into the selection.
+candidates file: {"arms": {id: {"label", "spec"?: {"model", "mode", "max_tokens", "data", "system", "quantization"?, "gpu_memory_utilization"?},
+"candidates": [{"run", "temperature", "checkpoint"?, "adapter_sha256"?}]}}, "comparator_set": [ids], "rl_set": [ids]}. An arm's optional "spec" block (what its Test run must
+repeat: gpu/final_eval.py checks the frozen spec against it) is validated and copied into the selection. Its model is the hub id of an untrained arm (no adapter_sha256) and
+final_models/<id> for an arm with a checkpoint. The samples of the winning run (runs/<root>/<run>/samples.jsonl) must agree: their mode, max_tokens and temperature are the block's
+and the candidate's, and for an untrained arm their model is the block's (an adapter arm's Val run sampled a merged path of its own, which is not compared).
 Selection key: Val fv_tanimoto and nothing else. A candidate whose report has no fv_tanimoto, or whose Val block was not computed from at least 8 samples for
 every Val prompt row (a k<8 run, a partial or resumed run, a report made without --data), is an error: never a fallback to another metric and never a
 silent omission. The CPU controls (one sample per row) enter as their k=8 replications (scripts/replicate_samples.py), where fv_tanimoto equals mean_tanimoto.
@@ -20,7 +23,9 @@ import re
 import sys
 from pathlib import Path
 
-SPEC_KEYS = ("mode", "max_tokens", "data", "system")
+SPEC_KEYS = ("model", "mode", "max_tokens", "data", "system")
+SPEC_OPTIONAL = ("quantization", "gpu_memory_utilization")
+RUN_FIELDS = ("model", "mode", "temperature", "max_tokens")      # sampler settings that every sample row of a run repeats
 RUN = re.compile(r"[A-Za-z0-9._-]+")                     # a run directory name: no separator (and, below, no "..", no ".")
 STEP = re.compile(r"(?:step-|s)(\d+)")
 SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -81,19 +86,53 @@ def pick(arm, load_report):
 
 
 def arm_spec(arm_id, arm):
-    """The arm's "spec" block, checked: exactly mode (think|nothink), max_tokens (positive integer), data and system (names); {} when the arm has none."""
+    """The arm's "spec" block, checked: model, mode (think|nothink), max_tokens (positive integer), data and system (names), and optionally quantization (a name) and
+    gpu_memory_utilization (a fraction); nothing else. {} when the arm has no block."""
     block = arm.get("spec")
     if block is None:
         return {}
-    good = (isinstance(block, dict) and set(block) == set(SPEC_KEYS) and block["mode"] in ("think", "nothink") and type(block["max_tokens"]) is int
-            and block["max_tokens"] >= 1 and all(isinstance(block[k], str) and block[k] for k in ("data", "system")))
+    good = (isinstance(block, dict) and set(SPEC_KEYS) <= set(block) <= {*SPEC_KEYS, *SPEC_OPTIONAL} and block["mode"] in ("think", "nothink")
+            and type(block["max_tokens"]) is int and block["max_tokens"] >= 1 and all(isinstance(block[k], str) and block[k] for k in ("model", "data", "system", "quantization") if k in block)
+            and (block.get("gpu_memory_utilization") is None or (type(block["gpu_memory_utilization"]) in (int, float) and 0 < block["gpu_memory_utilization"] <= 1)))
     if not good:
-        raise ValueError(f"arm {arm_id}: spec must be exactly {list(SPEC_KEYS)} (mode think or nothink, max_tokens a positive integer, data and system names)")
-    return {"spec": {k: block[k] for k in SPEC_KEYS}}
+        raise ValueError(f"arm {arm_id}: spec must be exactly {list(SPEC_KEYS)} (mode think or nothink, max_tokens a positive integer, the others names), "
+                         f"and may add {list(SPEC_OPTIONAL)}")
+    return {"spec": dict(block)}
 
 
-def select(spec, load_report):
+def check_run(arm_id, best, block, run_settings):
+    """The winning run was sampled the way the candidates file says: every sample row's mode and max_tokens are the block's, its temperature the candidate's, and for an
+    untrained arm (no adapter_sha256) its model the block's. A field the rows do not carry, or a run without samples, is not compared. ValueError names the run."""
+    seen = run_settings(best["run"])
+    wanted = {"mode": block["mode"], "max_tokens": block["max_tokens"], "temperature": best["temperature"]}
+    if "adapter_sha256" not in best:
+        wanted["model"] = block["model"]
+    for field in RUN_FIELDS:
+        if field in wanted and field in seen and seen[field] != {wanted[field]}:
+            raise ValueError(f"arm {arm_id}: run {best['run']} was sampled with {field} {sorted(seen[field], key=str)} but the candidates file says {wanted[field]!r}")
+
+
+def run_settings(root, run):
+    """{field: set of the distinct values} of model, mode, temperature and max_tokens over <root>/<run>/samples.jsonl; {} without the file."""
+    path, seen = Path(root) / run / "samples.jsonl", {}
+    if path.is_file():
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                if line.strip():
+                    row = json.loads(line)
+                    for field in RUN_FIELDS:
+                        if field in row:
+                            seen.setdefault(field, set()).add(row[field])
+    return seen
+
+
+def select(spec, load_report, load_settings=None):
+    """The selection of spec (the candidates file). load_settings(run) -> {field: set of values} (run_settings) enables the comparison of each winning run's sample rows with
+    the arm's spec block; without it nothing is compared."""
     chosen = {arm_id: {"label": arm.get("label", arm_id), **arm_spec(arm_id, arm), **pick(arm, load_report)} for arm_id, arm in spec["arms"].items()}
+    for arm_id, record in chosen.items():
+        if load_settings is not None and "spec" in record:
+            check_run(arm_id, record, record["spec"], load_settings)
     for family in ("comparator_set", "rl_set"):
         if not spec[family]:
             raise ValueError(f"{family} is empty")
@@ -117,7 +156,7 @@ def main(argv=None):
         return json.loads((args.runs / run / "report.v3.json").read_text(encoding="utf-8"))
 
     try:
-        result = select(spec, load_report)
+        result = select(spec, load_report, lambda run: run_settings(args.runs, run))
     except (OSError, ValueError, KeyError) as e:
         sys.exit(f"error: {type(e).__name__}: {e}")
     args.out.parent.mkdir(parents=True, exist_ok=True)

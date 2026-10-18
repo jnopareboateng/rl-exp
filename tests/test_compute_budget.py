@@ -70,3 +70,17 @@ def test_markdown_and_cli_write_files(runs, tmp_path, capsys):
     text = md.read_text()
     assert "SFT A2" in text and "Total logged" in text and "without a meta.json" in text
     assert json.loads(out.read_text())["totals_hours"]["training"] == pytest.approx(720.0 / 3600)
+
+
+def test_the_locked_runs_cpu_controls_are_not_sampling_runs(runs):
+    for control in ("C0", "C3"):                                       # with and without the meta.json that scripts/final_controls.py writes
+        write(runs / "final" / control / "samples.jsonl", "")
+    write(runs / "final" / "C3" / "meta.json", {"control": "C3", "k": 8, "rows": 180})
+    write(runs / "final" / "9B" / "meta.json", {"wall_time_s": 10.0, "calls": [{"wall_time_s": 5.0}]})
+    write(runs / "final" / "no-meta-arm" / "samples.jsonl", "")
+    result = cb.build(runs, runs / "none.json")
+    assert result["sampling"]["Locked Test evaluation"] == {"runs": 2, "wall_seconds": 210.0, "generation_seconds": 155.0}      # A2 and 9B only
+    assert result["runs_without_meta"] == ["colab-s1/val8-control_constant", "final/no-meta-arm"]                         # C0 is not listed either
+    assert "C3" not in cb.markdown(result) and "C0" not in cb.markdown(result)
+    write(runs / "colab-s1" / "C3" / "meta.json", {"wall_time_s": 99.0})                                                    # the exclusion is for the locked run only
+    assert cb.build(runs, runs / "none.json")["sampling"]["4B untrained and prompt probes"]["runs"] == 1

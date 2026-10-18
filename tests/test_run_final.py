@@ -60,14 +60,109 @@ def test_from_stage_skips_earlier_stages_and_rejects_an_unknown_one(tmp_path, ca
         rf.main([*argv, "--from-stage", "nope"])
 
 
-def test_the_sanity_gate_stops_on_a_mismatch(tmp_path, monkeypatch):
-    out = tmp_path / "sanity" / "A2"
-    out.mkdir(parents=True)
-    (out / "samples.jsonl").write_text("")
-    (out / "report.v3.json").write_text(json.dumps({"splits": {"val": {"metrics": {"fv_tanimoto": {"value": 0.20}}}}}))
+ADAPTER = {"adapter": {"path": "x"}, "model": "final_models/A2", "mode": "think", "temperature": 1.0, "max_tokens": 256}
+
+
+def fake_environment(tmp_path, monkeypatch, value=0.1975):
+    """A Val sanity run that 'samples' into tmp_path/sanity and reports `value`; rf.run records every command."""
+    stale = tmp_path / "sanity" / "A2"
     monkeypatch.setattr(rf, "SANITY", tmp_path / "sanity")
-    monkeypatch.setattr(rf, "run", lambda cmd, dry, **kw: 0)
+    seen = {"commands": [], "stale_present_at_sampling": []}
+
+    def fake_run(cmd, dry, **kw):
+        if dry:
+            return 0                                                  # like rf.run: a dry run executes nothing
+        seen["commands"].append([str(c) for c in cmd])
+        text = " ".join(map(str, cmd))
+        if "sample_vllm.py" in text:
+            seen["stale_present_at_sampling"].append(stale.exists())
+            stale.mkdir(parents=True, exist_ok=True)
+            (stale / "samples.jsonl").write_text("")
+        elif "report" in cmd:
+            (stale / "report.v3.json").write_text(json.dumps({"splits": {"val": {"metrics": {"fv_tanimoto": {"value": value}}}}}))
+        return 0
+
+    monkeypatch.setattr(rf, "run", fake_run)
+    return stale, seen
+
+
+def test_the_sanity_record_holds_the_value_the_score_the_tolerance_and_the_verdict(tmp_path, monkeypatch):
+    fake_environment(tmp_path, monkeypatch)                                # the Val sample reproduces 0.1975
     arm = {"id": "A2", "model": "m", "mode": "think", "temperature": 1.0, "max_tokens": 256}
-    rf.sanity(arm, {"arms": {"A2": {"score": 0.195}}}, 0.01, False)           # within tolerance: passes
-    with pytest.raises(SystemExit, match="reproduces"):
-        rf.sanity(arm, {"arms": {"A2": {"score": 0.15}}}, 0.01, False)        # 0.05 apart: stops
+    assert rf.sanity(arm, {"arms": {"A2": {"score": 0.195}}}, 0.005, False) == {"value": 0.1975, "selection_score": 0.195, "tolerance": 0.005, "passed": True, "seed": 0}
+    assert rf.sanity(arm, {"arms": {"A2": {"score": 0.15}}}, 0.005, False)["passed"] is False                            # 0.0475 apart
+    assert rf.sanity(arm, {"arms": {"A2": {"score": 0.195}}}, 0.002, False)["passed"] is False                            # 0.0025 apart, tolerance 0.002
+    assert rf.sanity(arm, {"arms": {"A2": {"score": 0.190}}}, 0.005, False)["passed"] is False                            # 0.0075 apart: refused at 0.005 ...
+    assert rf.sanity(arm, {"arms": {"A2": {"score": 0.190}}}, 0.01, False)["passed"] is True                              # ... and accepted at the old 0.01
+
+
+def test_a_stale_sanity_directory_is_deleted_before_the_sample_but_not_in_a_dry_run(tmp_path, monkeypatch):
+    stale, seen = fake_environment(tmp_path, monkeypatch)
+    stale.mkdir(parents=True)
+    (stale / "samples.jsonl").write_text("samples of an older merge")
+    arm = {"id": "A2", "model": "m", "mode": "think", "temperature": 1.0, "max_tokens": 256}
+    assert rf.sanity(arm, {"arms": {"A2": {"score": 0.2}}}, 0.005, True) is None
+    assert (stale / "samples.jsonl").read_text() == "samples of an older merge" and seen["stale_present_at_sampling"] == []      # a dry run deletes and samples nothing real
+    rf.sanity(arm, {"arms": {"A2": {"score": 0.2}}}, 0.005, False)
+    assert seen["stale_present_at_sampling"] == [False]                                                                         # gone when the sampler starts
+
+
+def main_argv(tmp_path, spec_arms, selection, *extra):
+    argv = files(tmp_path, spec_arms, selection)
+    return [a for a in argv if a != "--dry-run"] + ["--out", str(tmp_path / "out"), *extra]
+
+
+def test_every_result_is_written_to_sanity_json_and_a_failure_is_on_record_before_the_stop(tmp_path, monkeypatch):
+    records = {"A2": {"value": 0.1560, "selection_score": 0.1557, "tolerance": 0.005, "passed": True, "seed": 0},
+               "RL-full": {"value": 0.20, "selection_score": 0.1887, "tolerance": 0.005, "passed": False, "seed": 0}}
+    monkeypatch.setattr(rf, "sanity", lambda arm, selection, tolerance, dry: records[arm["id"]])
+    commands = []
+    monkeypatch.setattr(rf, "run", lambda cmd, dry, **kw: commands.append(cmd) or 0)
+    spec_arms = arms("A2", "RL-full", **{"A2": ADAPTER, "RL-full": {**ADAPTER, "model": "final_models/RL-full"}})
+    with pytest.raises(SystemExit, match="RL-full reproduces 0.2000, the selection says 0.1887"):
+        rf.main(main_argv(tmp_path, spec_arms, {"arms": {}}))
+    assert json.loads((tmp_path / "out" / "sanity.json").read_text()) == records
+    assert not any("final_eval.py" in " ".join(map(str, c)) for c in commands)                  # no Test sampling after a failed gate
+
+
+def test_a_passing_gate_leaves_all_records_and_the_default_tolerance_is_half_a_percent(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(rf, "sanity", lambda arm, selection, tolerance, dry: seen.append(tolerance) or
+                        {"value": 0.15, "selection_score": 0.15, "tolerance": tolerance, "passed": True, "seed": 0})
+    monkeypatch.setattr(rf, "run", lambda cmd, dry, **kw: 0)
+    rf.main(main_argv(tmp_path, arms("A2", "9B", **{"A2": ADAPTER}), {"arms": {}}))
+    assert seen == [0.005] and json.loads((tmp_path / "out" / "sanity.json").read_text())["A2"]["passed"] is True
+    rf.main(main_argv(tmp_path, arms("A2", **{"A2": ADAPTER}), {"arms": {}}, "--tolerance", "0.002"))
+    assert seen == [0.005, 0.002]
+
+
+def test_skip_sanity_leaves_a_skipped_record_for_every_adapter_arm_and_no_gate(tmp_path, monkeypatch):
+    monkeypatch.setattr(rf, "sanity", lambda *a: pytest.fail("the gate must not run"))
+    commands = []
+    monkeypatch.setattr(rf, "run", lambda cmd, dry, **kw: commands.append(cmd) or 0)
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "sanity.json").write_text(json.dumps({"A2": {"value": 0.15, "selection_score": 0.15, "tolerance": 0.005, "passed": True, "seed": 0}}))      # an earlier pass
+    spec_arms = arms("A2", "RL-full", "9B", **{"A2": ADAPTER, "RL-full": {**ADAPTER, "model": "final_models/RL-full"}})
+    rf.main(main_argv(tmp_path, spec_arms, {"arms": {}}, "--skip-sanity"))
+    assert json.loads((tmp_path / "out" / "sanity.json").read_text()) == {"A2": {"skipped": True}, "RL-full": {"skipped": True}}      # the old pass is not carried over
+    assert any("final_eval.py" in " ".join(map(str, c)) for c in commands)                                                     # sampling goes on
+
+
+def test_a_dry_run_writes_no_sanity_file_and_skip_sanity_in_a_dry_run_neither(tmp_path, monkeypatch, capsys):
+    argv = files(tmp_path, arms("A2", "9B", **{"A2": ADAPTER}), {"arms": {"A2": {"score": 0.15}}})
+    rf.main([*argv, "--out", str(tmp_path / "out")])
+    rf.main([*argv, "--out", str(tmp_path / "out"), "--skip-sanity"])
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_spec_without_adapter_arms_writes_no_sanity_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(rf, "run", lambda cmd, dry, **kw: 0)
+    rf.main(main_argv(tmp_path, arms("9B", "27B-3.5"), {"arms": {}}))
+    assert not (tmp_path / "out" / "sanity.json").exists()
+
+
+def test_write_sanity_keeps_the_other_arms_and_is_atomic(tmp_path):
+    rf.write_sanity(tmp_path / "o", "A2", {"skipped": True})
+    rf.write_sanity(tmp_path / "o", "RL-full", {"value": 0.1, "selection_score": 0.1, "tolerance": 0.005, "passed": True, "seed": 0})
+    rf.write_sanity(tmp_path / "o", "A2", {"value": 0.2, "selection_score": 0.2, "tolerance": 0.005, "passed": True, "seed": 0})
+    assert sorted(json.loads((tmp_path / "o" / "sanity.json").read_text())) == ["A2", "RL-full"] and not list((tmp_path / "o").glob("*.tmp"))

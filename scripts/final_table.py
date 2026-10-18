@@ -11,12 +11,15 @@ An arm with no rows on a requested split (a 27B on test_t only) gets rows only f
 show every first-valid column as "n/a (shared draws)" in the markdown (every row has the same prompt, so the draws repeat; read mean similarity and validity)
 and keep the numbers in the JSON (`shared_draws`). Identification arms (`ident-*`, or spec data "ident") are scored by `rlexp.ident score` (name match, pass@k,
 answered, drugs), never by SMILES. With --spec the label and decoding of an arm come from it (label, temperature, k, mode, splits) and its arms that have no
-samples, or none on a split it should cover, are listed under `gaps`; without it the label is the id. The header holds the constant-answer bar and C3's value per split.
+samples, or none on a split it should cover, are listed under `gaps`; without it the label is the id. If <final>/manifest.json exists (the locked run, written by gpu/final_eval.py),
+--spec must be the spec it was made under: sha256(spec) equal to its spec_sha256, else an error. Every markdown row names the arm as `<id>: <label>` (just the id when the spec gives no
+other label), so a swapped label cannot rename a row silently. The header holds the constant-answer bar and C3's value per split.
 Table order: controls, 4B arms, references, diagnostics; inside a family the order of the spec (the run list), then the id with numbers read as numbers (9B before 27B). A Test split needs --allow-test (the locked evaluation, after the prereg-v1 tag), like make_figures.py.
 The scored files are only re-made when older than the samples: delete them to score again after a change to rlexp.metrics. Each arm's full report is kept as report.v3.json beside its
 samples. The output is deterministic (no timestamps); the splits are named in every row, table and heading.
 """
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -102,6 +105,24 @@ def load_spec(path):
         return {a["id"]: a for a in spec["arms"]}, spec.get("splits")
     except (OSError, ValueError, KeyError, TypeError) as e:
         sys.exit(f"error: cannot read the spec {path}: {type(e).__name__}")
+
+
+def check_spec_is_the_runs(spec_path, final):
+    """Exit unless --spec is the spec <final>/manifest.json says the run was made under (nothing to compare without a spec or a run manifest)."""
+    manifest = Path(final) / "manifest.json"
+    if spec_path is None or not manifest.is_file():
+        return
+    try:
+        recorded = json.loads(manifest.read_text(encoding="utf-8")).get("spec_sha256")
+    except (OSError, ValueError, AttributeError):
+        sys.exit(f"error: cannot read the run manifest {manifest}")
+    if recorded != hashlib.sha256(Path(spec_path).read_bytes()).hexdigest():
+        sys.exit(f"error: --spec is not the spec the run in {final} was made under (its sha256 differs from spec_sha256 in {manifest})")
+
+
+def arm_name(row):
+    """The first cell of a markdown row: `<id>: <label>`, or the id alone when the label is the id; a pipe would break the table."""
+    return (row["run"] if row["label"] == row["run"] else f"{row['run']}: {row['label']}").replace("|", "/")
 
 
 def family(run, arm):
@@ -210,7 +231,7 @@ def split_md(split, rows, bar, c3, gaps):
     out = [f"## {name}", ""]
     if gen:
         out += ["| Arm | Group | Decoding | " + " | ".join(h for _, h, _, _ in MD_COLUMNS) + " |", "|---|---|---|" + "---:|" * len(MD_COLUMNS)]
-        out += [f"| {r['label'].replace('|', '/')} | {r['family']} | {r['decoding'].replace('|', '/')} | "
+        out += [f"| {arm_name(r)} | {r['family']} | {r['decoding'].replace('|', '/')} | "
                 + " | ".join(md_cell(r, k, d, sg) for k, _, d, sg in MD_COLUMNS) + " |" for r in gen]
         out += ["", f"{name} split, {max(r['drugs'] for r in gen)} drugs. Similarity is the Tanimoto similarity (Morgan count vectors) to the reference structure. "
                 "Delivered similarity and lift are those of the first valid, finished answer among up to eight samples of each prompt (0 if none), with its cost in "
@@ -232,7 +253,7 @@ def split_md(split, rows, bar, c3, gaps):
     if ident:
         out += ["", "Identification (profile in, drug name out; a sample counts when its first answer line equals the drug's name):", "",
                 "| Arm | Decoding | Name match | Pass at k | k | Answered | Drugs |", "|---|---|---:|---:|---:|---:|---:|"]
-        out += [f"| {r['label'].replace('|', '/')} | {r['decoding'].replace('|', '/')} | {cell(r['name_match@1'], 3, False)} | {cell(r['name_pass'], 3, False)} | "
+        out += [f"| {arm_name(r)} | {r['decoding'].replace('|', '/')} | {cell(r['name_match@1'], 3, False)} | {cell(r['name_pass'], 3, False)} | "
                 f"{r['pass_k']} | {cell(r['answered'], 3, False)} | {r['drugs']} |" for r in ident]
     missing = [g["run"] + (f" on {SPLIT_NAMES[g['split']]}" if g["split"] else "") for g in gaps if g["split"] in (split, None)]
     return out + (["", "Planned but not run: " + ", ".join(missing) + "."] if missing else []) + [""]
@@ -261,6 +282,7 @@ def main(argv=None):
     splits = list(dict.fromkeys(s for s in args.splits.split(",") if s))
     check_splits(splits, args.allow_test)
     spec, spec_splits = load_spec(args.spec)
+    check_spec_is_the_runs(args.spec, args.final)
     rows, bars, gaps = collect(args, splits, spec, spec_splits)
     if not rows:
         sys.exit(f"error: no arm has rows on {', '.join(splits)}")

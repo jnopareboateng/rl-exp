@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import types
 from pathlib import Path
 
 import pytest
@@ -42,6 +43,8 @@ def test_a_frozen_spec_with_the_right_hash_loads(fe, tmp_path):
     ({"frozen": False}, "not marked frozen"), ({"splits": ["val"]}, "splits must be"), ({"splits": ["test_t", "test_r", "val"]}, "splits must be"),
     ({"arms": []}, "no arms"), ({"arms": [arm(temperature=0.5)]}, "frozen grid"), ({"arms": [arm(mode="auto")]}, "frozen vocabulary"),
     ({"arms": [arm(data="train")]}, "frozen vocabulary"), ({"arms": [arm(k=9)]}, "k must be"), ({"arms": [arm(max_tokens=0)]}, "max_tokens"),
+    ({"arms": [arm(k=True)]}, "k must be"), ({"arms": [arm(max_tokens=True)]}, "max_tokens"), ({"arms": [arm(temperature=True)]}, "temperature must be a number"),
+    ({"arms": [arm(k=8.0)]}, "k must be"), ({"arms": [arm(max_tokens=256.0)]}, "max_tokens"),
     ({"arms": [arm(temperature=0.01)]}, "k=1 report"), ({"arms": [arm(), arm()]}, "repeated"), ({"arms": [arm(id="../x")]}, "plain name"), ({"arms": [{"id": "x"}]}, "lacks")])
 def test_invalid_specs_are_refused(fe, tmp_path, change, message):
     path, digest = write(tmp_path, **change)
@@ -99,17 +102,17 @@ def selected_arms():
     return {"A0n": arm(id="A0n", model="Qwen/Qwen3.5-4B", mode="nothink"), "RL-full": arm(id="RL-full", model="final_models/RL-full", adapter=rl_adapter())}
 
 
-def block(mode="think", **kw):
+def block(mode="think", model="final_models/RL-full", **kw):
     """The selection's spec block of an arm (what scripts/select_arms.py copies from the candidates file)."""
-    return {"mode": mode, "max_tokens": 256, "data": "direct", "system": "direct", **kw}
+    return {"mode": mode, "max_tokens": 256, "data": "direct", "system": "direct", "model": model, **kw}
 
 
 def selection():
     """C3 a CPU control, A0n an untrained arm, RL-full the selected RL arm, RL-contrastive a Val-only RL candidate (in rl_set, not selected)."""
     return {"arms": {"C3": {"temperature": None, "checkpoint": None},
-                     "A0n": {"temperature": 0.6, "checkpoint": None, "spec": block("nothink")},
+                     "A0n": {"temperature": 0.6, "checkpoint": None, "spec": block("nothink", "Qwen/Qwen3.5-4B")},
                      "RL-full": {"temperature": 0.6, "checkpoint": "step-40", "adapter_sha256": ADAPTER, "spec": block()},
-                     "RL-contrastive": {"temperature": 1.0, "checkpoint": "step-10", "adapter_sha256": "c" * 64, "spec": block()}},
+                     "RL-contrastive": {"temperature": 1.0, "checkpoint": "step-10", "adapter_sha256": "c" * 64, "spec": block(model="final_models/RL-contrastive")}},
             "comparator": "C3", "rl": "RL-full", "comparator_set": ["C3", "A0n"], "rl_set": ["RL-full", "RL-contrastive"]}
 
 
@@ -164,6 +167,8 @@ CASES = {
     "a selected arm is restricted to one split": (lambda a, e, s: a["RL-full"].update(splits=["test_t"]), "both Test splits"),
     "a selected arm is sampled at k below 8": (lambda a, e, s: a["A0n"].update(k=4), "k=8"),
     "a CPU control is a spec arm": (lambda a, e, s: e.append(arm(id="C3")), "CPU control"),
+    "a CPU control of the selection with another name is a spec arm": (lambda a, e, s: (s["arms"].update(K9={"temperature": None, "checkpoint": None}), s["comparator_set"].append("K9"),
+                                                                                          e.append(arm(id="K9"))), "K9 is a CPU control in the selection"),
     "the adapter is not the selected checkpoint": (lambda a, e, s: a["RL-full"].update(adapter=rl_adapter("c" * 64)), "not the selected checkpoint"),
     "the spec arm has no adapter": (lambda a, e, s: a["RL-full"].pop("adapter"), "not the selected checkpoint"),
     "a checkpoint without a hash in the selection": (lambda a, e, s: s["arms"]["RL-full"].pop("adapter_sha256"), "no adapter_sha256"),
@@ -197,6 +202,21 @@ CASES = {
     "a diagnostic of an unknown arm": (lambda a, e, s: e.append({**diagnostic(), "of": "nope"}), "names a selected arm"),
     "a diagnostic of a CPU control": (lambda a, e, s: e.append({**diagnostic(), "of": "C3"}), "names a selected arm"),
     "a diagnostic of a diagnostic": (lambda a, e, s: e.extend([diagnostic(), {**diagnostic(), "id": "again", "of": "A0n-shuffle"}]), "names a selected arm"),
+    "an untrained selected arm is the 9B": (lambda a, e, s: a["A0n"].update(model="Qwen/Qwen3.5-9B"), r"\['model'\] differ"),
+    "an untrained selected arm is the RL model": (lambda a, e, s: a["A0n"].update(model="final_models/RL-full"), r"\['model'\] differ"),
+    "an untrained selected arm carries an adapter block": (lambda a, e, s: a["A0n"].update(adapter=rl_adapter()), "carries no adapter block"),
+    "an untrained selected arm carries the adapter block and a merged path in its block too": (lambda a, e, s: (a["A0n"].update(model="final_models/x", adapter=rl_adapter()), s["arms"]["A0n"]["spec"].update(model="final_models/x")), "carries no adapter block"),
+    "an untrained selected arm whose block names a path": (lambda a, e, s: (a["A0n"].update(model="final_models/x"), s["arms"]["A0n"]["spec"].update(model="final_models/x")), "carries no adapter block"),
+    "a trained selected arm samples another merged path": (lambda a, e, s: a["RL-full"].update(model="final_models/other"), r"\['model'\] differ"),
+    "a trained selected arm whose block and arm agree on a path that is not final_models/<id>": (lambda a, e, s: (a["RL-full"].update(model="final_models/other"), s["arms"]["RL-full"]["spec"].update(model="final_models/other")), "is merged into final_models/RL-full"),
+    "a trained selected arm that is the hub model": (lambda a, e, s: (a["RL-full"].update(model="Qwen/Qwen3.5-4B"), s["arms"]["RL-full"]["spec"].update(model="Qwen/Qwen3.5-4B")), "is merged into final_models/RL-full"),
+    "a selected arm with quantization": (lambda a, e, s: a["A0n"].update(quantization="fp8"), r"\['quantization'\] differ"),
+    "a trained selected arm with a memory fraction": (lambda a, e, s: a["RL-full"].update(gpu_memory_utilization=0.5), r"\['gpu_memory_utilization'\] differ"),
+    "the spec block lacks the model": (lambda a, e, s: s["arms"]["A0n"]["spec"].pop("model"), "no spec block"),
+    "the spec block has an unknown extra key": (lambda a, e, s: s["arms"]["A0n"]["spec"].update(top_p=1.0), "no spec block"),
+    "a reference is called C2": (lambda a, e, s: e.append(reference(id="C2")), "CPU control; runs/final/C2"),
+    "a probe is called C0": (lambda a, e, s: e.append(probe(id="C0")), "CPU control; runs/final/C0"),
+    "a diagnostic is called C1": (lambda a, e, s: e.append(diagnostic(id="C1")), "CPU control; runs/final/C1"),
     "a diagnostic on name prompts": (lambda a, e, s: e.append(diagnostic(data="name")), "shuffle or blank"),
     "a diagnostic on the real prompts": (lambda a, e, s: e.append(diagnostic(data="direct", system="dataset")), "shuffle or blank"),
     "a reference with an adapter": (lambda a, e, s: e.append(reference(adapter=rl_adapter())), "untrained model"),
@@ -218,7 +238,6 @@ CASES = {
     "a probe of a merged model": (lambda a, e, s: e.append(probe(model="final_models/RL-full")), "plain hub id"),
     "a probe of a model under the models directory that no arm of the spec uses": (lambda a, e, s: e.append(probe(model="final_models/old-run")), "plain hub id"),
     "a reference under the models directory that no arm of the spec uses": (lambda a, e, s: e.append(reference(model="final_models/old-run")), "plain hub id"),
-    "a probe of the merged model of an adapter arm": (lambda a, e, s: (a["RL-full"].update(model="stage/RL-full"), e.append(probe(model="stage/RL-full"))), "plain hub id"),
     "a probe of a local path": (lambda a, e, s: e.append(probe(model="/content/Qwen3.5-9B")), "plain hub id"),
     "a probe at near-greedy": (lambda a, e, s: e.append(probe(temperature=0.01, k=1)), "grid temperature"),
     "a probe off the grid": (lambda a, e, s: e.append(probe(temperature=0.5)), "frozen grid"),
@@ -240,6 +259,18 @@ def test_a_spec_that_departs_from_the_selection_is_refused(fe, tmp_path, case):
         fe.load_spec(path, digest, sel_path)
 
 
+def test_a_selected_arm_may_carry_the_sampler_option_its_block_names_and_must_then_repeat_it(fe, tmp_path):
+    sel = selection()
+    sel["arms"]["RL-full"]["spec"]["gpu_memory_utilization"] = 0.9
+    arms = selected_arms()
+    path, digest, sel_path = frozen(tmp_path, arms, sel=sel)
+    with pytest.raises(fe.SpecError, match=r"\['gpu_memory_utilization'\] differ"):
+        fe.load_spec(path, digest, sel_path)
+    arms["RL-full"]["gpu_memory_utilization"] = 0.9
+    path, digest, sel_path = frozen(tmp_path, arms, sel=sel)
+    assert fe.load_spec(path, digest, sel_path)["arms"][1]["gpu_memory_utilization"] == 0.9
+
+
 def test_the_val_only_rl_candidate_is_neither_required_nor_looked_up(fe, tmp_path):
     sel = selection()
     del sel["arms"]["RL-contrastive"]                                    # its entry is not consulted: only selection["rl"] and the comparators are required
@@ -250,7 +281,7 @@ def test_the_val_only_rl_candidate_is_neither_required_nor_looked_up(fe, tmp_pat
 def test_a_comparator_that_is_sampled_is_required_but_the_other_rl_arms_are_not(fe, tmp_path):
     sel = selection()
     sel["comparator_set"] = ["C3", "A0n", "A2"]
-    sel["arms"]["A2"] = {"temperature": 1.0, "checkpoint": None, "spec": block(), "adapter_sha256": "d" * 64}
+    sel["arms"]["A2"] = {"temperature": 1.0, "checkpoint": None, "spec": block(model="final_models/A2"), "adapter_sha256": "d" * 64}
     path, digest, sel_path = frozen(tmp_path, sel=sel)
     with pytest.raises(fe.SpecError, match="selected arm A2 is not in the spec"):
         fe.load_spec(path, digest, sel_path)
@@ -286,6 +317,17 @@ def make_data(tmp_path, variants=("processed",), splits=("test_t", "test_r")):
     return root, root / "MANIFEST.sha256"
 
 
+def make_export(root, arm_id="RL-full", digest=ADAPTER, weights=b"merged weights"):
+    """<root>/final_models/<arm id> as gpu/prepare_final.py leaves it: a shard, config.json and PREPARED.json with the adapter and the merged hashes."""
+    d = root / "final_models" / arm_id
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model-00001-of-00001.safetensors").write_bytes(weights)
+    (d / "config.json").write_text("{}")
+    merged = {"config.json": sha(d / "config.json"), "model-00001-of-00001.safetensors": sha(d / "model-00001-of-00001.safetensors")}
+    (d / "PREPARED.json").write_text(json.dumps({"adapter_sha256": rl_adapter(digest)["sha256"], "merged_sha256": merged, "spec_sha256": "x" * 64}))
+    return d
+
+
 def cli(fe, tmp_path, spec, selection_path, root, manifest, *extra, out="out"):
     path, digest = spec
     fe.main(["--spec", str(path), "--spec-sha256", digest, "--selection", str(selection_path), "--manifest", str(manifest), "--data", str(root),
@@ -294,9 +336,13 @@ def cli(fe, tmp_path, spec, selection_path, root, manifest, *extra, out="out"):
 
 @pytest.fixture
 def world(fe, tmp_path, monkeypatch):
-    """A spec with three arms (A0n and RL-full selected, A0n-shuffle a diagnostic), its data, and a fake sampler that records meta.json like sample_vllm.py."""
-    path, digest, sel_path = frozen(tmp_path, extra=[diagnostic()])
+    """A spec with four arms (A0n and RL-full selected, A0n-shuffle and RL-full-shuffle diagnostics) frozen with its data manifest, the data, the merged RL-full export under
+    final_models/ (the working directory is tmp_path) and a fake sampler that records meta.json like sample_vllm.py."""
+    monkeypatch.chdir(tmp_path)
     root, manifest = make_data(tmp_path, variants=("processed", "processed/arms/shuffle"))
+    extra = [diagnostic(), diagnostic("RL-full")]
+    path, digest, sel_path = frozen(tmp_path, extra=extra, data_manifest_sha256=sha(manifest))
+    make_export(tmp_path)
     calls = []
 
     def fake_run(cmd):
@@ -307,13 +353,21 @@ def world(fe, tmp_path, monkeypatch):
         return type("R", (), {"returncode": 0})()
 
     monkeypatch.setattr(fe.subprocess, "run", fake_run)
-    return type("World", (), {"spec": (path, digest), "sel": sel_path, "root": root, "manifest": manifest, "calls": calls, "tmp": tmp_path})
+
+    world = types.SimpleNamespace(spec=(path, digest), sel=sel_path, calls=calls, tmp=tmp_path, root=root, manifest=manifest)
+
+    def refreeze(*more):
+        """Write the spec again with the manifest's current hash (the lead freezes the two together)."""
+        world.spec = frozen(tmp_path, extra=[*extra, *more], data_manifest_sha256=sha(manifest))[:2]
+
+    world.refreeze = refreeze
+    return world
 
 
 def test_cli_dry_run_prints_commands_and_writes_nothing(fe, world, capsys):
     cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--dry-run")
     lines = capsys.readouterr().out.splitlines()
-    assert len(lines) == 3 and json.loads(lines[0])[1].endswith("sample_vllm.py") and not world.calls
+    assert len(lines) == 4 and json.loads(lines[0])[1].endswith("sample_vllm.py") and not world.calls
     assert not (world.tmp / "out").exists()                              # neither the directory nor a manifest
     with pytest.raises(SystemExit):
         cli(fe, world.tmp, (world.spec[0], "0" * 64), world.sel, world.root, world.manifest, "--dry-run")
@@ -333,7 +387,8 @@ def test_the_selection_and_the_data_manifest_are_required_arguments(fe, world):
 
 
 def test_a_spec_that_is_not_the_selection_stops_the_cli_before_any_sampling(fe, world):
-    path, digest, sel_path = frozen(world.tmp, arms={**selected_arms(), "RL-full": arm(id="RL-full", model="final_models/RL-full", adapter=rl_adapter(), temperature=1.0)})
+    path, digest, sel_path = frozen(world.tmp, arms={**selected_arms(), "RL-full": arm(id="RL-full", model="final_models/RL-full", adapter=rl_adapter(), temperature=1.0)},
+                                    data_manifest_sha256=sha(world.manifest))
     with pytest.raises(SystemExit, match="is not the selected 0.6"):
         cli(fe, world.tmp, (path, digest), sel_path, world.root, world.manifest)
     assert not world.calls
@@ -356,12 +411,13 @@ def test_the_run_manifest_accumulates_per_arm_and_records_the_sampler_data_hash(
 def test_a_manifest_written_under_another_spec_is_never_overwritten(fe, world):
     cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n")
     before = (world.tmp / "out" / "manifest.json").read_text()
-    other = frozen(world.tmp, extra=[diagnostic(), reference()])         # another spec (one more arm) in the same --out
-    assert other[1] != world.spec[1]
+    first = world.spec
+    world.refreeze(reference())                                          # another spec (one more arm) in the same --out
+    assert world.spec[1] != first[1]
     world.calls.clear()
     for flags in ((), ("--dry-run",)):
         with pytest.raises(SystemExit, match="another spec"):
-            cli(fe, world.tmp, other[:2], other[2], world.root, world.manifest, *flags)
+            cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, *flags)
     assert (world.tmp / "out" / "manifest.json").read_text() == before and not world.calls
 
 
@@ -396,18 +452,20 @@ def test_the_data_files_must_match_the_manifest_before_anything_is_sampled(fe, w
 def test_a_data_file_without_a_manifest_entry_is_refused(fe, world):
     manifest_lines = world.manifest.read_text().splitlines()
     world.manifest.write_text("\n".join(l for l in manifest_lines if "shuffle" not in l) + "\n")
+    world.refreeze()                                                     # the spec is frozen with this (incomplete) manifest
     cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--dry-run", "--only", "A0n")
     with pytest.raises(SystemExit, match="processed/arms/shuffle/test_t.jsonl has no entry"):
         cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--dry-run")
     world.manifest.write_text("not a manifest line\n")
+    world.refreeze()
     with pytest.raises(SystemExit, match="not a sha256 manifest"):
         cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--dry-run")
 
 
 def test_an_arm_restricted_to_one_split_reads_and_checks_only_that_file(fe, tmp_path, monkeypatch):
-    big = reference(id="ref-27b", splits=["test_t"], k=2)
-    path, digest, sel_path = frozen(tmp_path, extra=[big])
     root, manifest = make_data(tmp_path)
+    big = reference(id="ref-27b", splits=["test_t"], k=2)
+    path, digest, sel_path = frozen(tmp_path, extra=[big], data_manifest_sha256=sha(manifest))
     (root / "processed" / "test_r.jsonl").write_text("changed\n")        # the other file is bad: only the arms that read it care
     with pytest.raises(SystemExit, match="test_r.jsonl differs"):
         cli(fe, tmp_path, (path, digest), sel_path, root, manifest, "--dry-run")
@@ -423,14 +481,76 @@ def test_the_data_directory_is_free_when_the_manifest_matches(fe, world):
 
 
 def test_the_data_manifest_check_applies_to_the_blank_profile_prompts_too(fe, tmp_path, monkeypatch):
-    path, digest, sel_path = frozen(tmp_path, extra=[diagnostic("RL-full", data="blank")])
     root, manifest = make_data(tmp_path, variants=("processed", "processed/arms/blank"))
+    path, digest, sel_path = frozen(tmp_path, extra=[diagnostic("RL-full", data="blank")], data_manifest_sha256=sha(manifest))
     cli(fe, tmp_path, (path, digest), sel_path, root, manifest, "--dry-run")
     blank = root / "processed" / "arms" / "blank" / "test_r.jsonl"
     blank.write_text("every row has the same prompt, but not this file\n")
     with pytest.raises(SystemExit, match="blank/test_r.jsonl differs from its sha256"):
         cli(fe, tmp_path, (path, digest), sel_path, root, manifest, "--dry-run")
     manifest.write_text("".join(line + "\n" for line in manifest.read_text().splitlines() if "blank" not in line))
+    path, digest, sel_path = frozen(tmp_path, extra=[diagnostic("RL-full", data="blank")], data_manifest_sha256=sha(manifest))
     with pytest.raises(SystemExit, match="processed/arms/blank/test_t.jsonl has no entry"):
         cli(fe, tmp_path, (path, digest), sel_path, root, manifest, "--dry-run")
     cli(fe, tmp_path, (path, digest), sel_path, root, manifest, "--dry-run", "--only", "RL-full")           # the blank files are read only by the arm that names them
+
+
+# ------------------------------------------------------------------------------------------------ the manifest is pinned by the spec
+def test_the_spec_must_carry_the_hash_of_the_data_manifest_it_was_frozen_with(fe, world):
+    spec = json.loads(world.spec[0].read_text())
+    del spec["data_manifest_sha256"]
+    world.spec[0].write_text(json.dumps(spec))
+    unpinned = (world.spec[0], sha(world.spec[0]))
+    for flags in ((), ("--dry-run",)):
+        with pytest.raises(SystemExit, match="data_manifest_sha256 is missing or differs"):
+            cli(fe, world.tmp, unpinned, world.sel, world.root, world.manifest, *flags)
+    world.refreeze()
+    cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--dry-run")
+    world.manifest.write_text(world.manifest.read_text() + f"{'0' * 64}  curated/other.json\n")        # a regenerated manifest that still vouches for the same files
+    with pytest.raises(SystemExit, match="data_manifest_sha256 is missing or differs"):
+        cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--dry-run")
+    assert not world.calls
+
+
+# ------------------------------------------------------------------------------------------------ an adapter arm is sampled from the export made from its frozen adapter
+def test_an_adapter_arm_needs_the_prepared_export_of_its_frozen_adapter(fe, world):
+    export = world.tmp / "final_models" / "RL-full"
+    marker = export / "PREPARED.json"
+    good = marker.read_text()
+    run = lambda *flags: cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "RL-full", *flags)
+    marker.unlink()
+    with pytest.raises(SystemExit, match="PREPARED.json is missing: final_models/RL-full is not an export made by gpu/prepare_final.py"):
+        run()
+    run("--dry-run")                                                     # a dry run samples nothing and needs no export
+    marker.write_text(json.dumps({**json.loads(good), "adapter_sha256": {**json.loads(good)["adapter_sha256"], "adapter_config.json": "0" * 64}}))
+    with pytest.raises(SystemExit, match="records other adapter hashes than the spec's for arm RL-full"):
+        run()
+    marker.write_text(good)
+    (export / "model-00001-of-00001.safetensors").write_bytes(b"another merge")
+    with pytest.raises(SystemExit, match="no longer hash as"):
+        run()
+    (export / "model-00001-of-00001.safetensors").write_bytes(b"merged weights")
+    (export / "config.json").write_text('{"changed": true}')
+    with pytest.raises(SystemExit, match="no longer hash as"):
+        run()
+    (export / "config.json").write_text("{}")
+    (export / "extra-shard.safetensors").write_bytes(b"one more file")
+    with pytest.raises(SystemExit, match="no longer hash as"):
+        run()
+    (export / "extra-shard.safetensors").unlink()
+    marker.write_text(json.dumps({k: v for k, v in json.loads(good).items() if k != "merged_sha256"}))
+    with pytest.raises(SystemExit, match="no longer hash as"):
+        run()
+    assert not world.calls
+    marker.write_text(good)
+    run()
+    assert len(world.calls) == 1
+
+
+def test_the_prepared_check_covers_the_diagnostics_of_an_adapter_arm_and_skips_untrained_arms(fe, world):
+    (world.tmp / "final_models" / "RL-full" / "PREPARED.json").unlink()
+    cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "A0n,A0n-shuffle")      # no adapter, no export needed
+    assert len(world.calls) == 2
+    with pytest.raises(SystemExit, match="is not an export"):
+        cli(fe, world.tmp, world.spec, world.sel, world.root, world.manifest, "--only", "RL-full-shuffle")       # samples the same directory
+    assert len(world.calls) == 2

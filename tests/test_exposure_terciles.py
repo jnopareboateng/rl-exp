@@ -371,4 +371,5 @@ def test_the_output_has_no_drug_name_id_sample_or_molecule_and_is_deterministic(
     seen = first.decode() + md + out1
     for marker in (*DRUGS, "zqdrug", SMILES_MARKER):
         assert marker not in seen
-    assert set(res) == {"a", "b", "split", "metric", "sign", "label", "n_drugs", "overall", "missing", "covariates"}
+    assert set(res) == {"a", "b", "split", "metric", "sign", "label", "definitions", "n_drugs", "overall", "missing", "covariates"}
+    assert "approval year minus the creation year" in res["definitions"]["record_age"] and "rank * 3 // n" in res["definitions"]["terciles"]

@@ -7,7 +7,10 @@ then sample every arm of the frozen spec in a fixed order, clearing the Hugging 
 The spec hash is read from `<spec>.sha256`-style file `results/frozen_arms.sha256` (--spec-sha256-file). The order is fixed in STAGES below and holds no choice: each stage is a list of arm ids that
 gpu/final_eval.py samples under the frozen spec; an arm of the spec that no stage names stops the script before anything runs, so no frozen arm is skipped silently. A stage whose ids are not all in the spec
 runs the ones that are (an arm dropped before the freeze is an omission recorded in the protocol). The Val sanity gate calls gpu/sample_vllm.py on Val for each merged adapter arm at its frozen decoding and
-compares the first-valid similarity with the selection's score: more than --tolerance apart stops the script (the model on disk is not the selected one). Needs both venvs of gpu/bootstrap_colab.sh.
+compares the first-valid similarity with the selection's score: more than --tolerance (0.005) apart stops the script (the model on disk is not the selected one). Each result is written to
+<out>/sanity.json, {arm: {"value", "selection_score", "tolerance", "passed", "seed": 0}}, which scripts/confirmatory.py requires; --skip-sanity writes {"skipped": true} for the adapter arms instead,
+and confirmatory then refuses them unless --allow-skipped-sanity. A stale .agent-runs/sanity/<id> is deleted before its sample (the sampler would resume it and report the old samples).
+Needs both venvs of gpu/bootstrap_colab.sh.
 """
 import argparse
 import json
@@ -50,14 +53,17 @@ def run(cmd, dry, **kw):
 
 
 def sanity(arm, selection, tolerance, dry):
-    """Sample a merged adapter arm on Val at its frozen decoding and compare its first-valid similarity with the selection's score."""
+    """Sample a merged adapter arm on Val at its frozen decoding and compare its first-valid similarity with the selection's score. Returns the record for sanity.json
+    ({"value", "selection_score", "tolerance", "passed", "seed": 0}); None in a dry run. The sampler runs with its default seed 0."""
     chosen = selection["arms"][arm["id"]]
+    if not dry:
+        shutil.rmtree(SANITY / arm["id"], ignore_errors=True)          # a stale directory would be resumed (same path identity) and its old samples reported
     cmd = [VLLM_PY, "gpu/sample_vllm.py", "--model", arm["model"], "--data", "data/processed", "--splits", "val", "--mode", arm["mode"], "--k", "8", "--max-tokens", str(arm["max_tokens"]),
            "--temperature", str(arm["temperature"]), "--prompts-per-batch", "auto", "--out", str(SANITY / arm["id"]), "--system-text", DIRECT]
     if run(cmd, dry):
         sys.exit(f"error: the Val sanity sample of {arm['id']} failed")
     if dry:
-        return
+        return None
     samples = SANITY / arm["id"] / "samples.jsonl"
     env = {**os.environ, "PYTHONPATH": "src"}
     scored, report = samples.with_name("scored.v3.jsonl"), samples.with_name("report.v3.json")
@@ -68,8 +74,18 @@ def sanity(arm, selection, tolerance, dry):
     value = json.loads(report.read_text(encoding="utf-8"))["splits"]["val"]["metrics"]["fv_tanimoto"]
     value = value["value"] if isinstance(value, dict) else value
     print(f"sanity {arm['id']}: Val first-valid similarity {value:.4f} against the selection's {chosen['score']:.4f}", flush=True)
-    if abs(value - chosen["score"]) > tolerance:
-        sys.exit(f"error: {arm['id']} reproduces {value:.4f}, the selection says {chosen['score']:.4f} (tolerance {tolerance}): stop")
+    return {"value": value, "selection_score": chosen["score"], "tolerance": tolerance, "passed": abs(value - chosen["score"]) <= tolerance, "seed": 0}
+
+
+def write_sanity(out, arm_id, record):
+    """Put `record` under `arm_id` in <out>/sanity.json (the other arms' records stay)."""
+    path = Path(out) / "sanity.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    records = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    records[arm_id] = record
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(records, indent=1) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def sync(out, drive, dry):
@@ -92,9 +108,9 @@ def main(argv=None):
     ap.add_argument("--out", type=Path, default=Path("runs/final"))
     ap.add_argument("--models", type=Path, default=Path("final_models"))
     ap.add_argument("--drive")
-    ap.add_argument("--tolerance", type=float, default=0.01)
+    ap.add_argument("--tolerance", type=float, default=0.005, help="largest |Val first-valid similarity - the selection's score| a merged adapter arm may show")
     ap.add_argument("--sync-every", type=float, default=180.0, help="seconds between background copies of runs/final to --drive")
-    ap.add_argument("--skip-sanity", action="store_true", help="only to resume after the sanity gate passed once")
+    ap.add_argument("--skip-sanity", action="store_true", help="skip the Val sanity gate: sanity.json then says {skipped: true} and scripts/confirmatory.py refuses it unless --allow-skipped-sanity")
     ap.add_argument("--from-stage", help="resume at this stage name (earlier stages are not run)")
     ap.add_argument("--keep-cache", action="store_true", help="do not clear the Hugging Face cache or the merged models before a stage (resuming inside a stage)")
     ap.add_argument("--dry-run", action="store_true")
@@ -108,10 +124,18 @@ def main(argv=None):
     if adapter_ids:
         if run([TRAIN_PY, "gpu/prepare_final.py", *common, "--models", str(args.models), "--only", ",".join(adapter_ids)], args.dry_run):
             sys.exit("error: prepare_final failed")
-        if not args.skip_sanity:
-            for arm in spec["arms"]:
-                if arm["id"] in adapter_ids:
-                    sanity(arm, selection, args.tolerance, args.dry_run)
+        for arm in spec["arms"]:
+            if arm["id"] not in adapter_ids:
+                continue
+            if args.skip_sanity:
+                if not args.dry_run:
+                    write_sanity(ROOT / args.out, arm["id"], {"skipped": True})
+                continue
+            record = sanity(arm, selection, args.tolerance, args.dry_run)
+            if record is not None:
+                write_sanity(ROOT / args.out, arm["id"], record)        # the failure is on record too
+                if not record["passed"]:
+                    sys.exit(f"error: {arm['id']} reproduces {record['value']:.4f}, the selection says {record['selection_score']:.4f} (tolerance {record['tolerance']}): stop")
     if args.from_stage and args.from_stage not in [n for n, _, _ in stages]:
         sys.exit(f"error: --from-stage {args.from_stage!r} is not a stage of this spec: {[n for n, _, _ in stages]}")
     stop = threading.Event()

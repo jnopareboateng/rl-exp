@@ -21,7 +21,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
-from final_eval import file_sha256, load_spec    # noqa: E402  one frozen grid, one hash function
+from final_eval import file_sha256, load_spec, merged_hashes    # noqa: E402  one frozen grid, one hash function, one definition of the merged files
 
 ADAPTER_FILES = ("adapter_model.safetensors", "adapter_config.json")
 
@@ -37,13 +37,6 @@ def check_adapter(block):
             raise ValueError(f"adapter file {name} differs from the frozen hash")
     if set(block["sha256"]) < set(ADAPTER_FILES):
         raise ValueError("the spec must freeze the hash of every adapter file")
-
-
-def merged_hashes(directory):
-    """{file: sha256} of a merged export's weights (*.safetensors) and config.json; empty when there are none."""
-    directory = Path(directory)
-    names = sorted(p.name for p in directory.glob("*.safetensors")) + (["config.json"] if (directory / "config.json").is_file() else [])
-    return {name: file_sha256(directory / name) for name in names}
 
 
 def is_prepared(marker, block, out):

@@ -7,8 +7,10 @@
 The spec lists, per arm, the exact sampler settings frozen at the tag, and carries "selection_sha256": the sha256 of the --selection file (the Val
 selection of scripts/select_arms.py). The driver refuses a spec whose sha256 differs from the one given (record the hash in the tag message), an unfrozen
 spec, a setting outside the frozen grid, any split other than test_t and test_r, a spec that is not what the selection chose (check_against_selection:
-the selected arms exactly, every other arm a "reference", a "diagnostic" of a selected arm or a "probe" of an untrained model), and any data file it would read that is missing from --manifest (data/MANIFEST.sha256 of scripts/data_manifest.py) or differs from the hash there.
---data may point anywhere: the manifest, not the path, says whether the files are the frozen ones.
+the selected arms exactly, every other arm a "reference", a "diagnostic" of a selected arm or a "probe" of an untrained model), and any data file it would read that is missing from --manifest (data/MANIFEST.sha256 of scripts/data_manifest.py) or differs from the hash there. The spec carries
+"data_manifest_sha256", the sha256 of that manifest file: another manifest is refused. --data may point anywhere: the manifest, not the path, says whether the files
+are the frozen ones. Before it samples an adapter arm (not in --dry-run) <model>/PREPARED.json must name the spec's adapter hashes and the merged files must still hash
+as it recorded (gpu/prepare_final.py).
 It calls gpu/sample_vllm.py once per arm over both splits; that script is resumable and prompt-atomic, so a killed run can be started again with
 the same command. <out>/manifest.json collects, per finished arm, the spec hash, the settings and the command; it is never overwritten by another
 spec (use a new --out) and --dry-run does not write it. Scoring happens later, on the CPU, with rlexp.metrics. Needs the GPU environment of
@@ -34,7 +36,9 @@ SYSTEM_TEXTS = {"direct": "Reply with only the SMILES string of the drug describ
 REQUIRED = ("id", "model", "mode", "data", "system", "temperature", "k", "max_tokens")
 SELECTED_DATA = ("direct", "icl")        # the real profile (with retrieved examples for A4); the other variants are diagnostics or probes
 SELECTED_K = 8                           # the endpoint's k
-SPEC_KEYS = ("mode", "max_tokens", "data", "system")     # what a selected arm's "spec" block of the selection repeats (scripts/select_arms.py)
+SPEC_KEYS = ("mode", "max_tokens", "data", "system", "model")     # what a selected arm's "spec" block of the selection repeats (scripts/select_arms.py)
+SPEC_OPTIONAL = ("quantization", "gpu_memory_utilization")         # sampler options a selected arm may carry only if its block names them
+CONTROL_IDS = ("C0", "C1", "C2", "C3")                            # runs/final/<id> of the CPU controls (scripts/final_controls.py): no spec arm may use them
 DIAGNOSTIC_DATA = ("shuffle", "blank")   # a diagnostic of a selected arm: the profile of another drug, or none
 PROBE_DATA = ("name", "ident")           # a probe of an untrained model: the name given (oracle) or asked for (identification)
 ROLES = ("reference", "diagnostic", "probe")
@@ -77,12 +81,14 @@ def load_spec(path, expected_sha256, selection_path=None):
             raise SpecError(f"arm {arm['id']}: splits must be a non-empty subset of {list(SPLITS)}")
         if arm["mode"] not in MODES or arm["data"] not in DATA_VARIANTS or arm["system"] not in SYSTEM_TEXTS:
             raise SpecError(f"arm {arm['id']}: mode, data or system outside the frozen vocabulary")
+        if isinstance(arm["temperature"], bool):
+            raise SpecError(f"arm {arm['id']}: temperature must be a number")
         if arm["temperature"] == NEAR_GREEDY:
             if arm.get("k") != 1:
                 raise SpecError(f"arm {arm['id']}: near-greedy decoding is a k=1 report, not a selectable temperature")
         elif arm["temperature"] not in TEMPERATURES:
             raise SpecError(f"arm {arm['id']}: temperature {arm['temperature']} is outside the frozen grid {TEMPERATURES}")
-        if not (isinstance(arm["k"], int) and 1 <= arm["k"] <= 8) or not (isinstance(arm["max_tokens"], int) and arm["max_tokens"] >= 1):
+        if not (type(arm["k"]) is int and 1 <= arm["k"] <= 8) or not (type(arm["max_tokens"]) is int and arm["max_tokens"] >= 1):      # a bool is not an integer here
             raise SpecError(f"arm {arm['id']}: k must be an integer in 1..8 and max_tokens a positive integer")
     if not seen:
         raise SpecError("the spec has no arms")
@@ -93,17 +99,24 @@ def load_spec(path, expected_sha256, selection_path=None):
     return spec
 
 
+def is_hub_id(model, trained):
+    """A plain Hugging Face hub id (org/name): no path, nothing under the models directory, not the merged model of an adapter arm (`trained`)."""
+    return isinstance(model, str) and bool(HUB_ID.fullmatch(model)) and ".." not in model and model.split("/")[0] != MODELS_DIR and model not in trained
+
+
 def check_against_selection(spec, selection):
     """Refuse a spec that is not what Val selected (selection = results/selection.json of scripts/select_arms.py). The selected arms are the RL arm
     selection["rl"] and the arms of selection["comparator_set"] that have a decoding (temperature not null). Each is a spec arm with the selected temperature,
-    k=8, both Test splits (no "splits" key), the real-profile data and exactly the selection's "spec" block (mode, max_tokens, data, system; a sampled arm
-    without one is an error) and, when the selection names an adapter_sha256 (and it must for an arm with a checkpoint), that adapter. A CPU control
-    (temperature null: C0 to C3, scored from its own samples) is not a spec arm. The other arms of selection["rl_set"] are Val-only candidates: a spec arm
-    that carries their id is refused (only the Val-selected RL arm is scored on Test). Every other spec arm has a role and does not reuse an id of the selection:
+    k=8, both Test splits (no "splits" key), the real-profile data and exactly the selection's "spec" block (model, mode, max_tokens, data, system; a sampled arm
+    without one is an error; quantization and gpu_memory_utilization only if the block names them). An arm the selection gives no adapter_sha256 (and it must
+    give one for an arm with a checkpoint) is the untrained hub model of its block with no adapter block; an arm with one samples final_models/<id> and carries
+    exactly that adapter. A CPU control (temperature null: C0 to C3, scored from its own samples) is not a spec arm. The other arms of selection["rl_set"] are
+    Val-only candidates: a spec arm that carries their id is refused (only the Val-selected RL arm is scored on Test). Every other spec arm has a role, does not
+    reuse an id of the selection and is not named C0 to C3:
       "reference": an untrained model (a plain hub id, no adapter) on the direct-answer text (data and system "direct") at a grid temperature;
       "diagnostic": "of" a selected arm, data "shuffle" or "blank", and differs from that arm only in data, system and splits;
       "probe": a name-given or identification run ("data" name or ident) of an untrained model (a plain hub id, no adapter) at a grid temperature.
-    quantization and gpu_memory_utilization stay optional for every arm (a 27B FP8 arm sets gpu_memory_utilization, not quantization). Raises SpecError."""
+    quantization and gpu_memory_utilization stay optional for references, diagnostics and probes (a 27B FP8 arm sets gpu_memory_utilization, not quantization). Raises SpecError."""
     arms = {a["id"]: a for a in spec["arms"]}
     try:
         known, rl = selection["arms"], selection["rl"]
@@ -120,6 +133,7 @@ def check_against_selection(spec, selection):
     for i in ids:
         if i not in sampled and i in arms:
             raise SpecError(f"{i} is a CPU control in the selection (no decoding): it is scored from its own samples, not sampled by this driver")
+    trained = {a["model"] for a in spec["arms"] if a.get("adapter") and a.get("role") != "diagnostic"}     # merged models: never a reference, a probe or an untrained selected arm
     for i in sampled:
         sel, arm = chosen[i], arms.get(i)
         if arm is None:
@@ -129,10 +143,10 @@ def check_against_selection(spec, selection):
         if arm["k"] != SELECTED_K or "splits" in arm:
             raise SpecError(f"arm {i}: a selected arm is sampled at k={SELECTED_K} on both Test splits (no splits key)")
         block = sel.get("spec")
-        if not isinstance(block, dict) or set(block) != set(SPEC_KEYS):
+        if not isinstance(block, dict) or not set(SPEC_KEYS) <= set(block) <= {*SPEC_KEYS, *SPEC_OPTIONAL}:
             raise SpecError(f"arm {i}: the selection has no spec block {list(SPEC_KEYS)} for it, so the spec cannot be tied to what Val ran: "
                             "add it to the candidates file and select again")
-        differs = [k for k in SPEC_KEYS if arm[k] != block[k]]
+        differs = [k for k in SPEC_KEYS if arm[k] != block[k]] + [k for k in SPEC_OPTIONAL if arm.get(k) != block.get(k)]
         if differs:
             raise SpecError(f"arm {i}: {differs} differ from the selection's spec block {block}")
         if arm["data"] not in SELECTED_DATA:
@@ -142,15 +156,20 @@ def check_against_selection(spec, selection):
         if want is None and sel.get("checkpoint"):
             raise SpecError(f"arm {i}: the selection names checkpoint {sel['checkpoint']} but no adapter_sha256, so the spec cannot be tied to it: "
                             "add the hash to the candidates file and select again")
+        if want is None and not is_hub_id(arm["model"], trained):               # an arm with an adapter block has its own model in `trained`
+            raise SpecError(f"arm {i}: the selection gives it no adapter, so it samples the untrained hub model {block['model']!r} and carries no adapter block")
+        if want is not None and arm["model"] != f"{MODELS_DIR}/{i}":
+            raise SpecError(f"arm {i}: the selected checkpoint is merged into {MODELS_DIR}/{i}, not {arm['model']!r}")
         if want is not None and have != want:
             raise SpecError(f"arm {i}: the spec's adapter is not the selected checkpoint (adapter_model.safetensors sha256 differs)")
-    trained = {a["model"] for a in spec["arms"] if a.get("adapter")}          # the merged models: never a reference or a probe
     for arm in spec["arms"]:
         if arm["id"] in val_only:
             raise SpecError(f"arm {arm['id']} is a Val-only RL candidate: only the Val-selected RL arm ({rl}) is scored on Test")
         if arm["id"] in sampled:
             continue
         role, name, model = arm.get("role"), arm["id"], arm["model"]
+        if name in CONTROL_IDS:
+            raise SpecError(f"arm {name}: {name} is the id of a CPU control; runs/final/{name} holds its samples, so no spec arm may be called {name}")
         if role not in ROLES:
             raise SpecError(f"arm {name} is not a selected arm and has no role: it must be a reference, a diagnostic (of a selected arm) or a probe")
         if name in known:
@@ -165,8 +184,7 @@ def check_against_selection(spec, selection):
             if differs:
                 raise SpecError(f"arm {name} differs from {arm['of']} in {differs}: a diagnostic changes only data, system and splits")
             continue
-        untrained = isinstance(model, str) and HUB_ID.fullmatch(model) and ".." not in model and model.split("/")[0] != MODELS_DIR and model not in trained
-        if not untrained:                   # an arm with an adapter block has its own model in `trained`
+        if not is_hub_id(model, trained):               # an arm with an adapter block has its own model in `trained`
             raise SpecError(f"arm {name}: a {role} is an untrained model: no adapter, and a plain hub id (org/name) that is not a merged model")
         if arm["temperature"] not in TEMPERATURES:
             raise SpecError(f"arm {name}: a {role} runs at a grid temperature {TEMPERATURES}")
@@ -174,6 +192,34 @@ def check_against_selection(spec, selection):
             raise SpecError(f"arm {name}: a reference runs on the direct-answer text (data and system 'direct')")
         if role == "probe" and arm["data"] not in PROBE_DATA:
             raise SpecError(f"arm {name}: a probe is a name-given or identification run (data {' or '.join(PROBE_DATA)}), not {arm['data']!r}")
+
+
+def merged_hashes(directory):
+    """{file: sha256} of a merged export's weights (*.safetensors) and config.json; empty when there are none."""
+    directory = Path(directory)
+    names = sorted(p.name for p in directory.glob("*.safetensors")) + (["config.json"] if (directory / "config.json").is_file() else [])
+    return {name: file_sha256(directory / name) for name in names}
+
+
+def check_prepared(arms):
+    """Every adapter arm of the plan samples an export that gpu/prepare_final.py made from the frozen adapter: <model>/PREPARED.json records the spec's adapter hashes,
+    and the merged files hash now as it recorded. SpecError otherwise (a stale or foreign model directory would be sampled under the arm's name)."""
+    for arm in dict(((a["model"], a) for a in arms if a.get("adapter"))).values():
+        marker = Path(arm["model"]) / "PREPARED.json"
+        try:
+            recorded = json.loads(marker.read_text(encoding="utf-8"))
+        except OSError:
+            raise SpecError(f"{marker} is missing: {arm['model']} is not an export made by gpu/prepare_final.py") from None
+        if recorded.get("adapter_sha256") != arm["adapter"]["sha256"]:
+            raise SpecError(f"{marker} records other adapter hashes than the spec's for arm {arm['id']}: {arm['model']} was made from another adapter")
+        if not recorded.get("merged_sha256") or recorded["merged_sha256"] != merged_hashes(arm["model"]):
+            raise SpecError(f"the files of {arm['model']} no longer hash as {marker} records: prepare it again")
+
+
+def check_manifest_pin(spec, manifest_path):
+    """The --manifest file is the one the spec was frozen with: the spec's data_manifest_sha256 equals its sha256, else SpecError."""
+    if spec.get("data_manifest_sha256") != file_sha256(manifest_path):
+        raise SpecError("the spec's data_manifest_sha256 is missing or differs from the sha256 of --manifest: that manifest is not the frozen one")
 
 
 def read_data_manifest(path):
@@ -264,7 +310,10 @@ def main(argv=None):
         arms = [a for a in spec["arms"] if wanted is None or a["id"] in wanted]
         if wanted and {a["id"] for a in arms} != wanted:
             raise SpecError("--only names an arm that is not in the spec")
+        check_manifest_pin(spec, args.manifest)
         check_data(arms, args.data, args.manifest)
+        if not args.dry_run:
+            check_prepared(arms)
         manifest = read_run_manifest(args.out / "manifest.json", args.spec_sha256, spec["selection_sha256"])
     except (ValueError, OSError) as e:
         sys.exit(f"error: {e}")

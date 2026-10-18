@@ -5,7 +5,8 @@
 
 Training: SFT arms from their summary.json (`training_seconds`), RL runs from metrics.jsonl (sum of `seconds_step`: rollout, scoring and update) plus evals.jsonl (`seconds`: the Val
 evaluations). Sampling: every `<runs>/colab-s1/*/meta.json` (Val) and `<runs>/final/*/meta.json` (locked Test): `wall_time_s` is the whole process of the last invocation (model load
-included), `calls[].wall_time_s` the generation calls of every invocation. A run directory without meta.json (copied results, CPU controls) is counted and listed, never estimated.
+included), `calls[].wall_time_s` the generation calls of every invocation. A run directory without meta.json (copied results, CPU controls) is counted and listed, never estimated. The locked run's C0 to C3 (scripts/final_controls.py) have no sampling process
+and are neither counted nor listed.
 Runtime sessions come from `results/compute_sessions.json` (hand-kept, from the agent session log: first and last call of each Colab runtime). Not included anywhere: weight downloads, package
 installs, LoRA merges (about 80 s each on the A100 runtime, not logged per run), CPU-only stages (data preparation, controls, scoring) and the time of the agents that wrote the code.
 """
@@ -25,6 +26,7 @@ SAMPLING_STAGES = [
     (r"^(b9|g-9b)", "9B untrained"),
     (r"^(b27|b38)", "27B untrained (Qwen3.5 and Qwen3.8)"),
 ]
+FINAL_CONTROLS = ("C0", "C1", "C2", "C3")                 # <runs>/final/<id> of the CPU controls: written by scripts/final_controls.py, nothing was sampled
 TRAINING = [("SFT A2 (answer-only, 3 epochs)", "sft/A2"), ("SFT A1 (reasoning traces, 2 epochs)", "sft/A1"), ("RL-full pilot R1 (40 steps)", "rl/R1"),
             ("RL-contrastive R3 (cut by a runtime loss)", "rl/R3"), ("RL-full replicate R5 (seed 1)", "rl/R5"), ("RL-validity R2", "rl/R2"), ("RL-profilefree R4", "rl/R4")]
 
@@ -53,6 +55,8 @@ def sampling_rows(runs):
     stages, no_meta = {}, []
     for root, forced in ((Path(runs) / "colab-s1", None), (Path(runs) / "final", "Locked Test evaluation")):
         for d in sorted(p for p in root.glob("*") if p.is_dir()):
+            if forced and d.name in FINAL_CONTROLS:
+                continue
             meta = d / "meta.json"
             if not meta.is_file():
                 no_meta.append(f"{root.name}/{d.name}")

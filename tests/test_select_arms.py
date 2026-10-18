@@ -144,7 +144,7 @@ def test_the_winning_candidates_adapter_hash_is_carried_into_the_arm_record(sa):
             sa.pick({"candidates": [{"run": "r-s40", "adapter_sha256": bad}]}, get)
 
 
-SPEC = {"mode": "nothink", "max_tokens": 256, "data": "direct", "system": "direct"}
+SPEC = {"model": "Qwen/Qwen3.5-4B", "mode": "nothink", "max_tokens": 256, "data": "direct", "system": "direct"}
 
 
 def test_an_arms_spec_block_is_copied_into_the_selection_and_an_arm_without_one_gets_none(sa):
@@ -156,12 +156,83 @@ def test_an_arms_spec_block_is_copied_into_the_selection_and_an_arm_without_one_
     assert out["arms"]["A"]["run"] == "a-t06"                                             # the rest of the record is unchanged
 
 
-@pytest.mark.parametrize("block", [{}, {**SPEC, "extra": 1}, {k: v for k, v in SPEC.items() if k != "system"}, {**SPEC, "mode": "auto"}, {**SPEC, "max_tokens": 0},
-                                   {**SPEC, "max_tokens": "256"}, {**SPEC, "max_tokens": True}, {**SPEC, "max_tokens": 256.0}, {**SPEC, "data": ""}, {**SPEC, "system": None}, "nothink", [SPEC]])
+@pytest.mark.parametrize("block", [{}, {**SPEC, "extra": 1}, {k: v for k, v in SPEC.items() if k != "system"}, {k: v for k, v in SPEC.items() if k != "model"}, {**SPEC, "mode": "auto"},
+                                   {**SPEC, "max_tokens": 0}, {**SPEC, "max_tokens": "256"}, {**SPEC, "max_tokens": True}, {**SPEC, "max_tokens": 256.0}, {**SPEC, "data": ""},
+                                   {**SPEC, "system": None}, {**SPEC, "model": ""}, {**SPEC, "model": 7}, "nothink", [SPEC],
+                                   {**SPEC, "quantization": ""}, {**SPEC, "quantization": 8}, {**SPEC, "gpu_memory_utilization": 0}, {**SPEC, "gpu_memory_utilization": 1.5},
+                                   {**SPEC, "gpu_memory_utilization": True}, {**SPEC, "gpu_memory_utilization": "0.9"}])
 def test_a_malformed_spec_block_is_refused(sa, block):
     spec = {"arms": {"A": {"spec": block, "candidates": [{"run": "a-t06", "temperature": 0.6}]}}, "comparator_set": ["A"], "rl_set": ["A"]}
     with pytest.raises(ValueError, match="arm A: spec must be exactly"):
         sa.select(spec, get)
+
+
+def test_the_block_may_name_a_quantization_and_a_memory_fraction_and_they_are_copied(sa):
+    block = {**SPEC, "quantization": "fp8", "gpu_memory_utilization": 0.93}
+    spec = {"arms": {"A": {"spec": block, "candidates": [{"run": "a-t06", "temperature": 0.6}]}}, "comparator_set": ["A"], "rl_set": ["A"]}
+    assert sa.select(spec, get)["arms"]["A"]["spec"] == block
+    spec["arms"]["A"]["spec"] = {**SPEC, "gpu_memory_utilization": 1}
+    assert sa.select(spec, get)["arms"]["A"]["spec"]["gpu_memory_utilization"] == 1
+
+
+# ------------------------------------------------------------------------------------------------ the winning run was sampled the way the block says
+def settings(model="Qwen/Qwen3.5-4B", mode="nothink", temperature=0.6, max_tokens=256):
+    return {"model": {model}, "mode": {mode}, "temperature": {temperature}, "max_tokens": {max_tokens}}
+
+
+def arms_with_spec(**block):
+    """A (untrained, T=0.6) and RL (adapter arm, T=0.6, merged path in its Val run) with their blocks; the winners are a-t06 and r-s40."""
+    return {"arms": {"A": {"spec": {**SPEC, **block}, "candidates": [{"run": "a-t06", "temperature": 0.6}, {"run": "a-t03", "temperature": 0.3}]},
+                     "RL": {"spec": {**SPEC, "mode": "think", "model": "final_models/RL"},
+                            "candidates": [{"run": "r-s40", "temperature": 0.6, "checkpoint": "step-40", "adapter_sha256": SHA}]}},
+            "comparator_set": ["A"], "rl_set": ["RL"]}
+
+
+RUNS = {"a-t06": settings(), "a-t03": settings(temperature=0.3), "r-s40": settings("/content/merged_R1_s40", "think", 0.6)}
+
+
+def test_a_winning_run_that_was_sampled_as_declared_passes_and_an_adapter_arms_merged_path_is_not_compared(sa):
+    assert sa.select(arms_with_spec(), get, RUNS.__getitem__)["arms"]["A"]["run"] == "a-t06"
+
+
+@pytest.mark.parametrize("field,seen,message", [
+    ("mode", {"mode": {"think"}}, r"run a-t06 was sampled with mode \['think'\] but the candidates file says 'nothink'"),
+    ("max_tokens", {"max_tokens": {512}}, r"max_tokens \[512\] but the candidates file says 256"),
+    ("temperature", {"temperature": {1.0}}, r"temperature \[1.0\] but the candidates file says 0.6"),
+    ("model", {"model": {"Qwen/Qwen3.5-9B"}}, r"model \['Qwen/Qwen3.5-9B'\] but the candidates file says 'Qwen/Qwen3.5-4B'"),
+    ("model path", {"model": {"final_models/RL-full"}}, "but the candidates file says 'Qwen/Qwen3.5-4B'"),
+    ("two temperatures", {"temperature": {0.6, 1.0}}, r"temperature \[0.6, 1.0\]"),
+    ("two models", {"model": {"Qwen/Qwen3.5-4B", "Qwen/Qwen3.5-9B"}}, "model"),
+])
+def test_a_winning_run_that_was_sampled_otherwise_is_refused_by_name(sa, field, seen, message):
+    with pytest.raises(ValueError, match=message):
+        sa.select(arms_with_spec(), get, lambda run: {**RUNS[run], **seen})
+
+
+def test_the_samples_of_the_winning_run_only_are_compared_and_missing_fields_or_files_are_not(sa):
+    only_winner = lambda run: {**RUNS[run], "mode": {"think"}} if run == "a-t03" else RUNS[run]          # a losing candidate may differ
+    assert sa.select(arms_with_spec(), get, only_winner)["arms"]["A"]["run"] == "a-t06"
+    assert sa.select(arms_with_spec(), get, lambda run: {})["arms"]["A"]["run"] == "a-t06"              # a run without a samples file
+    assert sa.select(arms_with_spec(), get, lambda run: {"mode": {"think" if run == "r-s40" else "nothink"}})["arms"]["A"]["run"] == "a-t06"      # rows without the other fields
+    assert sa.select(arms_with_spec(), get)["arms"]["A"]["run"] == "a-t06"                              # no loader: nothing is compared
+    a_model_of_the_adapter_arm = lambda run: {**RUNS[run], "model": {"/content/some/other/merge"}} if run == "r-s40" else RUNS[run]
+    assert sa.select(arms_with_spec(), get, a_model_of_the_adapter_arm)["arms"]["RL"]["run"] == "r-s40"
+    with pytest.raises(ValueError, match="run r-s40 was sampled with mode"):                           # but its mode is
+        sa.select(arms_with_spec(), get, lambda run: {**RUNS[run], "mode": {"nothink"}} if run == "r-s40" else RUNS[run])
+
+
+def test_an_arm_without_a_block_is_not_compared(sa):
+    spec = arms_with_spec()
+    del spec["arms"]["A"]["spec"]
+    assert sa.select(spec, get, lambda run: RUNS[run] if run == "r-s40" else {"mode": {"think"}, "temperature": {9.0}})["arms"]["A"]["run"] == "a-t06"
+
+
+def test_run_settings_reads_the_distinct_values_of_a_samples_file(sa, tmp_path):
+    (tmp_path / "r").mkdir()
+    rows = [{"id": "x", "model": "m", "mode": "think", "temperature": 0.6, "max_tokens": 256, "text": "a"}, {"id": "y", "model": "m", "mode": "think", "temperature": 1.0, "text": "b"}, {"id": "z"}]
+    (tmp_path / "r" / "samples.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows) + "\n")
+    assert sa.run_settings(tmp_path, "r") == {"model": {"m"}, "mode": {"think"}, "temperature": {0.6, 1.0}, "max_tokens": {256}}
+    assert sa.run_settings(tmp_path, "none") == {}
 
 
 def test_cli_reads_reports_from_run_directories(sa, tmp_path, capsys):
@@ -183,3 +254,59 @@ def test_cli_reads_reports_from_run_directories(sa, tmp_path, capsys):
     with pytest.raises(SystemExit, match="candidate short"):
         sa.main(["--candidates", str(cand), "--runs", str(runs), "--out", str(tmp_path / "o2.json")])
     assert not (tmp_path / "o2.json").exists()                                      # nothing is written for an incomplete selection
+    cand.write_text(json.dumps({"arms": {"X": {"spec": SPEC, "candidates": [{"run": "x", "temperature": 0.6}]}, "Y": {"candidates": [{"run": "y"}]}}, "comparator_set": ["X"], "rl_set": ["Y"]}))
+    row = {"id": "a", "model": "Qwen/Qwen3.5-4B", "mode": "nothink", "temperature": 0.6, "max_tokens": 256}
+    (runs / "x" / "samples.jsonl").write_text(json.dumps(row) + "\n")
+    sa.main(["--candidates", str(cand), "--runs", str(runs), "--out", str(tmp_path / "o4.json")])              # as declared
+    (runs / "x" / "samples.jsonl").write_text(json.dumps({**row, "model": "Qwen/Qwen3.5-9B"}) + "\n")
+    with pytest.raises(SystemExit, match="run x was sampled with model"):
+        sa.main(["--candidates", str(cand), "--runs", str(runs), "--out", str(tmp_path / "o5.json")])
+    assert not (tmp_path / "o5.json").exists()
+
+
+# ------------------------------------------------------------------------------------------------ the committed selection is derived, not typed
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def assert_selection_is_derived(sa, candidates_path, selection_path, runs):
+    """selection_path holds the candidates' sets (equal, not a subset) and is the output of select_arms on candidates_path and the Val reports and samples under runs, byte for byte."""
+    candidates = json.loads(Path(candidates_path).read_text(encoding="utf-8"))
+    committed = json.loads(Path(selection_path).read_text(encoding="utf-8"))
+    assert committed["comparator_set"] == candidates["comparator_set"] and committed["rl_set"] == candidates["rl_set"], "the selection's sets are not the candidates' sets"
+    result = sa.select(candidates, lambda run: json.loads((Path(runs) / run / "report.v3.json").read_text(encoding="utf-8")), lambda run: sa.run_settings(runs, run))
+    assert (json.dumps(result, indent=1) + "\n").encode("utf-8") == Path(selection_path).read_bytes(), "the selection is not what select_arms derives from the candidates"
+
+
+def test_the_committed_selection_is_what_select_arms_derives_from_the_committed_candidates(sa):
+    """A hand edit, a candidates file that moved on, or a new Val report that changes a pick fails here until select_arms is run again."""
+    candidates, selection, runs = ROOT / "results" / "arm_candidates.json", ROOT / "results" / "selection.json", ROOT / "runs" / "colab-s1"
+    if not (runs.is_dir() and candidates.is_file() and selection.is_file()):
+        pytest.skip("needs results/arm_candidates.json, results/selection.json and the (untracked) runs/colab-s1")
+    assert_selection_is_derived(sa, candidates, selection, runs)
+
+
+def test_a_hand_edited_selection_is_noticed(sa, tmp_path):
+    runs = tmp_path / "runs"
+    for name, rep in (("a", report(0.16)), ("b", report(0.17)), ("c", report(0.15))):
+        (runs / name).mkdir(parents=True)
+        (runs / name / "report.v3.json").write_text(json.dumps(rep))
+    cand = tmp_path / "cand.json"
+    cand.write_text(json.dumps({"arms": {"A": {"candidates": [{"run": "a"}]}, "B": {"candidates": [{"run": "b"}]}, "C": {"candidates": [{"run": "c"}]}},
+                                "comparator_set": ["A", "B"], "rl_set": ["C"]}))
+    sel = tmp_path / "selection.json"
+    sa.main(["--candidates", str(cand), "--runs", str(runs), "--out", str(sel)])
+    assert_selection_is_derived(sa, cand, sel, runs)                                       # as written by the CLI: derived
+    derived = json.loads(sel.read_text())
+    for edit, message in ((lambda d: d.update(comparator="A"), "not what select_arms derives"), (lambda d: d["arms"]["A"].update(score=0.9), "not what select_arms derives"),
+                          (lambda d: d.update(comparator_set=["A"]), "sets are not the candidates' sets"), (lambda d: d.update(rl_set=["C", "A"]), "sets are not the candidates' sets"),
+                          (lambda d: d.update(comparator_set=["B", "A"]), "sets are not the candidates' sets")):
+        edited = json.loads(json.dumps(derived))
+        edit(edited)
+        sel.write_text(json.dumps(edited, indent=1) + "\n")
+        with pytest.raises(AssertionError, match=message):
+            assert_selection_is_derived(sa, cand, sel, runs)
+    cand.write_text(json.dumps({"arms": {"A": {"candidates": [{"run": "a"}]}, "B": {"candidates": [{"run": "b"}]}, "C": {"candidates": [{"run": "c"}]}},
+                                "comparator_set": ["B", "A"], "rl_set": ["C"]}))              # the candidates' sets moved on (order counts: the selection copies them)
+    sel.write_text(json.dumps(derived, indent=1) + "\n")
+    with pytest.raises(AssertionError, match="sets are not the candidates' sets"):
+        assert_selection_is_derived(sa, cand, sel, runs)

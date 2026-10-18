@@ -1,6 +1,7 @@
 """scripts/paired_table.py: the pair set (explicit, --auto), the confirmatory label, the schema and sign convention of the collected paired block, the restriction to common
 drugs (the REAL `rlexp.metrics report --vs` on a tiny synthetic data directory), refusals, outputs without answers or drug names, determinism. A fake report for the many-pair
 cases. No real data."""
+import hashlib
 import importlib.util
 import json
 import types
@@ -142,10 +143,17 @@ def test_only_the_selected_pair_on_test_t_is_confirmatory(pt):
     assert pt.label(("RL-full", "C3"), "test_t", None) == "exploratory"                # without a selection nothing is registered
 
 
+def freeze(tmp_path, selection_path, **over):
+    """<final>/manifest.json as gpu/final_eval.py writes it: the selection the run was frozen against."""
+    digest = hashlib.sha256(Path(selection_path).read_bytes()).hexdigest()
+    (tmp_path / "final" / "manifest.json").write_text(json.dumps({"spec_sha256": "5" * 64, "selection_sha256": digest, "arms": {}, **over}))
+
+
 def test_labels_reach_the_json_and_the_markdown(pt, tmp_path, monkeypatch):
     make_final(tmp_path, "RL-full", "C3", "A2")
     sel = tmp_path / "sel.json"
     sel.write_text(json.dumps(SELECTION))
+    freeze(tmp_path, sel)
     Fake(pt, monkeypatch)
     res, md = go(pt, tmp_path, "--pairs", "RL-full:A2,RL-full:C3", "--selection", str(sel))
     assert [(r["a"], r["b"], r["label"]) for r in res["pairs"]] == [("RL-full", "A2", "exploratory"), ("RL-full", "C3", "confirmatory")]
@@ -153,6 +161,41 @@ def test_labels_reach_the_json_and_the_markdown(pt, tmp_path, monkeypatch):
     assert "### RL-full minus A2 (exploratory, Test-T)" in md and "### RL-full minus C3 (confirmatory, Test-T)" in md
     res, md = go(pt, tmp_path, "--pairs", "RL-full:C3", "--selection", str(sel), split="test_r")
     assert res["pairs"][0]["label"] == "exploratory" and "(exploratory, Test-R)" in md and "confirmatory, Test-R" not in md
+
+
+@pytest.mark.parametrize("how", ["no manifest", "another selection", "manifest without the hash", "manifest is not json"])
+def test_a_selection_that_is_not_the_runs_labels_nothing_confirmatory_and_says_so(pt, tmp_path, monkeypatch, capsys, how):
+    make_final(tmp_path, "RL-full", "C3")
+    sel = tmp_path / "sel.json"
+    sel.write_text(json.dumps(SELECTION))
+    if how == "another selection":
+        freeze(tmp_path, sel, selection_sha256=hashlib.sha256(b"another").hexdigest())
+    elif how == "manifest without the hash":
+        (tmp_path / "final" / "manifest.json").write_text(json.dumps({"arms": {}}))
+    elif how == "manifest is not json":
+        (tmp_path / "final" / "manifest.json").write_text("{")
+    Fake(pt, monkeypatch)
+    res, md = go(pt, tmp_path, "--pairs", "RL-full:C3", "--selection", str(sel))
+    assert [(r["a"], r["b"], r["label"]) for r in res["pairs"]] == [("RL-full", "C3", "exploratory")] and res["selection_is_the_runs"] is False
+    assert "no pair is labelled confirmatory" in capsys.readouterr().err
+    assert "(exploratory, Test-T)" in md and "confirmatory, Test-T" not in md and "no pair above is registered" in md
+
+
+def test_a_selection_that_is_the_runs_prints_no_warning_and_keeps_the_label(pt, tmp_path, monkeypatch, capsys):
+    make_final(tmp_path, "RL-full", "C3", "A2")
+    sel = tmp_path / "sel.json"
+    sel.write_text(json.dumps(SELECTION))
+    freeze(tmp_path, sel)
+    Fake(pt, monkeypatch)
+    res, md = go(pt, tmp_path, "--pairs", "RL-full:C3", "--selection", str(sel))
+    assert res["pairs"][0]["label"] == "confirmatory" and res["selection_is_the_runs"] is True and "warning" not in capsys.readouterr().err and "not registered" not in md
+    freeze(tmp_path, sel)
+    sel.write_text(json.dumps({**SELECTION, "comparator": "A2"}))                     # edited after the run: the same file name, other bytes
+    res, md = go(pt, tmp_path, "--pairs", "RL-full:A2", "--selection", str(sel))
+    assert res["pairs"][0]["label"] == "exploratory" and res["selection_is_the_runs"] is False
+    capsys.readouterr()
+    res, _ = go(pt, tmp_path, "--pairs", "RL-full:C3")                                 # no selection at all: nothing registered, nothing to warn about
+    assert res["selection_is_the_runs"] is None and "warning" not in capsys.readouterr().err
 
 
 # ------------------------------------------------------------------------------------------------- what is collected
