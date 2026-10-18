@@ -1,0 +1,109 @@
+{
+ "split": "test_r",
+ "n_candidates": 30,
+ "chance": {
+  "hit@1": 0.03333333333333333,
+  "pct_rank": 0.5166666666666667
+ },
+ "confirmatory": false,
+ "sign": "A minus B; for the percentile rank a lower value is better, so a win is a negative difference",
+ "arms": [],
+ "contrasts": [
+  {
+   "a": "C1",
+   "b": "RL-full",
+   "split": "test_r",
+   "n_drugs": 30,
+   "measures": {
+    "pct_rank": {
+     "a": 0.39597222222222217,
+     "b": 0.46249999999999997,
+     "diff": -0.0665277777777778,
+     "wins": 13,
+     "losses": 16,
+     "ties": 1,
+     "n_clusters": 27,
+     "non_tied": 26,
+     "p_value": 0.27315726842731575,
+     "p_method": "monte_carlo"
+    },
+    "hit@1": {
+     "a": 0.1583333333333333,
+     "b": 0.05555555555555555,
+     "diff": 0.10277777777777779,
+     "wins": 12,
+     "losses": 3,
+     "ties": 15,
+     "n_clusters": 27,
+     "non_tied": 15,
+     "p_value": 0.11456298828125,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "C1",
+   "b": "A2",
+   "split": "test_r",
+   "n_drugs": 30,
+   "measures": {
+    "pct_rank": {
+     "a": 0.39597222222222217,
+     "b": 0.42981481481481476,
+     "diff": -0.03384259259259261,
+     "wins": 16,
+     "losses": 14,
+     "ties": 0,
+     "n_clusters": 27,
+     "non_tied": 27,
+     "p_value": 0.6000339996600034,
+     "p_method": "monte_carlo"
+    },
+    "hit@1": {
+     "a": 0.1583333333333333,
+     "b": 0.04444444444444444,
+     "diff": 0.1138888888888889,
+     "wins": 10,
+     "losses": 2,
+     "ties": 18,
+     "n_clusters": 27,
+     "non_tied": 12,
+     "p_value": 0.03125,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "C1",
+   "b": "A4",
+   "split": "test_r",
+   "n_drugs": 30,
+   "measures": {
+    "pct_rank": {
+     "a": 0.39597222222222217,
+     "b": 0.43768518518518523,
+     "diff": -0.04171296296296298,
+     "wins": 15,
+     "losses": 14,
+     "ties": 1,
+     "n_clusters": 27,
+     "non_tied": 26,
+     "p_value": 0.3130668693313067,
+     "p_method": "monte_carlo"
+    },
+    "hit@1": {
+     "a": 0.1583333333333333,
+     "b": 0.06666666666666667,
+     "diff": 0.09166666666666666,
+     "wins": 8,
+     "losses": 2,
+     "ties": 20,
+     "n_clusters": 27,
+     "non_tied": 10,
+     "p_value": 0.0546875,
+     "p_method": "exact"
+    }
+   }
+  }
+ ]
+}

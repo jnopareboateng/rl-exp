@@ -1,0 +1,141 @@
+{
+ "split": "val",
+ "n_candidates": 20,
+ "chance": {
+  "hit@1": 0.05,
+  "pct_rank": 0.525
+ },
+ "confirmatory": false,
+ "sign": "A minus B; for the percentile rank a lower value is better, so a win is a negative difference",
+ "arms": [],
+ "contrasts": [
+  {
+   "a": "val8-control_copy_nearest",
+   "b": "rlfull5-s50-t0.3",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.4385416666666667,
+     "b": 0.4729166666666666,
+     "diff": -0.03437500000000001,
+     "wins": 10,
+     "losses": 9,
+     "ties": 1,
+     "n_clusters": 16,
+     "non_tied": 16,
+     "p_value": 0.351287841796875,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.12916666666666665,
+     "b": 0.1,
+     "diff": 0.029166666666666667,
+     "wins": 5,
+     "losses": 3,
+     "ties": 12,
+     "n_clusters": 16,
+     "non_tied": 8,
+     "p_value": 0.7421875,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "val8-control_copy_nearest",
+   "b": "a2-val",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.4385416666666667,
+     "b": 0.3957291666666667,
+     "diff": 0.04281249999999999,
+     "wins": 8,
+     "losses": 10,
+     "ties": 2,
+     "n_clusters": 16,
+     "non_tied": 14,
+     "p_value": 0.4091796875,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.12916666666666665,
+     "b": 0.1875,
+     "diff": -0.05833333333333333,
+     "wins": 4,
+     "losses": 6,
+     "ties": 10,
+     "n_clusters": 16,
+     "non_tied": 9,
+     "p_value": 0.5,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "val8-control_copy_nearest",
+   "b": "a4-t0.6",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.4385416666666667,
+     "b": 0.46416666666666656,
+     "diff": -0.025625,
+     "wins": 12,
+     "losses": 7,
+     "ties": 1,
+     "n_clusters": 16,
+     "non_tied": 16,
+     "p_value": 0.424041748046875,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.12916666666666665,
+     "b": 0.14999999999999997,
+     "diff": -0.020833333333333332,
+     "wins": 3,
+     "losses": 4,
+     "ties": 13,
+     "n_clusters": 16,
+     "non_tied": 6,
+     "p_value": 0.8125,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "val8-control_copy_nearest",
+   "b": "b27-direct",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.4385416666666667,
+     "b": 0.37854166666666667,
+     "diff": 0.059999999999999984,
+     "wins": 10,
+     "losses": 9,
+     "ties": 1,
+     "n_clusters": 16,
+     "non_tied": 15,
+     "p_value": 0.662353515625,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.12916666666666665,
+     "b": 0.19583333333333333,
+     "diff": -0.06666666666666667,
+     "wins": 4,
+     "losses": 5,
+     "ties": 11,
+     "n_clusters": 16,
+     "non_tied": 6,
+     "p_value": 0.59375,
+     "p_method": "exact"
+    }
+   }
+  }
+ ]
+}
