@@ -37,6 +37,7 @@ Spec: https://github.com/jnopareboateng/chronicle -->
 - [gotcha-colab-mcp-hang](gotcha-colab-mcp-hang.md) — A dropped Colab tab hangs MCP calls for 30 min; poll in short calls and reconnect with authuser=1
 - [gotcha-core-endpoint-low-power](gotcha-core-endpoint-low-power.md) — core@1 is near 0 for every arm at 4B-27B and untestable; the endpoint is fv_tanimoto instead
 - [gotcha-kaggle-session-billing](gotcha-kaggle-session-billing.md) — Kaggle API sessions bill from creation; cancel by the id in the proxy URL (/k/<id>/), not disconnect
+- [gotcha-merge-lora-run-owned-adapters](gotcha-merge-lora-run-owned-adapters.md) — merge_lora treats <run>/adapters/step-N as run-owned: use plain adapter copies with revision.json
 - [gotcha-rl-checkpoint-needs-drive-sync](gotcha-rl-checkpoint-needs-drive-sync.md) — A lost Colab VM kills RL resume unless the whole run dir, checkpoints included, is synced to Drive
 - [gotcha-t5-reward-spread](gotcha-t5-reward-spread.md) — T5 fails on Val: valid-answer reward std >= 0.05 in at most 15.5% of rows (A2 at T=1.0: 5.2%)
 
