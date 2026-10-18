@@ -60,7 +60,7 @@
    "max_tokens": 256,
    "label": "4B RL, standard reward (R5-step-50)",
    "adapter": {
-    "path": ".agent-runs/rl_R5/adapters/step-50",
+    "path": ".agent-runs/adapters_plain/R5-step-50",
     "base": "Qwen/Qwen3.5-4B",
     "sha256": {
      "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",
@@ -166,7 +166,7 @@
    "role": "diagnostic",
    "of": "RL-full",
    "adapter": {
-    "path": ".agent-runs/rl_R5/adapters/step-50",
+    "path": ".agent-runs/adapters_plain/R5-step-50",
     "base": "Qwen/Qwen3.5-4B",
     "sha256": {
      "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",
@@ -187,7 +187,7 @@
    "role": "diagnostic",
    "of": "RL-full",
    "adapter": {
-    "path": ".agent-runs/rl_R5/adapters/step-50",
+    "path": ".agent-runs/adapters_plain/R5-step-50",
     "base": "Qwen/Qwen3.5-4B",
     "sha256": {
      "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",

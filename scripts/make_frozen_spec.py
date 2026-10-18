@@ -14,17 +14,12 @@ from pathlib import Path
 
 Q4, Q9 = "Qwen/Qwen3.5-4B", "Qwen/Qwen3.5-9B"
 W, C = "adapter_model.safetensors", "adapter_config.json"
-RL_DIR = {"rlfull": ".agent-runs/rl_R1/adapters", "rlfull5": ".agent-runs/rl_R5/adapters"}      # run-name prefix of arm_candidates.json -> adapter directory on the runtime
-A2_ADAPTER = ".agent-runs/adapters_plain/A2-epoch1"
+PLAIN = ".agent-runs/adapters_plain"      # plain copies of the adapter files on the runtime, outside their run directories: gpu/merge_lora.py treats `<run>/adapters/step-N` as owned by a run and then needs the
+A2_ADAPTER = f"{PLAIN}/A2-epoch1"       # run's committed checkpoint state, which is not kept for a finished run; the sha256 of the files is the identity, not the path
 
 
 def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def rl_adapter_path(run, checkpoint):
-    prefix = run.split("-s")[0]
-    return f"{RL_DIR[prefix]}/{checkpoint}"
 
 
 def hash_key(run, checkpoint):
@@ -47,7 +42,7 @@ def build(selection, hashes, manifest_sha256):
         s = chosen[sel_id]
         arm(sel_id, Q4, s["spec"]["mode"], s["spec"]["data"], s["spec"]["system"], s["temperature"], 8, s["spec"]["max_tokens"], label=label)
     ad_a2 = adapter(A2_ADAPTER, "A2-epoch1")
-    ad_rl = adapter(rl_adapter_path(rl["run"], rl["checkpoint"]), hash_key(rl["run"], rl["checkpoint"]))
+    ad_rl = adapter(f"{PLAIN}/{hash_key(rl['run'], rl['checkpoint'])}", hash_key(rl["run"], rl["checkpoint"]))
     for sel_id, ad, s, label in (("A2", ad_a2, a2, "4B answer-only SFT (epoch 1)"), (rl_id, ad_rl, rl, f"4B RL, standard reward ({hash_key(rl['run'], rl['checkpoint'])})")):
         arm(sel_id, f"final_models/{sel_id}", s["spec"]["mode"], s["spec"]["data"], s["spec"]["system"], s["temperature"], 8, s["spec"]["max_tokens"], label=label, adapter=ad)
     arm("9B", Q9, "nothink", "direct", "direct", 0.6, 8, role="reference", label="9B untrained")

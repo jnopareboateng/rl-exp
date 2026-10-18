@@ -33,7 +33,7 @@ def test_the_spec_copies_what_the_selection_decided():
     assert ids[:4] == ["A0n", "A4", "A2", "RL-full"] and len(ids) == len(set(ids)) == 19
     by = {a["id"]: a for a in out["arms"]}
     assert by["A0n"]["temperature"] == 0.6 and by["A2"]["temperature"] == 1.0 and by["A4"]["data"] == "icl" and by["A4"]["system"] == "dataset"
-    assert by["RL-full"]["adapter"]["path"] == ".agent-runs/rl_R1/adapters/step-40" and by["RL-full"]["model"] == "final_models/RL-full"
+    assert by["RL-full"]["adapter"]["path"] == ".agent-runs/adapters_plain/R1-step-40" and by["RL-full"]["model"] == "final_models/RL-full"
     assert by["RL-full-shuffle"]["of"] == "RL-full" and by["RL-full-shuffle"]["adapter"] == by["RL-full"]["adapter"] and by["RL-full-blank"]["data"] == "blank"
     assert by["27B-3.5"]["splits"] == ["test_t"] and by["27B-3.5"]["gpu_memory_utilization"] == 0.93 and by["ident-4B"]["max_tokens"] == 128 and by["ident-27B"]["k"] == 2
     assert out["data_manifest_sha256"] == "m" * 64 and all(a["k"] == 8 for a in out["arms"] if a["id"] in ("A0n", "A4", "A2", "RL-full"))
@@ -42,7 +42,7 @@ def test_the_spec_copies_what_the_selection_decided():
 def test_an_r5_checkpoint_is_read_from_its_own_run_and_hash():
     out = mf.build(selection("rlfull5-s60-t0.6", "step-60"), HASHES, "m" * 64)
     rl = {a["id"]: a for a in out["arms"]}["RL-full"]
-    assert rl["adapter"]["path"] == ".agent-runs/rl_R5/adapters/step-60" and rl["adapter"]["sha256"][W] == HASHES["R5-step-60"][W]
+    assert rl["adapter"]["path"] == ".agent-runs/adapters_plain/R5-step-60" and rl["adapter"]["sha256"][W] == HASHES["R5-step-60"][W]
 
 
 def test_main_writes_the_spec_and_its_hash_file(tmp_path):
