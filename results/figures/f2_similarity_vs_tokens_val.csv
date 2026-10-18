@@ -19,10 +19,19 @@ rlfull-s30-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",32.77916667,0.1811642625
 rlfull-s40-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",35.69583333,0.1857496588,1.141666667,498.5166667,False
 rlfull-s40-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",30.825,0.1887007012,1.016666667,498.5166667,False
 rlfull-s40-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",31.34583333,0.1868786896,1,498.5166667,False
+rlfull5-s40-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",40.87916667,0.1826689215,1.033333333,498.5166667,False
+rlfull5-s40-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",38.6,0.1834131679,1,498.5166667,False
+rlfull5-s40-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",39.80416667,0.1871366704,1.016666667,498.5166667,False
+rlfull5-s50-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",32.3125,0.1949043912,1,498.5166667,True
+rlfull5-s50-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",31.575,0.1927727032,1,498.5166667,False
+rlfull5-s50-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",34.3875,0.191180052,1.025,498.5166667,False
+rlfull5-s60-t0.3,4B after RL,rl,"T=0.3, k=8, think mode",42.27916667,0.1932633501,1,498.5166667,False
+rlfull5-s60-t0.6,4B after RL,rl,"T=0.6, k=8, think mode",42.9875,0.1926678209,1,498.5166667,False
+rlfull5-s60-t1.0,4B after RL,rl,"T=1.0, k=8, think mode",43,0.192221964,1,498.5166667,False
 a2-val,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",61.60416667,0.1556776076,1.541666667,498.5166667,False
 a2-t0.6,4B fine-tuned on answers (A2),sft,"T=0.6, k=8, think mode",55.30416667,0.1443080283,1.25,498.5166667,False
 a2-t0.3,4B fine-tuned on answers (A2),sft,"T=0.3, k=8, think mode",69.45,0.1374977475,1.25,498.5166667,False
-rlfull-s40-t0.6-seed1,4B after RL,rl,"T=0.6, k=8, think mode",33.17083333,0.1887380922,1.066666667,498.5166667,True
+rlfull-s40-t0.6-seed1,4B after RL,rl,"T=0.6, k=8, think mode",33.17083333,0.1887380922,1.066666667,498.5166667,False
 rlfull-s40-t0.6-seed2,4B after RL,rl,"T=0.6, k=8, think mode",32.69583333,0.1857078371,1.041666667,498.5166667,False
 r3s10-t0.6,4B RL-contrastive step 10 (run cut short),other,"T=0.6, k=8, think mode",26.97083333,0.12190675,1.045833333,498.5166667,False
 r3s10-t1.0,4B RL-contrastive step 10 (run cut short),other,"T=1.0, k=8, think mode",26.98333333,0.1230147059,1.083333333,498.5166667,False
