@@ -1,0 +1,40 @@
+{
+ "RL-full": {
+  "merge_report_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "same_as_earlier_merge": {
+   "model.safetensors.index.json": true,
+   "model-00003-of-00003.safetensors": true,
+   "tokenizer.json": true,
+   "tokenizer_config.json": true,
+   "config.json": true,
+   "generation_config.json": true,
+   "chat_template.jinja": true,
+   "model-00002-of-00003.safetensors": true,
+   "model-00001-of-00003.safetensors": true
+  },
+  "seed0": {
+   "fv_tanimoto": 0.19517844798454753,
+   "selection_score": 0.19491,
+   "diff": 0.0002684479845475318
+  },
+  "seed1": {
+   "fv_tanimoto": 0.1948449128457942,
+   "selection_score": 0.19491,
+   "diff": -6.508715420580624e-05
+  }
+ },
+ "A2": {
+  "merge_report_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "same_as_earlier_merge": null,
+  "seed0": {
+   "fv_tanimoto": 0.15652678680567078,
+   "selection_score": 0.15568,
+   "diff": 0.0008467868056707684
+  },
+  "seed1": {
+   "fv_tanimoto": 0.15193906974460464,
+   "selection_score": 0.15568,
+   "diff": -0.003740930255395375
+  }
+ }
+}
