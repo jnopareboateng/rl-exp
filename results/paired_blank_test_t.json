@@ -1,0 +1,268 @@
+{
+ "split": "test_t",
+ "sign": "A minus B: a positive difference means the first arm of the pair is higher",
+ "boot": 10000,
+ "seed": 0,
+ "selection_is_the_runs": null,
+ "selection": null,
+ "pairs": [
+  {
+   "a": "RL-full",
+   "b": "RL-full-blank",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.16313782625982803,
+     "diff": 0.022534674515697593,
+     "wins": 29,
+     "losses": 9,
+     "ties": 3,
+     "p_value": 0.00014999850001499985,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 4.172195366274465,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.012063689531115128,
+      0.033127771087723065
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.1662020240502393,
+     "diff": 0.017969272397475516,
+     "wins": 32,
+     "losses": 9,
+     "ties": 0,
+     "p_value": 0.00013999860001399987,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 4.0600216039561605,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.00943627713830335,
+      0.026717519785992676
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.1662020240502393,
+     "diff": 0.019192484810970897,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.010903820396091722,
+      0.027686620664659267
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": -6.769652589177784e-19,
+     "diff": 0.008544586494924783,
+     "wins": 21,
+     "losses": 17,
+     "ties": 3,
+     "p_value": 0.12195878041219588,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.613211176141199,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.0015850885833247487,
+      0.01903747937894696
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": -6.769652589177784e-19,
+     "diff": 0.00788606515003006,
+     "wins": 24,
+     "losses": 17,
+     "ties": 0,
+     "p_value": 0.09133908660913391,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.7416152382809704,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.0005231065966841364,
+      0.017010359292669894
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 1.0,
+     "diff": -0.00975609756097561,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.025609756097560978,
+      0.0
+     ]
+    }
+   }
+  },
+  {
+   "a": "A2",
+   "b": "A2-blank",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.13118132280805753,
+     "b": 0.13698251316561041,
+     "diff": -0.005801190357552878,
+     "wins": 18,
+     "losses": 23,
+     "ties": 0,
+     "p_value": 0.43260567394326055,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.7949304729874067,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.019541127637352183,
+      0.009275170396634221
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.07091151453541696,
+     "b": 0.11651789288344605,
+     "diff": -0.04560637834802909,
+     "wins": 1,
+     "losses": 40,
+     "ties": 0,
+     "p_value": 9.99990000099999e-06,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -9.80642398885548,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.05473974504849847,
+      -0.03648996546685023
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.13645067726828553,
+     "b": 0.15615974634314247,
+     "diff": -0.01970906907485693,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.028143597313634697,
+      -0.011427885533741765
+     ]
+    },
+    "fv_lift": {
+     "a": -0.0035680996635010748,
+     "b": -4.06179155350667e-18,
+     "diff": -0.0035680996635010717,
+     "wins": 20,
+     "losses": 21,
+     "ties": 0,
+     "p_value": 0.5943540564594354,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.5406802742545751,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.016026536133171794,
+      0.010191073126464693
+     ]
+    },
+    "lift": {
+     "a": 0.0024878605814185953,
+     "b": 0.00016735062194105646,
+     "diff": 0.0023205099594775396,
+     "wins": 20,
+     "losses": 21,
+     "ties": 0,
+     "p_value": 0.46319536804631956,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.7477430063204512,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.003682474696113356,
+      0.008446921686807786
+     ]
+    },
+    "valid_closed": {
+     "a": 0.5126016260162602,
+     "b": 0.7446646341463415,
+     "diff": -0.23206300813008132,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.2759146341463415,
+      -0.19014227642276424
+     ]
+    }
+   }
+  }
+ ]
+}

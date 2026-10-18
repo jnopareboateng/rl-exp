@@ -1,0 +1,268 @@
+{
+ "split": "test_r",
+ "sign": "A minus B: a positive difference means the first arm of the pair is higher",
+ "boot": 10000,
+ "seed": 0,
+ "selection_is_the_runs": null,
+ "selection": null,
+ "pairs": [
+  {
+   "a": "RL-full",
+   "b": "RL-full-blank",
+   "split": "test_r",
+   "label": "exploratory",
+   "n_drugs": 30,
+   "n_rows": 80,
+   "cohort": {
+    "drugs": 30,
+    "rows": 80
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.16848353306386402,
+     "b": 0.15102763007094308,
+     "diff": 0.01745590299292096,
+     "wins": 22,
+     "losses": 5,
+     "ties": 3,
+     "p_value": 0.002899971000289997,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 3.3431076284226897,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      0.0073382006322410855,
+      0.02793768344804407
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1662541179627168,
+     "b": 0.15292411041284706,
+     "diff": 0.013330007549869733,
+     "wins": 22,
+     "losses": 8,
+     "ties": 0,
+     "p_value": 0.022689773102268978,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 2.5657060238994656,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      0.002982433094245094,
+      0.023274676149705475
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.16928210473029376,
+     "b": 0.15292411041284706,
+     "diff": 0.01635799431744671,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      0.006380003811110941,
+      0.025851121464455836
+     ]
+    },
+    "fv_lift": {
+     "a": 0.013363436289927555,
+     "b": -8.326672684688674e-18,
+     "diff": 0.013363436289927562,
+     "wins": 17,
+     "losses": 10,
+     "ties": 3,
+     "p_value": 0.035889641103588964,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 2.3099534310588927,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      0.0018971190965027934,
+      0.024668368665836646
+     ]
+    },
+    "lift": {
+     "a": 0.01275494541535346,
+     "b": -7.401486830834377e-18,
+     "diff": 0.012754945415353465,
+     "wins": 20,
+     "losses": 10,
+     "ties": 0,
+     "p_value": 0.04102958970410296,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 2.2787275809471947,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      0.001419435143430554,
+      0.023483985938829978
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9833333333333333,
+     "b": 1.0,
+     "diff": -0.016666666666666666,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.041666666666666664,
+      0.0
+     ]
+    }
+   }
+  },
+  {
+   "a": "A2",
+   "b": "A2-blank",
+   "split": "test_r",
+   "label": "exploratory",
+   "n_drugs": 30,
+   "n_rows": 80,
+   "cohort": {
+    "drugs": 30,
+    "rows": 80
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.13305839441477982,
+     "b": 0.12949856372481847,
+     "diff": 0.0035598306899613163,
+     "wins": 16,
+     "losses": 14,
+     "ties": 0,
+     "p_value": 0.7315126848731512,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 0.35633525527926085,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.015753820019738123,
+      0.023184541443065514
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.07056564425252723,
+     "b": 0.10208693340369708,
+     "diff": -0.031521289151169855,
+     "wins": 4,
+     "losses": 26,
+     "ties": 0,
+     "p_value": 2.999970000299997e-05,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": -5.437541067483233,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.04288552449260641,
+      -0.02009167276110565
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.13567071598397895,
+     "b": 0.13719806464705211,
+     "diff": -0.0015273486630731669,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.013441446693435008,
+      0.009957208749904082
+     ]
+    },
+    "fv_lift": {
+     "a": 0.016617862454685117,
+     "b": 9.25185853854297e-18,
+     "diff": 0.016617862454685113,
+     "wins": 20,
+     "losses": 10,
+     "ties": 0,
+     "p_value": 0.10325896741032589,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 1.7011358529103926,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.003047383323206393,
+      0.035421080396624005
+     ]
+    },
+    "lift": {
+     "a": 0.007645785553178312,
+     "b": 6.780712490809803e-05,
+     "diff": 0.0075779784282702135,
+     "wins": 20,
+     "losses": 10,
+     "ties": 0,
+     "p_value": 0.15606843931560685,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 27,
+     "studentized": 1.4674204065316694,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.002565839228158228,
+      0.017707418224350447
+     ]
+    },
+    "valid_closed": {
+     "a": 0.5239583333333334,
+     "b": 0.7440972222222223,
+     "diff": -0.2201388888888889,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 30,
+     "n_rows": 80,
+     "ci": [
+      -0.265625,
+      -0.1709104938271605
+     ]
+    }
+   }
+  }
+ ]
+}

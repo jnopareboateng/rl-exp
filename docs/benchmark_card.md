@@ -13,11 +13,12 @@ for any similarity-scored structure task.
 ## 2. Why it is hard to evaluate
 - **A constant answer scores well.** One fixed molecule given for every drug delivers a similarity of 0.176 on the 20 Val drugs. The best constant chosen on the training drugs plus a public
   pool of approved drugs delivers 0.187, and the best constant that could have been picked with Val in view delivers 0.195. The Val-selected RL checkpoint (Qwen3.5-4B) also delivers 0.195:
-  at the ceiling, not above it. On the temporal cohort (Test-T) it delivers 0.186 against 0.199 for the reward-optimal constant (the registered contrast does not reject, p = 0.061).
+  at the ceiling, not above it.
+- **The constant's level is cohort-dependent.** The reward-optimal constant (C3) delivers 0.187 on Val, 0.199 on Test-T (the best of 1,828 candidate constants there) and 0.159 on Test-R (21st of 1,828; the best is 0.171),
+  so 0.199 is not a fixed bar. On the temporal cohort (Test-T) the RL checkpoint delivers 0.186 against that 0.199 (the registered contrast does not reject, p = 0.061); on Test-R it delivers 0.168 against 0.159 (p = 0.28).
 - **The similarity scale is compressed.** Random pairs of approved drugs average 0.141 (90th percentile 0.213, 99th 0.274), so 0.187 already sits at the 79th percentile of random pairs
   and 0.195 at the 83rd.
 - **Nothing recovers a structure.** Exact match is 0 for every system on every split, and the core match (exact or the same ring scaffold) is at most 5% on Val and at most 0.3% on the two Test splits.
-- **The constant's level depends on the split.** The reward-optimal constant (C3) delivers 0.187 on Val, 0.199 on Test-T (the best of 1,828 candidate constants there) and 0.159 on Test-R (21st of 1,828; the best is 0.171), so a constant's advantage is cohort-dependent and 0.199 is not a fixed bar.
 - So similarity alone cannot tell a system that reads the profile from one that learned a good generic molecule. The controls come first (docs/controls_checklist.md).
 
 ## 3. Data sources and licences

@@ -528,7 +528,7 @@ def caption_f1(rows, n_excluded):
 
 def caption_f2(rows, omitted, name, drugs, constant):
     line = f" The dashed line is the best constant answer (C3, {constant:.3f})." if constant is not None else ""
-    skipped = f" {len(omitted)} runs with fewer than eight samples per prompt have no first-valid value and are not shown." if omitted else ""
+    skipped = f" {len(omitted)} {'run has' if len(omitted) == 1 else 'runs have'} fewer than eight samples per prompt and no first-valid value, and {'is' if len(omitted) == 1 else 'are'} not shown." if omitted else ""
     return (f"One point per run on the {drugs} {name} drugs. Vertical: Tanimoto similarity to the true structure of the first valid answer among up to "
             "eight samples (0 if none is valid). Horizontal: tokens generated per answer, all samples drawn up to that answer; prompts are not counted "
             f"and CPU controls generate none (plotted at 0).{line} Labels mark the best setting of each arm.{skipped} One training seed per arm; with "
@@ -553,7 +553,7 @@ def caption_f4(rows, omitted, name, drugs, constant):
     rl_text = (f" The RL checkpoints have lift {min(r['fv_lift'] for r in rl):+.3f} to {max(r['fv_lift'] for r in rl):+.3f} at similarity "
                f"{min(r['fv_tanimoto'] for r in rl):.3f} to {max(r['fv_tanimoto'] for r in rl):.3f}.") if rl else ""
     line = f" The dashed line is the best constant answer (C3, {constant:.3f})." if constant is not None else ""
-    skipped = f" {len(omitted)} runs without first-valid values are not shown." if omitted else ""
+    skipped = f" {len(omitted)} {'run' if len(omitted) == 1 else 'runs'} without first-valid values {'is' if len(omitted) == 1 else 'are'} not shown." if omitted else ""
     return (f"Delivered similarity against lift for each run on the {drugs} {name} drugs. Lift is the first valid answer's similarity to its own drug's "
             "structure minus its mean similarity to the other drugs' structures: it measures association with the drug, not use of the profile, and is 0 "
             f"for a constant answer.{c1}{rl_text}{line}{skipped}")
