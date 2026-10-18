@@ -425,3 +425,21 @@ def test_a_stage_that_clears_removes_the_hub_cache_and_the_merged_models_but_a_r
     assert removed == []
     rf.main([*argv, "--dry-run"])                                                                       # a dry run deletes nothing
     assert removed == []
+
+
+def test_keep_cache_protects_only_the_stage_being_resumed(tmp_path, monkeypatch):
+    removed = []
+    monkeypatch.setattr(rf.shutil, "rmtree", lambda path, **kw: removed.append(str(path)))
+    monkeypatch.setattr(rf, "hub_cache", lambda: tmp_path / "hub")
+    monkeypatch.setattr(rf, "STAGES", [("first", ["9B"], True), ("second", ["27B-3.5"], True)])
+    commands = []
+    monkeypatch.setattr(rf, "run", lambda cmd, dry, **kw: commands.append(cmd) or 0)
+    for extra, expected in (([], 4), (["--keep-cache"], 2)):                    # a clear is two rmtree calls: the hub cache and the merged models
+        removed.clear()
+        with pytest.raises(SystemExit, match="not finished"):
+            rf.main([*main_argv(tmp_path, arms("9B", "27B-3.5"), {"arms": {}}), *extra])
+        assert len(removed) == expected, (extra, removed)
+    stage_failure = lambda cmd, dry, **kw: 1 if "final_eval.py" in " ".join(map(str, cmd)) else 0
+    monkeypatch.setattr(rf, "run", stage_failure)
+    with pytest.raises(SystemExit, match=r"--skip-sanity --from-stage 'first' --keep-cache"):
+        rf.main(main_argv(tmp_path, arms("9B", "27B-3.5"), {"arms": {}}))

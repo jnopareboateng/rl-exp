@@ -31,12 +31,12 @@ HASHES = {k: {W: k[:2] * 32, C: "c" * 64, "revision": REVISION} for k in ("A2-ep
 def test_the_spec_copies_what_the_selection_decided():
     out = mf.build(selection(), HASHES, "m" * 64)
     ids = [a["id"] for a in out["arms"]]
-    assert ids[:4] == ["A0n", "A4", "A2", "RL-full"] and len(ids) == len(set(ids)) == 19
+    assert ids[:4] == ["A0n", "A4", "A2", "RL-full"] and len(ids) == len(set(ids)) == 10
     by = {a["id"]: a for a in out["arms"]}
     assert by["A0n"]["temperature"] == 0.6 and by["A2"]["temperature"] == 1.0 and by["A4"]["data"] == "icl" and by["A4"]["system"] == "dataset"
     assert by["RL-full"]["adapter"]["path"] == ".agent-runs/adapters_plain/R1-step-40" and by["RL-full"]["model"] == "final_models/RL-full"
     assert by["RL-full-shuffle"]["of"] == "RL-full" and by["RL-full-shuffle"]["adapter"] == by["RL-full"]["adapter"] and by["RL-full-blank"]["data"] == "blank"
-    assert by["27B-3.5"]["splits"] == ["test_t"] and by["27B-3.5"]["gpu_memory_utilization"] == 0.93 and by["ident-4B"]["max_tokens"] == 128 and by["ident-27B"]["k"] == 2
+    assert by["ident-4B"]["max_tokens"] == 128 and by["name-4B"]["role"] == "probe" and not any(i.startswith(("9B", "27B", "name-9B", "ident-9B", "name-27B", "ident-27B", "name-3.8", "ident-3.8")) for i in ids)
     assert out["data_manifest_sha256"] == "m" * 64 and all(a["k"] == 8 for a in out["arms"] if a["id"] in ("A0n", "A4", "A2", "RL-full"))
 
 

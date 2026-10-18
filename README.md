@@ -1,7 +1,7 @@
 # rl-exp
 
 How much of a drug's structure can a language model recover from a description of its pharmacology, and does online reinforcement learning add anything beyond cheaper alternatives?
-A controls-first study on Qwen3.5-4B, 9B and 27B-FP8 (and Qwen3.8-27B-FP8 as a reference), with exact parse-free scoring against known structures, a temporal held-out cohort (drugs first approved 2025-2026), a profile-association metric, and a pre-registered analysis plan.
+A controls-first study on Qwen3.5-4B (with 9B and 27B-FP8, and Qwen3.8-27B-FP8, as Val-only size references), with exact parse-free scoring against known structures, a temporal held-out cohort (drugs first approved 2025-2026), a profile-association metric, and a pre-registered analysis plan.
 The aim is a reproducible record that can be written up as a paper whether or not RL wins.
 
 ## Status (2026-10-17)

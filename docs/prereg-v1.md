@@ -1,9 +1,8 @@
-# Pre-registration v1 (draft until the git tag `prereg-v1`)
+# Pre-registration v1
 
-Status: DRAFT 2026-10-17, revised after the Val selection and the independent review of the evaluation pipeline. Everything below is fixed at the tag;
-no language model has generated or scored a Test-T or Test-R sample (the CPU controls C0 to C2 were scored on all splits before the lock: section 3; the
-reward-optimal constant C3 and the k=8 copies of the controls are made for Test after the tag, from Train alone). Any change after the tag is a logged
-deviation under a new tag. Plan, contracts and memory: `docs/plan.md` (sections 2, 5, 6), `docs/contracts.md`, `docs/memory/`.
+Status: FROZEN by the annotated git tag `prereg-v1` (set on 2026-10-18, before any language model generated or scored a Test-T or Test-R sample; the CPU controls C0 to C2 were scored on all splits before the lock: section 3; the reward-optimal constant C3 and the
+k=8 copies of the controls are made for Test after the tag, from Train alone). The tag message is `prereg-v1 spec=<sha256> selection=<sha256> manifest=<sha256>`: the frozen spec `results/frozen_arms.json`, the Val selection `results/selection.json` and the data manifest
+`data/MANIFEST.sha256`; the locked scripts read these hashes from it. Any change after the tag is a logged deviation under a new tag. Plan, contracts and memory: `docs/plan.md` (sections 2, 5, 6), `docs/contracts.md`, `docs/memory/`.
 
 <!-- frozen: comparator_set=C0,C1,C3,A0n,A2,A4; rl_set=RL-full,RL-contrastive -->
 
@@ -47,11 +46,10 @@ FT) are Val-only and are not scored on Test (section 9, D2). A5 comes in reward 
 The A5 candidates are RL-full and RL-contrastive. Only the one with the highest Val fv_tanimoto (section 5) is scored on Test; the other stays a Val result.
 The mechanism controls are Val-only runs, made before or after the tag, and never scored on Test.
 
-**Size and generation references** (untrained, exploratory comparisons only, not in the confirmatory set): Qwen3.5-9B, Qwen3.5-27B-FP8 and Qwen3.8-27B-FP8 on the
-direct-answer text, no-think. The two 27B models run on Test-T only.
+**Size and generation references** (untrained Qwen3.5-9B, Qwen3.5-27B-FP8 and Qwen3.8-27B-FP8 on the direct-answer text, no-think): Val only (Table 2 of the paper). They are not run on Test: the Test run is limited to the 4B arms (D4).
 
 **Diagnostics (exploratory).** Identification (profile in, drug name out, normalised name match) and name-given (the name replaces the profile) for the untrained
-4B, 9B and the two 27B models (27B on Test-T only, k=2). Shuffled-profile: every row is shown the profile of a donor row of another drug (same task type, same
+4B (the 9B and 27B probes are Val only). Shuffled-profile: every row is shown the profile of a donor row of another drug (same task type, same
 prompt-length tercile, another component when the stratum allows; `rlexp.shuffle`, seed 0), scored against its own reference. Blank-profile: the profile is replaced by
 "Drug: unknown." (`rlexp.arms blank`), the model's answer with no drug information. Shuffled and blank runs are made for A2 and for the Val-selected A5 only.
 
@@ -61,11 +59,10 @@ Test run list (spec ids in `results/frozen_arms.json`; ids in the confirmatory p
 |---|---|---|
 | C0, C1, C2, C3 | CPU controls, replicated to k=8 | both |
 | A0n, A4, A2, RL-full | 4B arms at their Val-selected decoding | both |
-| 9B, 27B-3.5, 27B-3.8 | size references | both (9B), test_t (27B) |
 | A2-shuffle, A2-blank, RL-full-shuffle, RL-full-blank | profile diagnostics | both |
-| name-4B, name-9B, name-27B, name-3.8, ident-4B, ident-9B, ident-27B, ident-3.8 | name-given and identification | both (4B, 9B), test_t (27B) |
+| name-4B, ident-4B | name-given and identification of the untrained 4B | both |
 
-If compute runs out, arms are dropped in the reverse of the stage order of `gpu/run_final.py` (the 4B arms and diagnostics first, then 9B, then Qwen3.5-27B, then Qwen3.8-27B last) and reported as omissions; the confirmatory pair is run first.
+The Test run is one stage (`gpu/run_final.py`: the confirmatory pair first, then the other 4B arms, the diagnostics and the probes); an arm that cannot be sampled is reported as an omission.
 Planned only if budget allows, otherwise reported as omissions (`docs/plan.md` section 2(d) wants them before any RL claim): profile-free RL, validity-only RL, cold-start RL,
 continued SFT with a small learning-rate and step search, dense-reward-ranked rejection-sampling FT (A3 as specified keeps only identity hits and would starve), and the
 profile-plus-name variant of the name-given diagnostic.
@@ -88,11 +85,11 @@ Each stochastic arm: temperature chosen on Val from {0.3, 0.6, 1.0} at k=8 by Va
 whose Val run has fewer than 8 samples per row is not a candidate). Near-greedy decoding (0.01) is reported at k=1 as "near-greedy" and is not selectable. Top-p 1.0; max 256 new
 tokens for answer-only arms; mode (think/no-think) as trained. RL checkpoint: among the saved steps of RL-full (R1: 10, 20, 30, 40; R5: every saved step from 40 on, because the pilot's Val curve was still rising at step 40), the one with the highest Val
 fv_tanimoto when re-sampled with vLLM at k=8, at each grid temperature; an exact tie goes to the lower temperature, then the earlier step, then the run name (R1 before R5). RL runs evaluate Val at EVAL_K=8 in training from the second pilot on (the first used 4).
-The untrained size references are not tuned: 9B uses its Val-best grid temperature, the 27B models T=1.0. Merged exports are made from the adapters with `gpu/merge_lora.py`
+Merged exports are made from the adapters with `gpu/merge_lora.py`
 at the pinned base revision and checked against the adapter hashes in `results/frozen_arms.json`; before any Test sampling, each merged adapter arm is sampled on Val at its frozen settings
 (seed 0) and must reproduce its Val fv_tanimoto in `results/selection.json` within 0.005 (the sanity gate of `gpu/run_final.py`; every attempt is recorded in `runs/final/sanity.json`, and the tolerance is a constant of the frozen code,
-not a flag). The gate runs before any Test sample exists, so repeating it after fixing a cause (wrong files, a stale merge) is not a Test choice; a failing arm is not sampled on Test and is reported as an omission, and the confirmatory contrast requires
-the RL arm to have passed. Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
+not a flag). The gate runs before any Test sample exists, so repeating it after fixing a cause (wrong files, a stale merge) is not a Test choice. A failure stops the whole run (nothing is sampled on Test until every adapter arm has passed, the RL arm first among
+the causes to look at), and the confirmatory contrast requires the latest attempt of the RL arm to have passed; the paper reports the number of attempts. Searches guided by Val are capped: at most 3 learning rates for RL, 3 SFT
 settings, 3 temperatures per arm (RL-contrastive was sampled at 0.6 and 1.0 only; it is not selected).
 
 ## 6. What is not allowed after the tag
@@ -109,16 +106,16 @@ above the nearest-profile control C1 on the same split; and a matched shuffled-p
 The lift's constant-invariance holds only if the completion process does not depend on the drug, and nuisance cues can raise it. The blank-profile run is reported, not a
 condition. Identical blank prompts give identical draws for every row, so its first-valid answer is one shared molecule: read it through mean_tanimoto and validity.
 
-## 8. Freeze checklist (all must be true at the tag)
-[ ] Independent reviews of reward/metrics, RL pack, SFT pack and the evaluation pipeline resolved (`docs/plan.md` review log).
-[ ] Every RL candidate finished on Val, and the checkpoint and temperature selections recorded in `results/selection.json`. Each control of `docs/plan.md` section 2(d) is
-    either finished on Val or listed as an omission.
+## 8. Freeze checklist (all true at the tag)
+[x] Independent reviews of reward/metrics, RL pack, SFT pack and the evaluation pipeline (four rounds) resolved (`docs/plan.md` review log).
+[x] Every RL candidate finished on Val (R1 steps 10 to 40, R5 steps 40 to 60, RL-contrastive steps 10 and 20), and the checkpoint and temperature selections recorded in `results/selection.json`. Each control of `docs/plan.md` section 2(d) is
+    either finished on Val (validity-only RL) or listed as an omission (profile-free RL may finish after the tag, Val only; continued SFT, dense RFT and the profile-plus-name variant are omissions).
 [x] The answer-reader decision (plan section 4: more than 1% of outputs differ; `results/extractor_audit.json`, 29 Val runs, 10,304 samples): the 1% rule fired (2.1%), but only 5 samples read a different
     molecule; 190 are sentence-embedded answers that the stricter rule would drop and 26 are tokens under the reader's 8-atom guard. The reader is KEPT because the RL arms were trained on it, and a
     strict-reader rescoring of the Test samples is a sensitivity analysis. T5 (plan section 4) fails for every arm (best 15.5% against 30%): reported as a finding.
-[ ] `results/val_baselines.json` regenerated with metrics v3; manifest (with the Test and arm prompt files) and package versions recorded.
-[ ] `results/frozen_arms.json` written, its sha256 in `results/frozen_arms.sha256` and in the tag message, with adapter hashes; `gpu/final_eval.py` accepts it against `results/selection.json`.
-[ ] `docs/contracts.md` and this file match the code at the tagged commit.
+[x] `results/val_baselines.json` regenerated with metrics v3; the manifest lists the Test and arm prompt files; package versions are in each run's meta.json.
+[x] `results/frozen_arms.json` written by `scripts/make_frozen_spec.py` (10 arms: the 4B arms, their diagnostics and the 4B probes), its sha256 in `results/frozen_arms.sha256` and in the tag message, with adapter hashes and base revision; `gpu/final_eval.py` accepts it against `results/selection.json`.
+[x] `docs/contracts.md` and this file match the code at the tagged commit.
 
 ## 9. Deviations from the plan recorded before the tag
 - **D1 (comparator C3).** The first draft of this section named the comparator set {C0, C1, A0n, A1, A2, A4}. C3 was built on 2026-10-17, after the class-information ceiling
@@ -129,7 +126,7 @@ condition. Identical blank prompts give identical draws for every row, so its fi
   needs a model with Train hits; the dense variant is an omission).
 - **D3 (RL candidates).** The RL-contrastive run was cut short by the loss of the Colab runtime at about step 28 of 40; steps 10 and 20 were saved. Their Val fv_tanimoto
   (0.12 at best) is far below RL-full and below the A2 start, so RL-full is the Val-selected A5. RL-validity, profile-free RL and cold-start RL were not finished before the tag.
-- **D4 (references).** The 27B reference models run on Test-T only (cost); the Qwen3.8-27B Val run used k=4 and the Qwen3.5-27B run k=8, and neither was tuned for temperature.
+- **D4 (scope).** The size references (9B, Qwen3.5-27B-FP8, Qwen3.8-27B-FP8) and their name-given and identification probes stay Val-only: the Test run is limited to the 4B arms, to put the compute and the analysis on the confirmatory contrast and its controls (decided with the project owner before the tag, no Test sample existed). The Val size trend is exploratory and reported as such.
 - **D5 (shuffle control).** The shuffled-profile control keeps task type and prompt-length tercile, not format beyond that; it replaced a first version that only paired
   donors at random, before any Test file was built.
 - **D6 (replicate run).** The pilot R1 was still improving at step 40 (Val 0.163, 0.175, 0.178, 0.186 at steps 10 to 40, T=0.3), so a replicate R5 with another seed and a budget of 100 steps was added before the freeze (it stopped itself at step 63 on its collapse rule); its checkpoints from step 40 are RL-full candidates. R1 ran an earlier

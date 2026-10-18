@@ -13,7 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 
-Q4, Q9 = "Qwen/Qwen3.5-4B", "Qwen/Qwen3.5-9B"
+Q4 = "Qwen/Qwen3.5-4B"
 W, C = "adapter_model.safetensors", "adapter_config.json"
 PLAIN = ".agent-runs/adapters_plain"      # plain copies of the adapter files on the runtime, outside their run directories: gpu/merge_lora.py treats `<run>/adapters/step-N` as owned by a run and then needs the
 A2_ADAPTER = f"{PLAIN}/A2-epoch1"       # run's committed checkpoint state, which is not kept for a finished run; the sha256 of the files is the identity, not the path
@@ -46,20 +46,11 @@ def build(selection, hashes, manifest_sha256):
     ad_rl = adapter(f"{PLAIN}/{hash_key(rl['run'], rl['checkpoint'])}", hash_key(rl["run"], rl["checkpoint"]))
     for sel_id, ad, s, label in (("A2", ad_a2, a2, "4B answer-only SFT (epoch 1)"), (rl_id, ad_rl, rl, f"4B RL, standard reward ({hash_key(rl['run'], rl['checkpoint'])})")):
         arm(sel_id, f"final_models/{sel_id}", s["spec"]["mode"], s["spec"]["data"], s["spec"]["system"], s["temperature"], 8, s["spec"]["max_tokens"], label=label, adapter=ad)
-    arm("9B", Q9, "nothink", "direct", "direct", 0.6, 8, role="reference", label="9B untrained")
-    for ident, model, label in (("27B-3.5", "Qwen/Qwen3.5-27B-FP8", "Qwen3.5-27B-FP8 untrained"), ("27B-3.8", "Qwen/Qwen3.8-27B-FP8", "Qwen3.8-27B-FP8 untrained")):
-        arm(ident, model, "nothink", "direct", "direct", 1.0, 8, role="reference", splits=["test_t"], gpu_memory_utilization=0.93, label=label)
     for base, ad, s in (("A2", ad_a2, a2), (rl_id, ad_rl, rl)):
         for kind in ("shuffle", "blank"):
             arm(f"{base}-{kind}", f"final_models/{base}", s["spec"]["mode"], kind, "direct", s["temperature"], 8, s["spec"]["max_tokens"], role="diagnostic", of=base, adapter=ad, label=f"{base} with a {kind} profile")
-    for tag, model, k, splits, gm in (("4B", Q4, 8, None, None), ("9B", Q9, 8, None, None), ("27B", "Qwen/Qwen3.5-27B-FP8", 2, ["test_t"], 0.93), ("3.8", "Qwen/Qwen3.8-27B-FP8", 2, ["test_t"], 0.93)):
-        for kind, max_tokens in (("name", 256), ("ident", 128)):
-            extra = {"role": "probe", "label": f"{tag} {kind}"}
-            if splits:
-                extra["splits"] = splits
-            if gm:
-                extra["gpu_memory_utilization"] = gm
-            arm(f"{kind}-{tag}", model, "nothink", kind, "dataset", 1.0, k, max_tokens, **extra)
+    for kind, max_tokens in (("name", 256), ("ident", 128)):                      # name-given and identification probes of the untrained 4B (the larger models are Val-only references)
+        arm(f"{kind}-4B", Q4, "nothink", kind, "dataset", 1.0, 8, max_tokens, role="probe", label=f"4B {kind}")
     return {"frozen": True, "version": "prereg-v1", "splits": ["test_t", "test_r"], "selection_sha256": None, "data_manifest_sha256": manifest_sha256, "arms": arms}
 
 

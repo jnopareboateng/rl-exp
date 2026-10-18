@@ -180,7 +180,7 @@ def main(argv=None):
     ap.add_argument("--sync-every", type=float, default=180.0, help="seconds between background copies of runs/final to --drive")
     ap.add_argument("--skip-sanity", action="store_true", help="run no Val gate: each adapter arm still to be sampled needs a passed latest attempt in <out>/sanity.json, which is kept")
     ap.add_argument("--from-stage", help="resume at this stage name (earlier stages are not run)")
-    ap.add_argument("--keep-cache", action="store_true", help="do not clear the Hugging Face cache or the merged models before a stage (resuming inside a stage)")
+    ap.add_argument("--keep-cache", action="store_true", help="do not clear the Hugging Face cache or the merged models before the first stage that runs (resuming inside a stage); later stages still clear")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     spec = json.loads((ROOT / args.spec).read_text(encoding="utf-8"))
@@ -222,13 +222,13 @@ def main(argv=None):
     stop = threading.Event()
     if args.drive and not args.dry_run:
         threading.Thread(target=sync_forever, args=(args.out, args.drive, args.sync_every, stop), daemon=True).start()
-    for name, ids, clear in pending:
+    for index, (name, ids, clear) in enumerate(pending):
         print(f"== stage {name}: {', '.join(ids)}", flush=True)
-        if clear and not args.dry_run and not args.keep_cache:
+        if clear and not args.dry_run and not (args.keep_cache and index == 0):         # --keep-cache protects the stage being resumed, every later family starts clean
             shutil.rmtree(hub_cache(), ignore_errors=True)
             shutil.rmtree(args.models, ignore_errors=True)
         if run([VLLM_PY, "gpu/final_eval.py", *common, "--manifest", str(args.manifest), "--data", "data", "--out", str(args.out), "--only", ",".join(ids)], args.dry_run):
-            sys.exit(f"error: stage {name} failed; start the same command again to resume")
+            sys.exit(f"error: stage {name} failed; resume it with the same command plus --skip-sanity --from-stage {name!r} --keep-cache (the gate has passed and nothing is merged again)")
         sync(args.out, args.drive, args.dry_run)
     stop.set()
     sync(args.out, args.drive, args.dry_run, last=True)

@@ -22,10 +22,10 @@ Run only after the git tag `prereg-v1` exists. Nothing here chooses an arm, a de
    not the run directories (`gpu/merge_lora.py` treats `<run>/adapters/step-N` as owned by a run and needs that run's checkpoint state). `gpu/prepare_final.py` checks the files against the frozen hashes and revision before merging.
 4. `python gpu/run_final.py --drive /content/drive/MyDrive/rl-exp` (run it in the background with nohup and poll its log; `--dry-run` prints the plan). It: restores `runs/final` from Drive first if an earlier runtime left a partial run there;
    merges the adapters of the stages still to run (A2, RL-full) with `gpu/prepare_final.py`; runs the Val gate for each (the merged model sampled on Val at its frozen settings, seed 0, must reproduce the selection's score within
-   `final_eval.SANITY_TOLERANCE` = 0.005; every attempt is appended to `runs/final/sanity.json`, the latest of an arm decides, a failure stops the run and stays on record); then samples the stages of the protocol's list in their fixed order
-   with `gpu/final_eval.py` (4B arms with the confirmatory pair first, 9B, Qwen3.5-27B, Qwen3.8-27B), clearing the Hugging Face cache and the merged models before each later family, and copying `runs/final` to Drive every 3 minutes and at the end.
-   A stage that stops is resumed by the same command; to resume further on add `--skip-sanity` (it needs passed gate records already in `sanity.json`), `--from-stage <stage name>` and, inside a stage, `--keep-cache`.
-   Omissions from running out of compute are the last stages, reported in the paper.
+   `final_eval.SANITY_TOLERANCE` = 0.005; every attempt is appended to `runs/final/sanity.json`, the latest of an arm decides, a failure stops the run and stays on record); then samples the stage of the protocol's list
+   with `gpu/final_eval.py` (the 4B arms, the confirmatory pair first; the larger models are Val-only references and have no stage in the spec), and copies `runs/final` to Drive every 3 minutes and at the end.
+   A stage that stops is resumed by the same command plus `--skip-sanity` (it needs passed gate records already in `sanity.json`), `--from-stage <stage name>` and, inside a stage, `--keep-cache`.
+   Arms that could not be sampled are reported as omissions in the paper.
 5. `tar czf runs_final.tgz runs/final` on the runtime (samples.jsonl, meta.json, manifest.json, sanity.json) and download it; the Drive copy is the second one.
 
 ## 2. Scoring (CPU, repo)
