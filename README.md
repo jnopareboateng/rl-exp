@@ -15,7 +15,7 @@ The profile carries a small drug-specific signal on random held-out drugs and in
 |---|---|
 | The paper (draft with all results) | [docs/paper/draft.md](docs/paper/draft.md) |
 | Protocol, frozen by git tag `prereg-v1`; addendum with the secondary analyses, tag `prereg-v1-a1` | [docs/prereg-v1.md](docs/prereg-v1.md), [docs/prereg-v1-addendum1.md](docs/prereg-v1-addendum1.md) |
-| Benchmark card and controls checklist (the release tables they describe are built locally by `scripts/make_release.py` and are not published) | [docs/benchmark_card.md](docs/benchmark_card.md), [docs/controls_checklist.md](docs/controls_checklist.md) |
+| Benchmark card, controls checklist and the release tables they describe (splits, control answers, reference values) | [docs/benchmark_card.md](docs/benchmark_card.md), [docs/controls_checklist.md](docs/controls_checklist.md), [release/](release/) |
 | Aggregate results behind every number (JSON, tables, figures) | [results/](results/) |
 | Plan and review log, file and schema contracts, durable project facts | [docs/plan.md](docs/plan.md), [docs/contracts.md](docs/contracts.md), [docs/memory/MEMORY.md](docs/memory/MEMORY.md) |
 | Compute and time per stage | [docs/paper/compute_budget.md](docs/paper/compute_budget.md) |
@@ -30,7 +30,7 @@ The profile carries a small drug-specific signal on random held-out drugs and in
 | Arms: trace SFT (A1, Val only), answer-only SFT (A2), retrieval (A4), RL (R1, R5; validity-only R2, contrastive R3 cut short, profile-free R4) | done on Val |
 | Locked Test evaluation (4B arms; protocol frozen before any Test sample) | done once; scored; results in `results/` and the paper |
 | Secondary analyses (rank readout, random-pair calibration, shuffled-profile contrasts), registered before any model sample was scored | done |
-| Release tables (splits, control answers, values), benchmark card, checklist | tables built locally and not published (no dataset table is in this repository; licence and terms unresolved); card and checklist are in `docs/` |
+| Release tables (splits, control answers, values), benchmark card, checklist, licences | done and published (`release/`, `data/`, `docs/`); the private profile texts and traces are not |
 
 ## Layout
 
@@ -39,8 +39,8 @@ The profile carries a small drug-specific signal on random held-out drugs and in
                    rank readout, random-pair calibration, cohort diagnostics, figures, release builder
     gpu/           Colab/Kaggle packs: vLLM sampler, LoRA SFT + merge, answer-only RL (RL.md, SFT.md, STACK.md), the locked-run driver (FINAL.md)
     tests/         pytest (about 1,700 tests, including 77 answer-format fixtures); torch-dependent tests skip without torch
-    data/          not published: raw rows and the ChEMBL cache (raw/), hand-resolved facts (curated/), the reference and split tables and the prompt files (processed/); only data/MANIFEST.sha256 (file hashes) is tracked
-    runs/          sampling and scoring outputs (not in git)      results/   small tracked summaries used by the paper      release/   release tables built locally (not published)
+    data/          tracked: hand-resolved facts and lookups (curated/), the reference and split tables (processed/refs.jsonl, split_report.json), MANIFEST.sha256 and a data card; not published: the private raw rows (raw/) and the prompt files in processed/
+    runs/          sampling and scoring outputs (not in git)      results/   small tracked summaries used by the paper      release/   release tables (splits, control answers, reference values)
     docs/          plan, protocol and addendum, contracts, paper, memory, benchmark card, controls checklist
 
 ## Setup
@@ -49,6 +49,8 @@ The profile carries a small drug-specific signal on random held-out drugs and in
     .venv/bin/python -m pytest
 
 ## Reproduce
+
+Without the private rows you can still reproduce the control values and score your own answers against the published splits: `docs/benchmark_card.md`, section 11. The full pipeline needs the rows.
 
     # data products (needs data/raw/train_think.jsonl and val_think.jsonl)
     .venv/bin/python scripts/resolve_refs.py data/curated/chembl_refs.json data/raw/train_think.jsonl data/raw/val_think.jsonl   # network: ChEMBL, openFDA
@@ -83,8 +85,15 @@ The profile carries a small drug-specific signal on random held-out drugs and in
 ## Provenance
 
 Every run records its git revision, the sha256 of the data files, seed, library versions and hardware (`runs/<id>/meta.json`). Decisions and their reasons live in `docs/memory/`; the analysis plan is frozen by git tag before any held-out data is touched.
-The raw rows are a private dataset and are never committed, and neither is any dataset table derived from them (references, splits, hand-resolved facts, release tables): those stay on the authors' machine and are rebuilt with the scripts.
+The raw rows are a private dataset: they and the prompt files built from them (profile texts and reasoning traces) are not published. The tables built from public databases (references, splits, hand-resolved facts, release tables) are, with the terms of their sources in [data/README.md](data/README.md).
 
 ## License
 
-Not yet chosen. The ChEMBL, openFDA, PubChem and regulator terms are unchecked (see `docs/benchmark_card.md`).
+| What | Licence |
+|---|---|
+| Code (`src/`, `scripts/`, `gpu/`, `tests/`) | MIT, [LICENSE](LICENSE) |
+| Paper, protocol, documentation, figures and result summaries (`docs/`, `results/`) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| Data tables (`data/curated/`, `data/processed/refs.jsonl`, `data/processed/split_report.json`, `release/`) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/): they adapt ChEMBL (CC BY-SA 3.0, attribution and share-alike); openFDA is CC0; NCBI restricts nothing (terms checked 2026-10-18, see [data/README.md](data/README.md)) |
+| The private dataset (profile texts, reasoning traces, prompt files), model samples and adapters | not included, and not covered by these licences |
+
+Cite the current ChEMBL paper when you use the tables.
