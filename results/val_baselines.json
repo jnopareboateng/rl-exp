@@ -1830,6 +1830,302 @@
    ]
   },
   {
+   "run": "r4s40-t0.3",
+   "label": "4B RL trained without the profile (R4, seed 0), step 40, shown the real profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.975,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.17771319160424295,
+   "fv_tanimoto": 0.17763933754290154,
+   "fv_samples": 1.175,
+   "fv_tokens": 34.40833333333333,
+   "fv_lift": 0.0011378332296619205,
+   "lift": 0.0011629528563528023,
+   "tanimoto_valid": 0.18426491574217396,
+   "core@8": 0.0,
+   "fv_rate": 0.975,
+   "mean_reward": 0.15537791496254577,
+   "lift_ci": [
+    -0.02754547254522451,
+    0.03482648785461629
+   ],
+   "fv_tanimoto_ci": [
+    0.1510659547101267,
+    0.20922059438895088
+   ],
+   "mean_tanimoto_ci": [
+    0.15106743179135348,
+    0.20947691142537114
+   ],
+   "fv_lift_ci": [
+    -0.02754547254522451,
+    0.03468250346551994
+   ]
+  },
+  {
+   "run": "r4s40-shuffle-t0.3",
+   "label": "4B RL trained without the profile (R4, seed 0), step 40, shown another drug's profile (shuffled)",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.975,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.17652454616561541,
+   "fv_tanimoto": 0.17636708428940356,
+   "fv_samples": 1.175,
+   "fv_tokens": 34.40833333333334,
+   "fv_lift": -0.0002013807213886082,
+   "lift": -0.00010273975352853293,
+   "tanimoto_valid": 0.1800245461656154,
+   "core@8": 0.0,
+   "fv_rate": 0.975,
+   "mean_reward": 0.15466472769936926,
+   "lift_ci": [
+    -0.027495401237235817,
+    0.030961503504966837
+   ],
+   "fv_tanimoto_ci": [
+    0.14939625915491,
+    0.20719390895359008
+   ],
+   "mean_tanimoto_ci": [
+    0.14939625915491,
+    0.20745717398350869
+   ],
+   "fv_lift_ci": [
+    -0.02749754560610234,
+    0.03083350708203138
+   ]
+  },
+  {
+   "run": "r4s40-blank-t0.3",
+   "label": "4B RL trained without the profile (R4, seed 0), step 40, with a blank profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.18118297270206613,
+   "fv_tanimoto": 0.18118297270206613,
+   "fv_samples": 1.0,
+   "fv_tokens": 29.0,
+   "fv_lift": 9.020562075079397e-18,
+   "lift": 6.938893903907228e-18,
+   "tanimoto_valid": 0.18118297270206613,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.15870978362123966,
+   "lift_ci": [
+    -0.027631976911074826,
+    0.031637910470482686
+   ],
+   "fv_tanimoto_ci": [
+    0.15493259463654502,
+    0.21123898764902466
+   ],
+   "mean_tanimoto_ci": [
+    0.15493259463654502,
+    0.21123898764902466
+   ],
+   "fv_lift_ci": [
+    -0.027631976911074822,
+    0.031637910470482686
+   ]
+  },
+  {
+   "run": "r4bs40-t0.3",
+   "label": "4B RL trained without the profile (R4b, seed 1), step 40, shown the real profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.19552252708667456,
+   "fv_tanimoto": 0.19562309704459374,
+   "fv_samples": 1.0,
+   "fv_tokens": 24.75,
+   "fv_lift": 0.006951952060130884,
+   "lift": 0.007157532534245492,
+   "tanimoto_valid": 0.19552252708667456,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.16731351625200472,
+   "lift_ci": [
+    -0.015940887816232804,
+    0.027756870959464122
+   ],
+   "fv_tanimoto_ci": [
+    0.17284822980799122,
+    0.21409999929074436
+   ],
+   "mean_tanimoto_ci": [
+    0.17361535091874086,
+    0.21502115903132504
+   ],
+   "fv_lift_ci": [
+    -0.01689421251242284,
+    0.02651389807129272
+   ]
+  },
+  {
+   "run": "r4bs40-shuffle-t0.3",
+   "label": "4B RL trained without the profile (R4b, seed 1), step 40, shown another drug's profile (shuffled)",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.18773415370052143,
+   "fv_tanimoto": 0.1846664582248289,
+   "fv_samples": 1.0,
+   "fv_tokens": 24.98333333333333,
+   "fv_lift": -0.004361901026226314,
+   "lift": -0.0009703930119259005,
+   "tanimoto_valid": 0.18773415370052143,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.16264049222031285,
+   "lift_ci": [
+    -0.023939548895907315,
+    0.018337683047271958
+   ],
+   "fv_tanimoto_ci": [
+    0.16316863158385914,
+    0.20587934973150027
+   ],
+   "mean_tanimoto_ci": [
+    0.16578252747235164,
+    0.2062078115580425
+   ],
+   "fv_lift_ci": [
+    -0.026930031546419722,
+    0.017865295391846607
+   ]
+  },
+  {
+   "run": "r4bs40-blank-t0.3",
+   "label": "4B RL trained without the profile (R4b, seed 1), step 40, with a blank profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.19053869852541314,
+   "fv_tanimoto": 0.19053869852541314,
+   "fv_samples": 1.0,
+   "fv_tokens": 24.0,
+   "fv_lift": 1.5265566588595904e-17,
+   "lift": 1.6653345369377347e-17,
+   "tanimoto_valid": 0.19053869852541314,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.1643232191152479,
+   "lift_ci": [
+    -0.024647901861078222,
+    0.020235051515358773
+   ],
+   "fv_tanimoto_ci": [
+    0.16712319175738885,
+    0.20976199746500399
+   ],
+   "mean_tanimoto_ci": [
+    0.16712319175738882,
+    0.20976199746500396
+   ],
+   "fv_lift_ci": [
+    -0.02464790186107822,
+    0.020235051515358773
+   ]
+  },
+  {
+   "run": "b9-shuffle-t0.6",
+   "label": "9B untrained shown another drug's profile (shuffled)",
+   "decoding": "T=0.6, k=8",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.6109375,
+   "exact@1": 0.0,
+   "core@1": 0.011458333333333333,
+   "mean_tanimoto": 0.08703115969523734,
+   "fv_tanimoto": 0.12600243189774557,
+   "fv_samples": 1.9916666666666665,
+   "fv_tokens": 109.98333333333332,
+   "fv_lift": -0.008943491041613901,
+   "lift": -0.003801441041524449,
+   "tanimoto_valid": 0.1427774608003889,
+   "core@8": 0.0625,
+   "fv_rate": 0.9625,
+   "mean_reward": 0.0862030708171424,
+   "lift_ci": [
+    -0.010869417748883342,
+    0.003700257347973917
+   ],
+   "fv_tanimoto_ci": [
+    0.11000458147873901,
+    0.14464908157636866
+   ],
+   "mean_tanimoto_ci": [
+    0.07200735550675132,
+    0.1015779961433394
+   ],
+   "fv_lift_ci": [
+    -0.02261042953457001,
+    0.006445628494642608
+   ]
+  },
+  {
+   "run": "b27-shuffle-t1.0",
+   "label": "Qwen3.5-27B-FP8 untrained shown another drug's profile (shuffled)",
+   "decoding": "T=1.0, k=8",
+   "drugs": 20,
+   "samples": 464,
+   "prompt_tokens": 498.5166666666667,
+   "valid_closed": 0.6723958333333334,
+   "exact@1": 0.0,
+   "core@1": 0.017708333333333333,
+   "mean_tanimoto": 0.09151559455138339,
+   "fv_tanimoto": 0.1375368073407102,
+   "fv_samples": 1.55,
+   "fv_tokens": 104.66666666666667,
+   "fv_lift": -0.005020871303980207,
+   "lift": -0.002894515844566959,
+   "tanimoto_valid": 0.13534145892573696,
+   "core@8": 0.07916666666666666,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09384164839749672,
+   "lift_ci": [
+    -0.010401397497204626,
+    0.005588323179396672
+   ],
+   "fv_tanimoto_ci": [
+    0.12068496404304206,
+    0.15167393160122086
+   ],
+   "mean_tanimoto_ci": [
+    0.07692007765779306,
+    0.10786090268668716
+   ],
+   "fv_lift_ci": [
+    -0.016981886941943948,
+    0.00671000569108244
+   ]
+  },
+  {
    "run": "a1-val",
    "label": "4B A1 (trace SFT, epoch 2)",
    "decoding": "T=1.0, k=4, think mode, 8192 tokens",

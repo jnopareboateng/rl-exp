@@ -28,7 +28,7 @@ SAMPLING_STAGES = [
 ]
 FINAL_CONTROLS = ("C0", "C1", "C2", "C3")                 # <runs>/final/<id> of the CPU controls: written by scripts/final_controls.py, nothing was sampled
 TRAINING = [("SFT A2 (answer-only, 3 epochs)", "sft/A2"), ("SFT A1 (reasoning traces, 2 epochs)", "sft/A1"), ("RL-full pilot R1 (40 steps)", "rl/R1"),
-            ("RL-contrastive R3 (cut by a runtime loss)", "rl/R3"), ("RL-full replicate R5 (seed 1)", "rl/R5"), ("RL-validity R2", "rl/R2"), ("RL-profilefree R4", "rl/R4")]
+            ("RL-contrastive R3 (cut by a runtime loss)", "rl/R3"), ("RL-full replicate R5 (seed 1)", "rl/R5"), ("RL-validity R2", "rl/R2"), ("RL-profilefree R4 (seed 0)", "rl/R4"), ("RL-profilefree R4b (seed 1)", "rl/R4b")]
 
 
 def jsonl(path):

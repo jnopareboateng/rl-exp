@@ -1,0 +1,73 @@
+{
+ "split": "val",
+ "n_candidates": 20,
+ "chance": {
+  "hit@1": 0.05,
+  "pct_rank": 0.525
+ },
+ "confirmatory": false,
+ "sign": "A minus B; for the percentile rank a lower value is better, so a win is a negative difference",
+ "arms": [
+  {
+   "arm": "r4s40-t0.3",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 2,
+   "hit@1": 0.041666666666666664,
+   "pct_rank": 0.5479166666666666,
+   "fv_rate": 0.975
+  },
+  {
+   "arm": "r4s40-blank-t0.3",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 1,
+   "hit@1": 0.05,
+   "pct_rank": 0.525,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "r4s40-shuffle-t0.3",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "n_distinct": 2,
+   "hit@1": 0.05,
+   "pct_rank": 0.5349999999999999,
+   "fv_rate": 0.975
+  }
+ ],
+ "contrasts": [
+  {
+   "a": "r4s40-t0.3",
+   "b": "r4s40-shuffle-t0.3",
+   "split": "val",
+   "n_drugs": 20,
+   "measures": {
+    "pct_rank": {
+     "a": 0.5479166666666667,
+     "b": 0.5349999999999999,
+     "diff": 0.012916666666666665,
+     "wins": 3,
+     "losses": 1,
+     "ties": 16,
+     "n_clusters": 16,
+     "non_tied": 4,
+     "p_value": 1.0,
+     "p_method": "exact"
+    },
+    "hit@1": {
+     "a": 0.041666666666666664,
+     "b": 0.05,
+     "diff": -0.008333333333333335,
+     "wins": 1,
+     "losses": 1,
+     "ties": 18,
+     "n_clusters": 16,
+     "non_tied": 2,
+     "p_value": 1.0,
+     "p_method": "exact"
+    }
+   }
+  }
+ ]
+}

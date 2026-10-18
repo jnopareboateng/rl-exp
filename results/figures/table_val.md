@@ -49,6 +49,14 @@
 | 4B RL-full replicate step 50 (the selected checkpoint) shown another drug's profile (shuffled) | T=0.3, k=8, think mode | 1.000 | 0.183 | 1.00 | 31.4 | +0.001 | -0.001 | 0.181 | 0.000 | 0.000 |
 | 4B RL-full replicate step 50 (the selected checkpoint) with a blank profile | T=0.3, k=8, think mode | 1.000 | 0.181 | 1.00 | 26.0 | +0.000 | +0.000 | 0.182 | 0.000 | 0.000 |
 | 4B RL-full step 40 with a blank profile | T=0.6, k=8, think mode | 1.000 | 0.089 | 1.00 | 104.0 | +0.000 | +0.000 | 0.165 | 0.000 | 0.000 |
+| 4B RL trained without the profile (R4, seed 0), step 40, shown the real profile | T=0.3, k=8, think mode | 0.975 | 0.178 | 1.18 | 34.4 | +0.001 | +0.001 | 0.178 | 0.000 | 0.000 |
+| 4B RL trained without the profile (R4, seed 0), step 40, shown another drug's profile (shuffled) | T=0.3, k=8, think mode | 0.975 | 0.176 | 1.18 | 34.4 | +0.000 | +0.000 | 0.177 | 0.000 | 0.000 |
+| 4B RL trained without the profile (R4, seed 0), step 40, with a blank profile | T=0.3, k=8, think mode | 1.000 | 0.181 | 1.00 | 29.0 | +0.000 | +0.000 | 0.181 | 0.000 | 0.000 |
+| 4B RL trained without the profile (R4b, seed 1), step 40, shown the real profile | T=0.3, k=8, think mode | 1.000 | 0.196 | 1.00 | 24.8 | +0.007 | +0.007 | 0.196 | 0.000 | 0.000 |
+| 4B RL trained without the profile (R4b, seed 1), step 40, shown another drug's profile (shuffled) | T=0.3, k=8, think mode | 1.000 | 0.185 | 1.00 | 25.0 | -0.004 | -0.001 | 0.188 | 0.000 | 0.000 |
+| 4B RL trained without the profile (R4b, seed 1), step 40, with a blank profile | T=0.3, k=8, think mode | 1.000 | 0.191 | 1.00 | 24.0 | +0.000 | +0.000 | 0.191 | 0.000 | 0.000 |
+| 9B untrained shown another drug's profile (shuffled) | T=0.6, k=8 | 0.611 | 0.126 | 1.99 | 110.0 | -0.009 | -0.004 | 0.087 | 0.011 | 0.000 |
+| Qwen3.5-27B-FP8 untrained shown another drug's profile (shuffled) | T=1.0, k=8 | 0.672 | 0.138 | 1.55 | 104.7 | -0.005 | -0.003 | 0.092 | 0.018 | 0.000 |
 | 4B A1 (trace SFT, epoch 2) | T=1.0, k=4, think mode, 8192 tokens | 0.328 | n/a | n/a | n/a | n/a | +0.003 | 0.048 | 0.000 | 0.000 |
 | 4B untrained | T=0.6, k=8 | 0.254 | 0.099 | 4.34 | 351.5 | +0.011 | +0.008 | 0.042 | 0.013 | 0.000 |
 | 4B untrained | T=0.3, k=8 | 0.268 | 0.097 | 4.81 | 534.0 | +0.027 | +0.013 | 0.048 | 0.020 | 0.000 |

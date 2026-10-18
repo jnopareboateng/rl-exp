@@ -48,6 +48,14 @@ r1s40-shuffle-t0.6,4B RL-full step 40 shown another drug's profile (shuffled),"T
 r5s50-shuffle-t0.3,4B RL-full replicate step 50 (the selected checkpoint) shown another drug's profile (shuffled),"T=0.3, k=8, think mode",1,0.1831391212,1,31.39166667,0.0005890609062,-0.001208927071,0.1813057335,0,0
 r5s50-blank-t0.3,4B RL-full replicate step 50 (the selected checkpoint) with a blank profile,"T=0.3, k=8, think mode",1,0.1814634589,1,26,0,0,0.1818215339,0,0
 r1s40-blank-t0.6,4B RL-full step 40 with a blank profile,"T=0.6, k=8, think mode",1,0.08882539811,1,104,0,0.0001150634734,0.1653217343,0,0
+r4s40-t0.3,"4B RL trained without the profile (R4, seed 0), step 40, shown the real profile","T=0.3, k=8, think mode",0.975,0.1776393375,1.175,34.40833333,0.00113783323,0.001162952856,0.1777131916,0,0
+r4s40-shuffle-t0.3,"4B RL trained without the profile (R4, seed 0), step 40, shown another drug's profile (shuffled)","T=0.3, k=8, think mode",0.975,0.1763670843,1.175,34.40833333,-0.0002013807214,-0.0001027397535,0.1765245462,0,0
+r4s40-blank-t0.3,"4B RL trained without the profile (R4, seed 0), step 40, with a blank profile","T=0.3, k=8, think mode",1,0.1811829727,1,29,0,0,0.1811829727,0,0
+r4bs40-t0.3,"4B RL trained without the profile (R4b, seed 1), step 40, shown the real profile","T=0.3, k=8, think mode",1,0.195623097,1,24.75,0.00695195206,0.007157532534,0.1955225271,0,0
+r4bs40-shuffle-t0.3,"4B RL trained without the profile (R4b, seed 1), step 40, shown another drug's profile (shuffled)","T=0.3, k=8, think mode",1,0.1846664582,1,24.98333333,-0.004361901026,-0.0009703930119,0.1877341537,0,0
+r4bs40-blank-t0.3,"4B RL trained without the profile (R4b, seed 1), step 40, with a blank profile","T=0.3, k=8, think mode",1,0.1905386985,1,24,0,0,0.1905386985,0,0
+b9-shuffle-t0.6,9B untrained shown another drug's profile (shuffled),"T=0.6, k=8",0.6109375,0.1260024319,1.991666667,109.9833333,-0.008943491042,-0.003801441042,0.0870311597,0.01145833333,0
+b27-shuffle-t1.0,Qwen3.5-27B-FP8 untrained shown another drug's profile (shuffled),"T=1.0, k=8",0.6723958333,0.1375368073,1.55,104.6666667,-0.005020871304,-0.002894515845,0.09151559455,0.01770833333,0
 a1-val,"4B A1 (trace SFT, epoch 2)","T=1.0, k=4, think mode, 8192 tokens",0.328125,,,,,0.002766410094,0.0482134786,0,0
 b4-t0.6,4B untrained,"T=0.6, k=8",0.2536458333,0.09946043001,4.341666667,351.4875,0.01088662002,0.007967223429,0.04179591282,0.0125,0
 b4-t0.3,4B untrained,"T=0.3, k=8",0.2677083333,0.09713175581,4.8125,534.0125,0.02744490908,0.01287852394,0.04813931466,0.0203125,0

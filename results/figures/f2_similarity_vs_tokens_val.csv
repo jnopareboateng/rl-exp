@@ -33,13 +33,13 @@ a2-t0.6,4B fine-tuned on answers (A2),sft,"T=0.6, k=8, think mode",55.30416667,0
 a2-t0.3,4B fine-tuned on answers (A2),sft,"T=0.3, k=8, think mode",69.45,0.1374977475,1.25,498.5166667,False
 rlfull-s40-t0.6-seed1,4B after RL,rl,"T=0.6, k=8, think mode",33.17083333,0.1887380922,1.066666667,498.5166667,False
 rlfull-s40-t0.6-seed2,4B after RL,rl,"T=0.6, k=8, think mode",32.69583333,0.1857078371,1.041666667,498.5166667,False
-rlvalidity-s40-t0.3,4B RL with another reward,rlcontrol,"T=0.3, k=8, think mode",17.97916667,0.07399413651,1,498.5166667,False
-rlvalidity-s40-t0.6,4B RL with another reward,rlcontrol,"T=0.6, k=8, think mode",18.775,0.08027856795,1,498.5166667,False
-rlvalidity-s40-t1.0,4B RL with another reward,rlcontrol,"T=1.0, k=8, think mode",17.275,0.07605561202,1.0125,498.5166667,False
-r3s10-t0.6,4B RL with another reward,rlcontrol,"T=0.6, k=8, think mode",26.97083333,0.12190675,1.045833333,498.5166667,False
-r3s10-t1.0,4B RL with another reward,rlcontrol,"T=1.0, k=8, think mode",26.98333333,0.1230147059,1.083333333,498.5166667,False
-r3s20-t0.6,4B RL with another reward,rlcontrol,"T=0.6, k=8, think mode",22.90833333,0.11288843,1,498.5166667,False
-r3s20-t1.0,4B RL with another reward,rlcontrol,"T=1.0, k=8, think mode",24.54583333,0.1195806304,1.0125,498.5166667,False
+rlvalidity-s40-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",17.97916667,0.07399413651,1,498.5166667,False
+rlvalidity-s40-t0.6,4B RL control run,rlcontrol,"T=0.6, k=8, think mode",18.775,0.08027856795,1,498.5166667,False
+rlvalidity-s40-t1.0,4B RL control run,rlcontrol,"T=1.0, k=8, think mode",17.275,0.07605561202,1.0125,498.5166667,False
+r3s10-t0.6,4B RL control run,rlcontrol,"T=0.6, k=8, think mode",26.97083333,0.12190675,1.045833333,498.5166667,False
+r3s10-t1.0,4B RL control run,rlcontrol,"T=1.0, k=8, think mode",26.98333333,0.1230147059,1.083333333,498.5166667,False
+r3s20-t0.6,4B RL control run,rlcontrol,"T=0.6, k=8, think mode",22.90833333,0.11288843,1,498.5166667,False
+r3s20-t1.0,4B RL control run,rlcontrol,"T=1.0, k=8, think mode",24.54583333,0.1195806304,1.0125,498.5166667,False
 a2-t1.0-seed1,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",65.15833333,0.1509037794,1.575,498.5166667,False
 a2-t1.0-seed2,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",64.2125,0.1500619423,1.541666667,498.5166667,False
 a2-shuffle-t1.0,Shuffled-profile run,shuffle,"T=1.0, k=8, think mode",69.1875,0.1314678138,1.758333333,498.5166667,False
@@ -48,6 +48,14 @@ r1s40-shuffle-t0.6,Shuffled-profile run,shuffle,"T=0.6, k=8, think mode",30.1125
 r5s50-shuffle-t0.3,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",31.39166667,0.1831391212,1,498.5166667,False
 r5s50-blank-t0.3,4B RL-full replicate step 50 (the selected checkpoint) with a blank profile,other,"T=0.3, k=8, think mode",26,0.1814634589,1,498.5166667,False
 r1s40-blank-t0.6,4B RL-full step 40 with a blank profile,other,"T=0.6, k=8, think mode",104,0.08882539811,1,498.5166667,False
+r4s40-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",34.40833333,0.1776393375,1.175,498.5166667,False
+r4s40-shuffle-t0.3,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",34.40833333,0.1763670843,1.175,498.5166667,False
+r4s40-blank-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",29,0.1811829727,1,498.5166667,False
+r4bs40-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",24.75,0.195623097,1,498.5166667,False
+r4bs40-shuffle-t0.3,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",24.98333333,0.1846664582,1,498.5166667,False
+r4bs40-blank-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",24,0.1905386985,1,498.5166667,False
+b9-shuffle-t0.6,Shuffled-profile run,shuffle,"T=0.6, k=8",109.9833333,0.1260024319,1.991666667,498.5166667,False
+b27-shuffle-t1.0,Shuffled-profile run,shuffle,"T=1.0, k=8",104.6666667,0.1375368073,1.55,498.5166667,False
 b4-t0.6,4B untrained,untrained,"T=0.6, k=8",351.4875,0.09946043001,4.341666667,498.5166667,True
 b4-t0.3,4B untrained,untrained,"T=0.3, k=8",534.0125,0.09713175581,4.8125,498.5166667,False
 b9-direct,9B untrained,size,"T=1.0, k=8",155.75,0.159259224,2.341666667,498.5166667,False

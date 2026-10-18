@@ -33,13 +33,13 @@ a2-t0.6,4B fine-tuned on answers (A2),sft,"T=0.6, k=8, think mode",0.00519472321
 a2-t0.3,4B fine-tuned on answers (A2),sft,"T=0.3, k=8, think mode",0.00545980878,0.1374977475,1.25,False
 rlfull-s40-t0.6-seed1,4B after RL,rl,"T=0.6, k=8, think mode",0.008118525234,0.1887380922,1.066666667,False
 rlfull-s40-t0.6-seed2,4B after RL,rl,"T=0.6, k=8, think mode",0.004826079747,0.1857078371,1.041666667,False
-rlvalidity-s40-t0.3,4B RL with another reward,rlcontrol,"T=0.3, k=8, think mode",0.00245945537,0.07399413651,1,False
-rlvalidity-s40-t0.6,4B RL with another reward,rlcontrol,"T=0.6, k=8, think mode",0.002634671989,0.08027856795,1,False
-rlvalidity-s40-t1.0,4B RL with another reward,rlcontrol,"T=1.0, k=8, think mode",0.0007312631692,0.07605561202,1.0125,False
-r3s10-t0.6,4B RL with another reward,rlcontrol,"T=0.6, k=8, think mode",0.005179502897,0.12190675,1.045833333,False
-r3s10-t1.0,4B RL with another reward,rlcontrol,"T=1.0, k=8, think mode",0.004774001143,0.1230147059,1.083333333,False
-r3s20-t0.6,4B RL with another reward,rlcontrol,"T=0.6, k=8, think mode",0.01043338762,0.11288843,1,False
-r3s20-t1.0,4B RL with another reward,rlcontrol,"T=1.0, k=8, think mode",0.009576784655,0.1195806304,1.0125,False
+rlvalidity-s40-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",0.00245945537,0.07399413651,1,False
+rlvalidity-s40-t0.6,4B RL control run,rlcontrol,"T=0.6, k=8, think mode",0.002634671989,0.08027856795,1,False
+rlvalidity-s40-t1.0,4B RL control run,rlcontrol,"T=1.0, k=8, think mode",0.0007312631692,0.07605561202,1.0125,False
+r3s10-t0.6,4B RL control run,rlcontrol,"T=0.6, k=8, think mode",0.005179502897,0.12190675,1.045833333,False
+r3s10-t1.0,4B RL control run,rlcontrol,"T=1.0, k=8, think mode",0.004774001143,0.1230147059,1.083333333,False
+r3s20-t0.6,4B RL control run,rlcontrol,"T=0.6, k=8, think mode",0.01043338762,0.11288843,1,False
+r3s20-t1.0,4B RL control run,rlcontrol,"T=1.0, k=8, think mode",0.009576784655,0.1195806304,1.0125,False
 a2-t1.0-seed1,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",0.0107940447,0.1509037794,1.575,False
 a2-t1.0-seed2,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",0.01776059617,0.1500619423,1.541666667,False
 a2-shuffle-t1.0,Shuffled-profile run,shuffle,"T=1.0, k=8, think mode",-0.007088079742,0.1314678138,1.758333333,False
@@ -48,6 +48,14 @@ r1s40-shuffle-t0.6,Shuffled-profile run,shuffle,"T=0.6, k=8, think mode",0.00190
 r5s50-shuffle-t0.3,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",0.0005890609062,0.1831391212,1,False
 r5s50-blank-t0.3,4B RL-full replicate step 50 (the selected checkpoint) with a blank profile,other,"T=0.3, k=8, think mode",0,0.1814634589,1,False
 r1s40-blank-t0.6,4B RL-full step 40 with a blank profile,other,"T=0.6, k=8, think mode",0,0.08882539811,1,False
+r4s40-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",0.00113783323,0.1776393375,1.175,False
+r4s40-shuffle-t0.3,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",-0.0002013807214,0.1763670843,1.175,False
+r4s40-blank-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",0,0.1811829727,1,False
+r4bs40-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",0.00695195206,0.195623097,1,False
+r4bs40-shuffle-t0.3,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",-0.004361901026,0.1846664582,1,False
+r4bs40-blank-t0.3,4B RL control run,rlcontrol,"T=0.3, k=8, think mode",0,0.1905386985,1,False
+b9-shuffle-t0.6,Shuffled-profile run,shuffle,"T=0.6, k=8",-0.008943491042,0.1260024319,1.991666667,False
+b27-shuffle-t1.0,Shuffled-profile run,shuffle,"T=1.0, k=8",-0.005020871304,0.1375368073,1.55,False
 b4-t0.6,4B untrained,untrained,"T=0.6, k=8",0.01088662002,0.09946043001,4.341666667,True
 b4-t0.3,4B untrained,untrained,"T=0.3, k=8",0.02744490908,0.09713175581,4.8125,False
 b9-direct,9B untrained,size,"T=1.0, k=8",0.01997646089,0.159259224,2.341666667,False

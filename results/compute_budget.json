@@ -49,13 +49,31 @@
    "step_seconds": 2297.1262109670024,
    "eval_seconds": 337.80894243699913,
    "seconds": 2634.9351534040015
+  },
+  {
+   "label": "RL-profilefree R4 (seed 0)",
+   "kind": "RL",
+   "steps": 40,
+   "status": "complete",
+   "step_seconds": 624.3906444769927,
+   "eval_seconds": 140.6924852250013,
+   "seconds": 765.083129701994
+  },
+  {
+   "label": "RL-profilefree R4b (seed 1)",
+   "kind": "RL",
+   "steps": 40,
+   "status": "complete",
+   "step_seconds": 634.9233787640005,
+   "eval_seconds": 127.57139751399518,
+   "seconds": 762.4947762779957
   }
  ],
  "sampling": {
   "4B untrained and prompt probes": {
-   "runs": 11,
-   "wall_seconds": 2043.5296238809965,
-   "generation_seconds": 1534.621569920005
+   "runs": 13,
+   "wall_seconds": 2166.889677450999,
+   "generation_seconds": 1571.1866930339977
   },
   "A1 Val sampling": {
    "runs": 1,
@@ -63,9 +81,9 @@
    "generation_seconds": 1880.5260424200005
   },
   "Diagnostics: shuffled and blank profile": {
-   "runs": 6,
-   "wall_seconds": 542.8754229610012,
-   "generation_seconds": 141.92307789500387
+   "runs": 12,
+   "wall_seconds": 2454.833616677005,
+   "generation_seconds": 1492.6506897450124
   },
   "A2 Val sampling": {
    "runs": 6,
@@ -126,7 +144,7 @@
   "colab-s1/val8-control_copy_nearest"
  ],
  "runtime_sessions": {
-  "as_of": "2026-10-18T02:00:00Z",
+  "as_of": "2026-10-18T03:36:00Z",
   "runtimes": [
    {
     "start": "2026-10-17T12:10:00Z",
@@ -137,10 +155,10 @@
    },
    {
     "start": "2026-10-17T20:57:00Z",
-    "end": null,
+    "end": "2026-10-18T03:36:00Z",
     "gpu": "Colab A100-SXM4-40GB (runtime 2)",
-    "note": "rebuilt from the bootstrap bundle; running",
-    "hours": 5.05
+    "note": "rebuilt from the bootstrap bundle; ran the locked Test run, the Val-only controls (shuffled 9B and 27B, profile-free RL R4 and R4b) and was released by the agent after the last download",
+    "hours": 6.65
    },
    {
     "hours": 0.29,
@@ -151,8 +169,8 @@
   "note": "Hand-kept from the agent session log: start is the first tool call to a runtime, end the call that found it gone; this is wall-clock time with the runtime attached, GPU idle time included."
  },
  "totals_hours": {
-  "training": 4.153797718191392,
-  "sampling_wall": 3.5701218892880573,
-  "sampling_generation": 2.5896502719866628
+  "training": 4.578124914296944,
+  "sampling_wall": 4.1354880690897255,
+  "sampling_generation": 2.9750093650322187
  }
 }

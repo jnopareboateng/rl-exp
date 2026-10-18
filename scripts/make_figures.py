@@ -41,12 +41,12 @@ FAMILIES = {"control": ("CPU control (no model)", "#333333", "s"), "untrained": 
             "retrieval": ("4B with retrieved examples", "#CC79A7", "^"), "sft": ("4B fine-tuned (SFT)", "#E69F00", "D"),
             "rl": ("4B after RL", "#D55E00", "P"), "size": ("Larger untrained model", "#0072B2", "v"),
             "name": ("Drug name given (diagnostic)", "#009E73", "h"), "shuffle": ("Shuffled profile (diagnostic)", "#999999", "X"),
-            "rlcontrol": ("RL with another reward (validity-only, contrastive)", "#F4A582", "P"),
+            "rlcontrol": ("RL control runs (validity-only, contrastive, profile-free)", "#F4A582", "P"),
             "other": ("Other", "#999999", "o")}
 
 # (pattern on the run id, family, arm name in the figures, main arm?). First match wins; edit when a run is added (like val_table.py RUNS).
 ARMS = ((r"shuffle", "shuffle", "Shuffled-profile run", False),
-        (r"^(rlvalidity|r3s)", "rlcontrol", "4B RL with another reward", False),
+        (r"^(rlvalidity|r3s|r4b?s)", "rlcontrol", "4B RL control run", False),
         (r"control_constant_pool|^C3$", "control", "Best constant answer (C3)", True),
         (r"^C2$", "control", "Constant scaffold (C2)", True),
         (r"^C0$", "control", "Constant answer (C0)", True),
