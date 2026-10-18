@@ -1,7 +1,7 @@
 # Benchmark card: an approved drug's structure from its pharmacology profile
 
 This card describes the release tables that `scripts/make_release.py` builds in `release/`, which are published with the repository: reference structures and splits for 351 drugs, control answers, and the study's reference numbers (splits.csv, controls.csv,
-values.csv, and a README with checksums). The profile texts are private and are not released. The protocol is frozen by the git tag prereg-v1 (2026-10-18).
+values.csv, and a README with checksums). The profile texts belong to an in-house dataset and are not released. The protocol is frozen by the git tag prereg-v1 (2026-10-18).
 The release tables hold no model score; the Test values of the controls are in section 6 and the full Test results are in the paper (`results/`, `docs/paper/draft.md`).
 
 ## 1. The task
@@ -24,15 +24,15 @@ for any similarity-scored structure task.
 ## 3. Data sources and licences
 | Part | Source | Terms (checked 2026-10-18) |
 |---|---|---|
-| Reference structures, 333 of 351 drugs | ChEMBL parent structure found by drug name, cross-checked against the private dataset's answers | ChEMBL: CC BY-SA 3.0 (attribution, share-alike) |
+| Reference structures, 333 of 351 drugs | ChEMBL parent structure found by drug name, cross-checked against the in-house dataset's answers | ChEMBL: CC BY-SA 3.0 (attribution, share-alike) |
 | Reference structures, 18 of 351 | Resolved by hand from PubChem; metal complexes use the organic ligand (6 drugs) | NCBI places no restriction; submitters may claim rights |
 | Approval years | ChEMBL first approval (285 drugs), openFDA (6), an audit of regulator pages for 43 candidates (42), hand dating (18) | ChEMBL as above; openFDA CC0; regulator pages: dates are facts, the page is named in the audit |
 | PubChem record year and PubMed count | NCBI, matched by name and structure | NCBI: no restriction on use or distribution |
 | Control C3 pool | ChEMBL_37, released 2026-05-01, 1,587 approved drugs; not copied | as ChEMBL |
-| Profile texts, traces, samples, adapters | Private dataset, 1,146 rows | not released; its licence is not recorded |
+| Profile texts, traces, samples, adapters | In-house dataset, 1,146 rows | not released; its licence is not recorded |
 
 The release tables are licensed CC BY-SA 4.0: they adapt ChEMBL data (CC BY-SA 3.0), and that licence allows a later version for adaptations. Attribute ChEMBL when you use them. The code is MIT and the text CC BY 4.0.
-The ChEMBL release behind the per-drug reference table was not recorded (only the C3 pool, ChEMBL_37). Not checked: the individual regulator pages beyond the fact that approval dates are facts, and the licence of the private dataset.
+The ChEMBL release behind the per-drug reference table was not recorded (only the C3 pool, ChEMBL_37). Not checked: the individual regulator pages beyond the fact that approval dates are facts, and the provenance and licence of the in-house dataset.
 
 ## 4. Splits
 | Split | Drugs | Rows | Components | Rule |
@@ -61,11 +61,11 @@ Exact and scaffold matches are reported but too rare to separate systems at thes
 | C2 | the shortest structure among the most common Train ring scaffold (CHEMBL207538) | 0.076 [0.048, 0.125] | 0.077 [0.067, 0.088] | 0.078 [0.064, 0.093] |
 | C3 | the best constant over Train plus the ChEMBL pool (CHEMBL941) | 0.187 [0.151, 0.229] | 0.199 [0.181, 0.216] | 0.159 [0.135, 0.187] |
 
-The best constant with the split in view is 0.195 (Val), 0.199 (Test-T) and 0.171 (Test-R). The Test columns are the paper's locked-run values (results/test_t_baselines.json, results/test_r_baselines.json). Answers and rules are in release/controls.csv, numbers and their source files in release/values.csv. C1 needs the private profile text,
+The best constant with the split in view is 0.195 (Val), 0.199 (Test-T) and 0.171 (Test-R). The Test columns are the paper's locked-run values (results/test_t_baselines.json, results/test_r_baselines.json). Answers and rules are in release/controls.csv, numbers and their source files in release/values.csv. C1 needs the in-house profile text,
 so only its rule is released.
 
 ## 7. What is not released, and why
-Profile prompts, reasoning traces, model samples and trained adapters are not released: they come from a private dataset, and whether adapters trained on it can be shared is undecided.
+Profile prompts, reasoning traces, model samples and trained adapters are not released: they come from an in-house dataset whose provenance and terms are not documented, and whether adapters trained on it can be shared is undecided.
 The C3 pool is not copied; controls.csv records its checksum and release/README.md gives the rebuild commands. Model scores on Test-R and Test-T are reported in the paper, not in these tables.
 
 ## 8. Intended and out-of-scope uses
@@ -74,7 +74,7 @@ The C3 pool is not copied; controls.csv records its checksum and release/README.
   Test-T labels, which are public here; reporting similarity without the constant and the cost beside it.
 
 ## 9. Known limitations
-- Val has 20 drugs in 16 components, so intervals are wide (the constant's own is 0.07 to 0.08 wide). Test-T has 41. All evidence is one private dataset in four profile formats, and its
+- Val has 20 drugs in 16 components, so intervals are wide (the constant's own is 0.07 to 0.08 wide). Test-T has 41. All evidence is one in-house dataset in four profile formats, and its
   traces were written with the answer known.
 - Approval date is not disclosure date: 40 of the 41 Test-T drugs have a PubChem record created 3 to 20 years before approval (median 10.5), so Test-T is a temporal cohort, not unseen molecules.
 - The Test run covers 4B models only; there is one training seed per arm (two RL runs); the RL checkpoint was picked from 21 Val candidates.
@@ -97,4 +97,4 @@ rows = list(csv.DictReader(open("release/splits.csv"))); c3 = next(r for r in cs
 val = [chem.standardize(r["smiles"]) for r in rows if r["split"] == "val"]
 print(sum(chem.tanimoto(chem.standardize(c3), m) for m in val) / len(val))   # 0.1865, the C3 row above
 ```
-The full metrics (first-valid similarity with cost, bootstrap, sign-flip test) need the private row files: `python -m rlexp.metrics score`, then `python -m rlexp.metrics report`; see docs/contracts.md.
+The full metrics (first-valid similarity with cost, bootstrap, sign-flip test) need the in-house row files: `python -m rlexp.metrics score`, then `python -m rlexp.metrics report`; see docs/contracts.md.

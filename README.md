@@ -5,9 +5,8 @@ A controls-first, pre-registered study on Qwen3.5-4B (the 9B and 27B models are 
 
 ## Result in one paragraph
 
-No system recovers a structure (exact match 0 on every split). A single reward-optimal constant answer, chosen from training molecules and a public drug pool at zero generated tokens, delivers 0.199 similarity on the temporal cohort (the best of 1,828 candidate constants); the validation-selected RL checkpoint delivers 0.186
-and the one pre-registered contrast does not reject (difference -0.013, 10 wins and 31 losses over 41 drugs, p = 0.061). RL beats the supervised and untrained models (+0.054 and +0.113) by converging on a generic structure, and RL trained with the profile deleted reaches the same reward.
-The profile carries a small drug-specific signal on random held-out drugs and in larger untrained models, which we could not detect on the temporal cohort. Report a tuned constant, a calibrated scale, the cost, a shuffled-input run and a constant-proof readout beside any similarity-rewarded result.
+No system recovers a structure (exact match 0 on every split), and no arm of the frozen specification exceeds the best constant answer that could have been chosen, on validation or on either test split (the RL checkpoint: 0.195 against 0.195 on validation, 0.186 against 0.199 on the temporal cohort, 0.168 against 0.171 on a random split). A single reward-optimal constant answer, chosen from training molecules and a public drug pool at zero generated tokens, delivers 0.199 similarity on the temporal cohort (the best of 1,828 candidate constants); the one pre-registered contrast, the validation-selected RL checkpoint against it, does not reject (difference -0.013, interval -0.026 to +0.0004, 10 wins and 31 losses over 41 drugs, p = 0.061) and reverses in sign on the random split.
+RL beats the supervised and untrained models (+0.054 and +0.113) by converging on a small set of generic structures, which fits a reward-spread check that every run failed, and RL trained with the profile deleted reaches the same reward. The profile carries a small drug-specific signal on random held-out drugs and in larger untrained models, which we could not detect on the temporal cohort. Report a tuned constant, a calibrated scale, the cost, a shuffled-input run, a constant-proof readout and a reward-spread check beside any similarity-rewarded result.
 
 ## Where to read
 
@@ -30,7 +29,7 @@ The profile carries a small drug-specific signal on random held-out drugs and in
 | Arms: trace SFT (A1, Val only), answer-only SFT (A2), retrieval (A4), RL (R1, R5; validity-only R2, contrastive R3 cut short, profile-free R4) | done on Val |
 | Locked Test evaluation (4B arms; protocol frozen before any Test sample) | done once; scored; results in `results/` and the paper |
 | Secondary analyses (rank readout, random-pair calibration, shuffled-profile contrasts), registered before any model sample was scored | done |
-| Release tables (splits, control answers, values), benchmark card, checklist, licences | done and published (`release/`, `data/`, `docs/`); the private profile texts and traces are not |
+| Release tables (splits, control answers, values), benchmark card, checklist, licences | done and published (`release/`, `data/`, `docs/`); the in-house profile texts and traces are not |
 
 ## Layout
 
@@ -39,7 +38,7 @@ The profile carries a small drug-specific signal on random held-out drugs and in
                    rank readout, random-pair calibration, cohort diagnostics, figures, release builder
     gpu/           Colab/Kaggle packs: vLLM sampler, LoRA SFT + merge, answer-only RL (RL.md, SFT.md, STACK.md), the locked-run driver (FINAL.md)
     tests/         pytest (about 1,700 tests, including 77 answer-format fixtures); torch-dependent tests skip without torch
-    data/          tracked: hand-resolved facts and lookups (curated/), the reference and split tables (processed/refs.jsonl, split_report.json), MANIFEST.sha256 and a data card; not published: the private raw rows (raw/) and the prompt files in processed/
+    data/          tracked: hand-resolved facts and lookups (curated/), the reference and split tables (processed/refs.jsonl, split_report.json), MANIFEST.sha256 and a data card; not published: the in-house raw rows (raw/) and the prompt files in processed/
     runs/          sampling and scoring outputs (not in git)      results/   small tracked summaries used by the paper      release/   release tables (splits, control answers, reference values)
     docs/          plan, protocol and addendum, contracts, paper, memory, benchmark card, controls checklist
 
@@ -50,7 +49,7 @@ The profile carries a small drug-specific signal on random held-out drugs and in
 
 ## Reproduce
 
-Without the private rows you can still reproduce the control values and score your own answers against the published splits: `docs/benchmark_card.md`, section 11. The full pipeline needs the rows.
+Without the in-house rows you can still reproduce the control values and score your own answers against the published splits: `docs/benchmark_card.md`, section 11. The full pipeline needs the rows.
 
     # data products (needs data/raw/train_think.jsonl and val_think.jsonl)
     .venv/bin/python scripts/resolve_refs.py data/curated/chembl_refs.json data/raw/train_think.jsonl data/raw/val_think.jsonl   # network: ChEMBL, openFDA
@@ -85,7 +84,7 @@ Without the private rows you can still reproduce the control values and score yo
 ## Provenance
 
 Every run records its git revision, the sha256 of the data files, seed, library versions and hardware (`runs/<id>/meta.json`). Decisions and their reasons live in `docs/memory/`; the analysis plan is frozen by git tag before any held-out data is touched.
-The raw rows are a private dataset: they and the prompt files built from them (profile texts and reasoning traces) are not published. The tables built from public databases (references, splits, hand-resolved facts, release tables) are, with the terms of their sources in [data/README.md](data/README.md).
+The raw rows are an in-house dataset whose provenance is not documented: they and the prompt files built from them (profile texts and reasoning traces) are not published. The tables built from public databases (references, splits, hand-resolved facts, release tables) are, with the terms of their sources in [data/README.md](data/README.md).
 
 ## License
 
@@ -94,6 +93,6 @@ The raw rows are a private dataset: they and the prompt files built from them (p
 | Code (`src/`, `scripts/`, `gpu/`, `tests/`) | MIT, [LICENSE](LICENSE) |
 | Paper, protocol, documentation, figures and result summaries (`docs/`, `results/`) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | Data tables (`data/curated/`, `data/processed/refs.jsonl`, `data/processed/split_report.json`, `release/`) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/): they adapt ChEMBL (CC BY-SA 3.0, attribution and share-alike); openFDA is CC0; NCBI restricts nothing (terms checked 2026-10-18, see [data/README.md](data/README.md)) |
-| The private dataset (profile texts, reasoning traces, prompt files), model samples and adapters | not included, and not covered by these licences |
+| The in-house dataset (profile texts, reasoning traces, prompt files), model samples and adapters | not included, and not covered by these licences |
 
 Cite the current ChEMBL paper when you use the tables.

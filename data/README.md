@@ -9,11 +9,11 @@ What is in this folder, where it came from and under what terms. Counts and rule
 - `processed/refs.jsonl`: one row per drug group: ids, split, reference structure, approval year and source, exposure fields.
 - `processed/split_report.json`: how the structure components and the splits were built, and their sizes.
 - `../release/`: the same facts as three CSV files (splits, control answers, reference values) with a README and checksums.
-- `MANIFEST.sha256`: hashes of every file that the pre-registration tags freeze, including the private files that are not in this repository.
+- `MANIFEST.sha256`: hashes of every file that the pre-registration tags freeze, including the in-house files that are not in this repository.
 
 ## Not published
-- `raw/`: the private dataset (1,146 rows, each a profile prompt, a reasoning trace and a final answer) and a ChEMBL download cache.
-- `processed/`: the prompt files built from the private dataset (`train`, `val`, `test_r`, `test_t` and `arms/`).
+- `raw/`: the in-house dataset (1,146 rows, each a profile prompt, a reasoning trace and a final answer) and a ChEMBL download cache.
+- `processed/`: the prompt files built from the in-house dataset (`train`, `val`, `test_r`, `test_t` and `arms/`).
 
 They stay on the authors' machine. Without them you can still reproduce the control values and score your own answers against the published splits (`docs/benchmark_card.md`, section 11); the full pipeline
 (`README.md`, Reproduce) needs them.

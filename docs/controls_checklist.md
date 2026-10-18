@@ -1,7 +1,7 @@
 # Controls for similarity-rewarded chemistry tasks
 
 A checklist for any text-to-structure or molecule-generation result that is scored by fingerprint similarity. Each item says what to compute, what it costs, why, and what this study measured on its three
-held-out sets: Val (20 drugs in 16 components; the selection data), Test-R (30 drugs in 27 components; random held-out components) and Test-T (41 drugs; a temporal cohort first approved in 2025 and 2026).
+evaluation sets: Val (20 drugs in 16 components; the selection data), Test-R (30 drugs in 27 components; random held-out components) and Test-T (41 drugs; a temporal cohort first approved in 2025 and 2026).
 Similarity is Morgan count-fingerprint Tanimoto; "delivered similarity" is the similarity of the first valid answer in up to 8 tries. Intervals are wide at these sizes. Sources are files in this repository.
 Cost: "CPU" is minutes to a day of CPU work on your own data; "inference" is one more sampling pass; "training" is one more training run.
 
@@ -16,7 +16,7 @@ Cost: "CPU" is minutes to a day of CPU work on your own data; "inference" is one
    34 tokens; every constant 0 tokens. Prompt tokens are not counted, which flatters retrieval (results/test_t_baselines.json).
 4. **Shuffled-input counterfactual** (inference). Compute: rerun the system with each input replaced by another item's input (same task type and length), score against the original targets, and read an input-deleted
    run through mean similarity, not first-valid similarity. Why: the drop is the part of the score that depends on the input. Here: real minus shuffled delivered similarity for the RL checkpoint +0.012 (Val, p = 0.034),
-   +0.004 (Test-T, p = 0.31), +0.013 (Test-R, p = 0.010, which is 0.080 after Holm over the eight Test cells); untrained 9B and 27B +0.040 and +0.049 (Val, p = 0.045 and 0.009). Deleting the input costs the RL checkpoint
+   +0.004 (Test-T, p = 0.31), +0.013 (Test-R, p = 0.010, which is 0.082 after Holm over the eight Test cells); untrained 9B and 27B +0.040 and +0.049 (Val, p = 0.045 and 0.009). Deleting the input costs the RL checkpoint
    0.018 [0.009, 0.027] of its 0.184 mean similarity on Test-T, 60% of which another drug's input recovers (results/paired_*.json, paired_blank_*.json).
 5. **Constant-proof readout** (CPU on the answers you already have). Compute: rank the true target among the split's own N references by similarity to your answer; report the top-1 rate, the mean percentile rank, the share of rows with
    an answer and the number of distinct answers. Why: one fixed answer valid on every row scores exactly 1/N and (N+1)/2N whatever the molecule (failures and ties only lower it; a policy whose answers vary scores them in
@@ -35,3 +35,7 @@ Cost: "CPU" is minutes to a day of CPU work on your own data; "inference" is one
 10. **The constant next to every number** (CPU). Report: the constant's score and the ceiling beside each result, and say whether the result is above them. Why: it is the reading that survives review.
     Here: Test-T constant 0.199 = ceiling, RL 0.186 below it; Test-R constant 0.159, ceiling 0.171, RL 0.168; Val constant 0.187, ceiling 0.195, RL 0.195 (selected on it). No system recovers a
     structure: exact match is 0 for every system on every split.
+11. **Reward-spread check before training** (inference on the starting policy). Compute: sample eight answers per training prompt from the policy RL will start from, keep the valid ones, and count the prompts whose valid
+    answers have a reward standard deviation of at least 0.05; the protocol asked for 30% of prompts. Why: a group-relative method learns only from reward differences within a group, so if valid answers do not differ in reward
+    it can learn validity and genericness and little else. Here: at most 15.5% of Val prompts for any run, 5.2% for the SFT start at the RL sampling temperature and 0 to 5.2% for the RL checkpoints; RL ended at a generic
+    structure (results/t5.json).
