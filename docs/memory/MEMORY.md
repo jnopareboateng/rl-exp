@@ -15,12 +15,13 @@ To add a memory without the tool: create docs/memory/<slug>.md with the frontmat
 Spec: https://github.com/jnopareboateng/chronicle -->
 
 ## Status
-- [status-main](status-main.md) — Test run done and analysed, paper final-draft after three advisor rounds; handoff to the user
+- [status-main](status-main.md) — Work pushed to a private repo without datasets; paper final draft after three advisor rounds
 
 ## Decisions
 - [decision-comparator-c3-registered](decision-comparator-c3-registered.md) — C3 joins the comparator set and A1 leaves it; prereg deviations D1 and D2, before any Test sample
 - [decision-connectivity-key](decision-connectivity-key.md) — Exact match = strict InChIKey first block plus curated alternates; looser keys equate real isomers
 - [decision-controls-first-design](decision-controls-first-design.md) — Controls-first study: one endpoint, one confirmatory contrast, sign-flip test, prereg tag
+- [decision-datasets-not-published](decision-datasets-not-published.md) — Datasets stay local: no raw rows or derived tables are pushed; remote history was rewritten
 - [decision-decoding-grid-k8](decision-decoding-grid-k8.md) — Selectable temperatures {0.3, 0.6, 1.0} at k=8; 0.01 is a k=1 near-greedy report, never selected
 - [decision-endpoint-fv-tanimoto](decision-endpoint-fv-tanimoto.md) — Confirmatory endpoint is fv_tanimoto: Tanimoto of the first valid answer of 8; lift is a diagnostic
 - [decision-no-profile-scale-up](decision-no-profile-scale-up.md) — Synthetic profiles for more training drugs are deprioritised: class facts add little over a constant

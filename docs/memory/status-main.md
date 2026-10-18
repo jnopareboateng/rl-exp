@@ -1,6 +1,6 @@
 ---
 name: status-main
-description: 'Test run done and analysed, paper final-draft after three advisor rounds; handoff to the user'
+description: 'Work pushed to a private repo without datasets; paper final draft after three advisor rounds'
 type: status
 updated: 2026-10-18
 ---
@@ -10,3 +10,4 @@ Scope decisions by the project owner: Test is 4B only; nothing is pushed.
 
 **Why:** records where multi-session work stands so a fresh session can resume.
 **How to apply:** delete this entry when the work merges into main-line results.
+Pushed to the private repo `jnopareboateng/rl-exp` (main plus the two prereg tags) with the datasets excluded: see [[decision-datasets-not-published]].
