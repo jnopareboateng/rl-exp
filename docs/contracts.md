@@ -178,6 +178,24 @@ Method: an exact min-cost assignment (Hungarian algorithm; a donor from the own 
 `balance` (`mean_abs_length_gap` between the own and the shown prompt against `baseline_gap_any_other_drug` and `baseline_gap_same_task_type`, `length_correlation`, `same_task_type_share` which is 1.0, `same_tercile_share`, `same_component_rows`, `same_drug_rows` which is 0, `max_rows_per_donor` which is 1); `mapping` (drug to its donor drugs) and `row_mapping` (row id to donor row id). No prompt text.
 **What it controls.** The control keeps task type and length (within a tercile), not format beyond that: section order and wording still differ between two prompts of one task type, so a policy keyed on the exact length or on the format keeps part of its signal here. Used as the nuisance-matched comparison for a claim about the profile: an arm that uses the pharmacology loses `fv_tanimoto` and `lift` under it, one that keys on task type or length bin does not.
 
+## rank_readout.py (addendum 1)
+
+`scripts/rank_readout.py --final <dir> --split <split> [--arms a,b,...] [--a A --b B] [--pairs A:B,...] --out <json> [--md <md>] [--data data/processed] [--allow-test]`
+
+Candidate set: the N distinct drugs of `--split`, each by the `ref_smiles` of `<data>/<split>.jsonl`, ordered by group name. Fixed by the split, never by the arm. A reference that does not parse is an `InputError`.
+Per prompt row: the first valid, closed, finished answer among the first `metrics.K` = 8 samples by `sample_idx` (the endpoint's policy; `metrics.finished` decides "finished"). Rank = 1 + #{candidates strictly nearer than the own reference} + (#tied with it, excluding itself) / 2, by `chem.tanimoto` (count-vector Morgan, r=2, 2048 positions, the endpoint's similarity), with `metrics.TIE` as the equality tolerance.
+A row with no usable answer scores rank N (percentile 1.0) and contributes 0 to `fv_rate`.
+Measures, each the mean over a drug's rows and then over drugs (`rlexp.metrics`' unit): `hit@1` (rank <= 1, so a tie for nearest is not a hit), `pct_rank` (rank / N, lower is better) and `fv_rate` (share of rows with a usable answer). Chance, for any policy whose output does not depend on the drug: `hit@1` = 1/N and `pct_rank` = (N+1)/2N, exactly; both are written to the output as `chance` and printed in every table.
+Contrasts: per-drug A minus B on the drugs the two arms share, summed within `cluster_id` and tested by `metrics.sign_flip_p` (the endpoint's test, the same exchangeable units, seed 0, `metrics.FLIPS` above `metrics.EXACT_MAX` units). Wins count drugs for which the first arm is better, which is a negative difference for `pct_rank` and a positive one for `hit@1`. A Test split needs `--allow-test` (`final_table.check_splits`).
+Output: `{split, n_candidates, chance, confirmatory: false, sign, arms: [...], contrasts: [...]}`. No answer text, prompt, structure or drug name is printed or written. Nothing it produces is confirmatory (`docs/prereg-v1-addendum1.md` section 5).
+
+## random_pair_calibration.py (addendum 1)
+
+`scripts/random_pair_calibration.py [--refs data/processed/refs.jsonl] [--splits train,val,test_r,test_t] [--at 0.176,...] --out <json> [--md <md>]`
+
+Population: the distinct reference structures of the named splits, one per connectivity key (`ref_conn`, else `chem.conn`), so a duplicated drug cannot inject a self-pair. Every unordered pair once, scored by `chem.tanimoto`. Reports n, the number of pairs, mean, standard deviation, min, max, the percentiles 5 to 99.9, and for each `--at` value its percentile and the share of pairs at or above it.
+Reference structures only: no model output, no prompt file and no sample is read, so it is computable on every split before or after the freeze (`docs/prereg-v1.md` section 3). Only aggregates are written; no structure or drug name reaches the output. Repository values (the four used splits): 332 structures, 54,946 pairs, mean 0.141, median 0.141, p75 0.180, p90 0.213, p99 0.274; 0.1949 is at the 83rd percentile.
+
 ## GPU pack (`gpu/`)
 
 - `gpu/sample_vllm.py --model M --data data/processed --splits val,test_t,test_r --mode think|nothink --k 8 --max-tokens N --temperature 1.0 --top-p 1.0 --seed 0 --out runs/X [--limit-drugs n]`: resumable, flushes after every prompt, writes `samples.jsonl` and `meta.json`, prints tokens per second.
