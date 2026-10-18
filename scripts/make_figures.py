@@ -40,10 +40,22 @@ STACK = (("train", "Train", "#0072B2"), ("val", "Val", "#CC79A7"), ("test_r", "T
 FAMILIES = {"control": ("CPU control (no model)", "#333333", "s"), "untrained": ("4B untrained", "#56B4E9", "o"),
             "retrieval": ("4B with retrieved examples", "#CC79A7", "^"), "sft": ("4B fine-tuned (SFT)", "#E69F00", "D"),
             "rl": ("4B after RL", "#D55E00", "P"), "size": ("Larger untrained model", "#0072B2", "v"),
-            "name": ("Drug name given (diagnostic)", "#009E73", "h"), "other": ("Other", "#999999", "o")}
+            "name": ("Drug name given (diagnostic)", "#009E73", "h"), "shuffle": ("Shuffled profile (diagnostic)", "#999999", "X"),
+            "rlcontrol": ("RL with another reward (validity-only, contrastive)", "#F4A582", "P"),
+            "other": ("Other", "#999999", "o")}
 
 # (pattern on the run id, family, arm name in the figures, main arm?). First match wins; edit when a run is added (like val_table.py RUNS).
-ARMS = ((r"control_constant_pool", "control", "Best constant answer (C3)", True),
+ARMS = ((r"shuffle", "shuffle", "Shuffled-profile run", False),
+        (r"^(rlvalidity|r3s)", "rlcontrol", "4B RL with another reward", False),
+        (r"control_constant_pool|^C3$", "control", "Best constant answer (C3)", True),
+        (r"^C2$", "control", "Constant scaffold (C2)", True),
+        (r"^C0$", "control", "Constant answer (C0)", True),
+        (r"^C1$", "control", "Nearest-profile copy (C1)", True),
+        (r"^RL-full$", "rl", "4B after RL", True),
+        (r"^A2$", "sft", "4B fine-tuned on answers (A2)", True),
+        (r"^A4$", "retrieval", "4B with retrieved examples (A4)", True),
+        (r"^A0n$", "untrained", "4B untrained", True),
+        (r"^name-4B$", "name", "4B told the drug name", False),
         (r"control_constant_scaffold", "control", "Constant scaffold (C2)", True),
         (r"control_constant", "control", "Constant answer (C0)", True),
         (r"control_copy_nearest", "control", "Nearest-profile copy (C1)", True),
@@ -105,6 +117,8 @@ def load_table(path, split, allow_test=False):
     when the file declares another split than the one asked for (a Test table under --split val, or the reverse)."""
     refuse_test_path(path, allow_test)
     table = json.loads(Path(path).read_text(encoding="utf-8"))
+    if "split" not in table and table.get("splits") == [split]:      # scripts/final_table.py writes `splits` (a list); one split is the same table
+        table["split"] = split
     if table.get("split") != split:
         raise Refused(f"{path} holds split {table.get('split')!r}, not {split!r}")
     for row in table["rows"]:
@@ -124,7 +138,7 @@ def arm_of(run, label=""):
 def constant_level(rows):
     """The best constant answer (C3): its first-valid similarity, else its mean similarity (equal for a constant); None if absent."""
     for r in rows:
-        if re.search(r"control_constant_pool", r["run"]):
+        if re.search(r"control_constant_pool|^C3$", r["run"]):
             return finite(r.get("fv_tanimoto")) if finite(r.get("fv_tanimoto")) is not None else finite(r.get("mean_tanimoto"))
     return None
 
@@ -175,7 +189,7 @@ def usable(table_rows, *keys):
 def scatter_rows(table_rows, split, keys, fields):
     """Tidy rows for a run scatter. `labelled` marks the points that get a text label: on Val the best run (fv_tanimoto) of each main arm, that
     is the arm's Val-selected setting; on a Test split no outcome is used and every run of a main arm is labelled (one frozen run per arm)."""
-    kept, _ = usable(table_rows, *keys)
+    kept, _ = usable([r for r in table_rows if not r.get("shared_draws")], *keys)      # a blank-profile run's first-valid value is one shared molecule: not a point
     rows = []
     for r in kept:
         family, arm, main = arm_of(r["run"], r.get("label", ""))
@@ -390,7 +404,16 @@ def place_labels(fig, ax, points, items):
         taken.append(best[2])
 
 
-def draw_scatter(rows, xkey, xlabel, ylabel, constant, size, symlog=False, zero_line=False):
+def random_pair_band(path):
+    """(25th, 75th, 90th percentile) of the similarity between random pairs of approved drugs (scripts/random_pair_calibration.py), or None without the file."""
+    try:
+        p = json.loads(Path(path).read_text(encoding="utf-8"))["percentiles"]
+        return float(p["25"]), float(p["75"]), float(p["90"])
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def draw_scatter(rows, xkey, xlabel, ylabel, constant, size, symlog=False, zero_line=False, band=None):
     plt = plt_()
     from matplotlib.lines import Line2D
     fig, ax = plt.subplots(figsize=size)
@@ -414,6 +437,12 @@ def draw_scatter(rows, xkey, xlabel, ylabel, constant, size, symlog=False, zero_
     if zero_line:
         ax.axvline(0, color=GREY, lw=0.5, ls=":", zorder=1)
     ax.set_ylim(max(0, min(r["fv_tanimoto"] for r in rows) - 0.02), max(r["fv_tanimoto"] for r in rows) + 0.03)
+    if band:                                               # where random pairs of approved drugs fall: the middle half, then up to the 90th percentile
+        low, high, top = band
+        ax.axhspan(low, high, color="#9ECAE1", alpha=0.28, lw=0, zorder=0)
+        ax.axhspan(high, top, color="#9ECAE1", alpha=0.12, lw=0, zorder=0)
+        ax.text(0.01, low + 0.0015, "random pairs of approved drugs: middle half, then to the 90th percentile", transform=ax.get_yaxis_transform(),
+                ha="left", va="bottom", fontsize=5.5, color="#3f6c8f", zorder=1)
     labels = [(r[xkey], r["fv_tanimoto"], r["arm"], None, None) for r in rows if r["labelled"]]
     if constant is not None:                               # the level of the best constant, at the right end of its line, above it or else below
         ax.axhline(constant, color=GREY, lw=0.7, ls=(0, (4, 3)), zorder=1)
@@ -554,7 +583,7 @@ def make_f2(table, args, out):
     if constant is None:
         print("F2 and F4: no best-constant (C3) run in the table, so no constant line is drawn")
     fig = draw_scatter(rows, "fv_tokens", "Generated tokens per answer (log scale; 0 for CPU controls)", "Delivered similarity (first valid answer)",
-                       constant, (7.0, 3.5), symlog=True)
+                       constant, (7.0, 3.5), symlog=True, band=random_pair_band(args.calibration))
     stem = f"f2_similarity_vs_tokens_{split}"
     save_png(fig, out / f"{stem}.png")
     write_csv(out / f"{stem}.csv", rows, F2_FIELDS)
@@ -571,7 +600,7 @@ def make_f4(table, args, out):
         return rows, omitted
     constant = constant_level(table["rows"])
     fig = draw_scatter(rows, "fv_lift", "Lift of the first valid answer (own drug minus other drugs)", "Delivered similarity (first valid answer)",
-                       constant, (5.5, 3.5), zero_line=True)
+                       constant, (5.5, 3.5), zero_line=True, band=random_pair_band(args.calibration))
     stem = f"f4_lift_vs_similarity_{split}"
     save_png(fig, out / f"{stem}.png")
     write_csv(out / f"{stem}.csv", rows, F4_FIELDS)
@@ -638,6 +667,7 @@ def main(argv=None):
     ap.add_argument("--out", type=Path, default=Path("results/figures"))
     ap.add_argument("--table", type=Path, help="results table of the split (default results/<split>_baselines.json)")
     ap.add_argument("--data", type=Path, default=Path("data/processed"), help="folder with refs.jsonl and split_report.json (F1)")
+    ap.add_argument("--calibration", type=Path, default=Path("results/random_pair_calibration.json"), help="random-pair similarity percentiles (the band of F2 and F4); no band if absent")
     ap.add_argument("--rl-dir", type=Path, default=Path("runs/rl"))
     ap.add_argument("--rl-runs", default="R1,R3,R4", help="RL run folders under --rl-dir, comma separated; absent ones are skipped")
     ap.add_argument("--tables", action="store_true", help="write only the tables, no figures")
