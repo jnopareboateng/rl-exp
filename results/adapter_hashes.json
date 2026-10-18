@@ -2,60 +2,73 @@
  "A2-epoch1": {
   "adapter_model.safetensors": "fffc3107f2d02181a7329dd0f601733e84f581e01f6b09439c3daefc6025e4cd",
   "adapter_config.json": "bde8fbad67cad709bba943f01a0b8996f2799c3ba62d0442a8e4c8d4ed7fc294",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R1-step-10": {
   "adapter_model.safetensors": "9a355947f16e9bad458f5ffbba4878a60d0ac12e9410d5cac405dc06e9841c7a",
   "adapter_config.json": "6dd0306dc3c3982e5e9c04af82bc5a4ce17af9b25533cf17af940ab9fd761dc5",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R1-step-20": {
   "adapter_model.safetensors": "8abcf8938d8d3fa58160fae49014da2534ed9af3660a57c8f3a9285b89c1369c",
   "adapter_config.json": "6dd0306dc3c3982e5e9c04af82bc5a4ce17af9b25533cf17af940ab9fd761dc5",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R1-step-30": {
   "adapter_model.safetensors": "cc7ffcebc8f958bbe16a7621e32516f066302e252179a648b0a74a857671ab17",
   "adapter_config.json": "0a015a2211b9c21cd78e081c63ce7e0b02785766fb69446b8cfcebcbbe93e324",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R1-step-40": {
   "adapter_model.safetensors": "3372769983acc45731ca1c7561d7cf15c51c6940c22529760fff6673d2abdcb7",
   "adapter_config.json": "0a015a2211b9c21cd78e081c63ce7e0b02785766fb69446b8cfcebcbbe93e324",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R3-step-10": {
   "adapter_model.safetensors": "f249fc7abcc0683c2ec0cf71fb99cf5f254ece28c2f29921b5eefc75bfefe911",
   "adapter_config.json": "19625540efff41e42b01ce1d2fc0295c083365d4148dbcf597e11454a39c2708",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R3-step-20": {
   "adapter_model.safetensors": "ac53a2983b2479ddab6440f8cd7a0e13012abbb153c2ef0c9f92afbb4d6e0262",
   "adapter_config.json": "19625540efff41e42b01ce1d2fc0295c083365d4148dbcf597e11454a39c2708",
-  "size_bytes": 259787008
+  "size_bytes": 259787008,
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R5-step-10": {
   "adapter_model.safetensors": "0c234f88c37a64b9b43d50a96b390caf656682b0b8c8fa90c579f250c01d9d2f",
-  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
+  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R5-step-20": {
   "adapter_model.safetensors": "4114bf379233cef39f7e34c43f24974642f9a4d64aef9117ce3b2d3f86c7b1e2",
-  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
+  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R5-step-30": {
   "adapter_model.safetensors": "55caa42235a82bc862b3f8933b8a88a320f5621ea8232906692f227e8bb35bd5",
-  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
+  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R5-step-40": {
   "adapter_model.safetensors": "80c8497f1dc61a645062b45417bafea91026c752b0655bb0f8a52ad9e5922d6e",
-  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
+  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R5-step-50": {
   "adapter_model.safetensors": "b8caa7b0cda031ab9f9da09b00db9df28d093d83d5a3cedca1e0e1f1ddf4c2a9",
-  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
+  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  },
  "R5-step-60": {
   "adapter_model.safetensors": "04c5d5f27bf9be1eeeed87b3f84543da498eb45b31d8dc2326486229dfcd3918",
-  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b"
+  "adapter_config.json": "15c687a2cf28a6ec200770c400573a7324b312eddceacac7739bb0d5ee8c6d0b",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
  }
 }
