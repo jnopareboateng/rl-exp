@@ -1,0 +1,1045 @@
+{
+ "split": "test_t",
+ "sign": "A minus B: a positive difference means the first arm of the pair is higher",
+ "boot": 10000,
+ "seed": 0,
+ "selection_is_the_runs": true,
+ "selection": {
+  "rl": "RL-full",
+  "comparator": "C3"
+ },
+ "pairs": [
+  {
+   "a": "RL-full",
+   "b": "C0",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.18385362326128732,
+     "diff": 0.0018188775142383212,
+     "wins": 24,
+     "losses": 17,
+     "ties": 0,
+     "p_value": 0.7783022169778302,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.2852210538742952,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.010566511588086767,
+      0.014346133850066509
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.18385362326128732,
+     "diff": 0.00031767318642748795,
+     "wins": 20,
+     "losses": 21,
+     "ties": 0,
+     "p_value": 0.959260407395926,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.05317722784225774,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.011501304292007127,
+      0.011936019922059497
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.18385362326128732,
+     "diff": 0.0015408855999228708,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.010339897000130625,
+      0.013151651602475996
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": -1.3539305178355568e-18,
+     "diff": 0.008544586494924785,
+     "wins": 24,
+     "losses": 17,
+     "ties": 0,
+     "p_value": 0.22763772362276377,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.2451105825446447,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.005148066681341411,
+      0.021895181709474014
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 6.769652589177784e-19,
+     "diff": 0.007886065150030059,
+     "wins": 23,
+     "losses": 18,
+     "ties": 0,
+     "p_value": 0.2537074629253707,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.1767409296692344,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.005365628244426954,
+      0.020680642423894002
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 1.0,
+     "diff": -0.00975609756097561,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.025609756097560978,
+      0.0
+     ]
+    }
+   }
+  },
+  {
+   "a": "RL-full",
+   "b": "C1",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.16779452060292727,
+     "diff": 0.01787798017259838,
+     "wins": 30,
+     "losses": 11,
+     "ties": 0,
+     "p_value": 0.027509724902750974,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 2.318054686285772,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.003094442596668208,
+      0.032931224917480344
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.16779452060292727,
+     "diff": 0.01637677584478754,
+     "wins": 28,
+     "losses": 13,
+     "ties": 0,
+     "p_value": 0.03862961370386296,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 2.14594697488559,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.0014330551487954655,
+      0.031425481981933415
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.16779452060292727,
+     "diff": 0.017599988258282923,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.0025949320772684983,
+      0.03261570476649072
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": 0.014247533372305356,
+     "diff": -0.0057029468773805774,
+     "wins": 16,
+     "losses": 25,
+     "ties": 0,
+     "p_value": 0.4705052949470505,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.7392142537786205,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.02074183582568996,
+      0.009214810327888543
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 0.014247533372305356,
+     "diff": -0.0063614682222753,
+     "wins": 19,
+     "losses": 22,
+     "ties": 0,
+     "p_value": 0.4095659043409566,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.8394887004712945,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.021209351318229607,
+      0.008452093915332247
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 1.0,
+     "diff": -0.00975609756097561,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.025609756097560978,
+      0.0
+     ]
+    }
+   }
+  },
+  {
+   "a": "RL-full",
+   "b": "C3",
+   "split": "test_t",
+   "label": "confirmatory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.19905183395134235,
+     "diff": -0.01337933317581674,
+     "wins": 10,
+     "losses": 31,
+     "ties": 0,
+     "p_value": 0.06112938870611294,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -1.9675216175750032,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.026258489139030367,
+      0.0003918931271970509
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.19905183395134235,
+     "diff": -0.014880537503627578,
+     "wins": 10,
+     "losses": 31,
+     "ties": 0,
+     "p_value": 0.02908970910290897,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -2.316336878635057,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.027068281483532602,
+      -0.0018983436306257808
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.19905183395134235,
+     "diff": -0.013657325090132193,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.02600805912890238,
+      -0.0006316692017942886
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": 7.785100477554452e-18,
+     "diff": 0.008544586494924775,
+     "wins": 18,
+     "losses": 23,
+     "ties": 0,
+     "p_value": 0.2763572364276357,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.1255947640655743,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.006041568619629223,
+      0.023879205925849096
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 8.800548365931119e-18,
+     "diff": 0.007886065150030052,
+     "wins": 19,
+     "losses": 22,
+     "ties": 0,
+     "p_value": 0.2984970150298497,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.0739277169243586,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.006310000475613312,
+      0.022658516032304492
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 1.0,
+     "diff": -0.00975609756097561,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.025609756097560978,
+      0.0
+     ]
+    }
+   }
+  },
+  {
+   "a": "RL-full",
+   "b": "A0n",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.07250377148389306,
+     "diff": 0.11316872929163257,
+     "wins": 40,
+     "losses": 1,
+     "ties": 0,
+     "p_value": 9.99990000099999e-06,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 10.426065341292869,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.09238737451330524,
+      0.1350040784230071
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.01941843150646663,
+     "diff": 0.16475286494124816,
+     "wins": 41,
+     "losses": 0,
+     "ties": 0,
+     "p_value": 9.99990000099999e-06,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 22.02646998919292,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.15002716655589343,
+      0.17940979911827967
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.13098580456946102,
+     "diff": 0.05367334894707707,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 30,
+     "n_rows": 100,
+     "ci": [
+      0.03655355152516783,
+      0.07122822652782664
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": 0.005728671924082162,
+     "diff": 0.0028159145708426207,
+     "wins": 22,
+     "losses": 19,
+     "ties": 0,
+     "p_value": 0.7129928700712993,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.3809841797347229,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.011844965360720034,
+      0.017197400676527017
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 0.003107429479147159,
+     "diff": 0.004778635670882899,
+     "wins": 23,
+     "losses": 18,
+     "ties": 0,
+     "p_value": 0.5035649643503565,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.682493100496288,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.008941792241430322,
+      0.01843347594627436
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 0.13602642276422766,
+     "diff": 0.8542174796747966,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.8147865853658537,
+      0.8916666666666667
+     ]
+    }
+   }
+  },
+  {
+   "a": "RL-full",
+   "b": "A2",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.13118132280805753,
+     "diff": 0.054491177967468114,
+     "wins": 37,
+     "losses": 4,
+     "ties": 0,
+     "p_value": 9.99990000099999e-06,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 8.913719091444358,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.04256995714984226,
+      0.06658181105170728
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.07091151453541696,
+     "diff": 0.11325978191229784,
+     "wins": 41,
+     "losses": 0,
+     "ties": 0,
+     "p_value": 9.99990000099999e-06,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 16.633472662164976,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.10006806379578834,
+      0.12674831825127808
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.13645067726828553,
+     "diff": 0.048943831592924626,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.03936353867754974,
+      0.05877247348868328
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": -0.0035680996635010748,
+     "diff": 0.012112686158425857,
+     "wins": 24,
+     "losses": 17,
+     "ties": 0,
+     "p_value": 0.030809691903080968,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 2.2766978039743635,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.0019255360662435138,
+      0.02270497632530372
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 0.0024878605814185953,
+     "diff": 0.005398204568611463,
+     "wins": 23,
+     "losses": 18,
+     "ties": 0,
+     "p_value": 0.35995640043599564,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.9362172194588686,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.0061678992117494185,
+      0.01655429448688188
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 0.5126016260162602,
+     "diff": 0.4776422764227642,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.4344512195121951,
+      0.5233739837398373
+     ]
+    }
+   }
+  },
+  {
+   "a": "RL-full",
+   "b": "A4",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.14049416712947924,
+     "diff": 0.045178333646046426,
+     "wins": 32,
+     "losses": 9,
+     "ties": 0,
+     "p_value": 1.999980000199998e-05,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 4.469548860737608,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.026809085472568734,
+      0.06648672498411204
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.08661271369660331,
+     "diff": 0.0975585827511115,
+     "wins": 39,
+     "losses": 2,
+     "ties": 0,
+     "p_value": 9.99990000099999e-06,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 11.017571284973055,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.08069856802665511,
+      0.11548952768261832
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.15695898706919603,
+     "diff": 0.025614196910297943,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 40,
+     "n_rows": 100,
+     "ci": [
+      0.013415770401714995,
+      0.037546803751747806
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": 0.012691974091363254,
+     "diff": -0.004147387596438472,
+     "wins": 21,
+     "losses": 20,
+     "ties": 0,
+     "p_value": 0.6330236697633024,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.48592811156586474,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.02078319559647565,
+      0.012927796315247111
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 0.010728186180475696,
+     "diff": -0.002842121030445637,
+     "wins": 22,
+     "losses": 19,
+     "ties": 0,
+     "p_value": 0.6868031319686803,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.40939933270525425,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.01656828229649534,
+      0.010767759552504443
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 0.5301321138211382,
+     "diff": 0.46011178861788626,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.3980182926829269,
+      0.5238313008130081
+     ]
+    }
+   }
+  },
+  {
+   "a": "RL-full",
+   "b": "RL-full-shuffle",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.1856725007755256,
+     "b": 0.18129694123584464,
+     "diff": 0.004375559539680994,
+     "wins": 18,
+     "losses": 22,
+     "ties": 1,
+     "p_value": 0.3119068809311907,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.0440519014791125,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.0034111258415003617,
+      0.013048705344040729
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.1841712964477148,
+     "b": 0.17722202212956917,
+     "diff": 0.006949274318145606,
+     "wins": 25,
+     "losses": 16,
+     "ties": 0,
+     "p_value": 0.05012949870501295,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 2.0301006033676616,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.0004029389146523081,
+      0.01389834757469104
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.18539450886121014,
+     "b": 0.1787849727118253,
+     "diff": 0.006609536149384869,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      0.0010052659111417079,
+      0.012769832004766278
+     ]
+    },
+    "fv_lift": {
+     "a": 0.008544586494924782,
+     "b": 0.0053473880881885994,
+     "diff": 0.0031971984067361834,
+     "wins": 20,
+     "losses": 20,
+     "ties": 1,
+     "p_value": 0.3800161998380016,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.8945241799819207,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.003697495809827561,
+      0.010311608045806307
+     ]
+    },
+    "lift": {
+     "a": 0.007886065150030059,
+     "b": 0.0033642795903783963,
+     "diff": 0.004521785559651662,
+     "wins": 25,
+     "losses": 16,
+     "ties": 0,
+     "p_value": 0.17085829141708583,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 1.4058356255849982,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.0015468961026804445,
+      0.0109584353881432
+     ]
+    },
+    "valid_closed": {
+     "a": 0.9902439024390244,
+     "b": 0.9890752032520326,
+     "diff": 0.0011686991869918684,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.01783536585365854,
+      0.01717479674796748
+     ]
+    }
+   }
+  },
+  {
+   "a": "A2",
+   "b": "A2-shuffle",
+   "split": "test_t",
+   "label": "exploratory",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "cohort": {
+    "drugs": 41,
+    "rows": 100
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.13118132280805753,
+     "b": 0.13308057193545647,
+     "diff": -0.0018992491273989469,
+     "wins": 21,
+     "losses": 20,
+     "ties": 0,
+     "p_value": 0.7832121678783213,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.2830577354969611,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.014752892303923335,
+      0.011906035857091605
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.07091151453541696,
+     "b": 0.07023895376077077,
+     "diff": 0.0006725607746461767,
+     "wins": 22,
+     "losses": 19,
+     "ties": 0,
+     "p_value": 0.8923710762892371,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.13672389470326712,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.009015444821792321,
+      0.010297431585885622
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.13645067726828553,
+     "b": 0.1333602383351382,
+     "diff": 0.003090438933147362,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.006194769338468222,
+      0.011417046674424886
+     ]
+    },
+    "fv_lift": {
+     "a": -0.0035680996635010748,
+     "b": 0.0006020649861928503,
+     "diff": -0.004170164649693925,
+     "wins": 21,
+     "losses": 20,
+     "ties": 0,
+     "p_value": 0.5084649153508465,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": -0.6842853460966435,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.015672253244731316,
+      0.008092332088949293
+     ]
+    },
+    "lift": {
+     "a": 0.0024878605814185953,
+     "b": 0.0010612376192980835,
+     "diff": 0.001426622962120512,
+     "wins": 24,
+     "losses": 17,
+     "ties": 0,
+     "p_value": 0.4808251917480825,
+     "p_method": "monte_carlo",
+     "p_unit": "cluster",
+     "n_clusters": 41,
+     "studentized": 0.738505770725458,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.002285784057134547,
+      0.005294769872958254
+     ]
+    },
+    "valid_closed": {
+     "a": 0.5126016260162602,
+     "b": 0.5281504065040651,
+     "diff": -0.015548780487804871,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 41,
+     "n_rows": 100,
+     "ci": [
+      -0.07713541666666666,
+      0.044105691056910576
+     ]
+    }
+   }
+  }
+ ]
+}

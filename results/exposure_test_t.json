@@ -1,0 +1,163 @@
+{
+ "a": "RL-full",
+ "b": "C3",
+ "split": "test_t",
+ "metric": "fv_tanimoto",
+ "sign": "A minus B: a positive difference means run A is higher",
+ "label": "exploratory",
+ "definitions": {
+  "pubmed_count": "PubMed article count of the drug (refs.jsonl; data/curated/exposure.json fills a missing value)",
+  "record_age": "years the structure was public before first approval: approval year minus the creation year of its PubChem record",
+  "terciles": "rank * 3 // n over the drugs that have the covariate, ordered by (covariate, drug id), lowest first"
+ },
+ "n_drugs": 41,
+ "overall": {
+  "mean_a": 0.1856725007755256,
+  "mean_b": 0.19905183395134235,
+  "mean_diff": -0.01337933317581674,
+  "n_drugs": 41,
+  "n_clusters": 41,
+  "wins": 10,
+  "losses": 31,
+  "ties": 0,
+  "p_value": 0.06112938870611294,
+  "p_method": "monte_carlo",
+  "p_unit": "cluster"
+ },
+ "missing": {
+  "pubmed_count": 0,
+  "pubchem_create_year": 1,
+  "approval_year": 0,
+  "record_age": 1
+ },
+ "covariates": {
+  "pubmed_count": {
+   "label": "exploratory",
+   "n_drugs": 41,
+   "missing": 0,
+   "terciles": [
+    {
+     "tercile": "low",
+     "range": [
+      5,
+      39
+     ],
+     "mean_a": 0.1916320174377446,
+     "mean_b": 0.19943307652457495,
+     "mean_diff": -0.007801059086830324,
+     "n_drugs": 14,
+     "n_clusters": 14,
+     "wins": 5,
+     "losses": 9,
+     "ties": 0,
+     "p_value": 0.6092529296875,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "label": "exploratory"
+    },
+    {
+     "tercile": "middle",
+     "range": [
+      46,
+      85
+     ],
+     "mean_a": 0.19502354032145822,
+     "mean_b": 0.22435363737669653,
+     "mean_diff": -0.029330097055238324,
+     "n_drugs": 14,
+     "n_clusters": 14,
+     "wins": 2,
+     "losses": 12,
+     "ties": 0,
+     "p_value": 0.0072021484375,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "label": "exploratory"
+    },
+    {
+     "tercile": "high",
+     "range": [
+      92,
+      677
+     ],
+     "mean_a": 0.16918420947443932,
+     "mean_b": 0.17139316902978746,
+     "mean_diff": -0.0022089595553480973,
+     "n_drugs": 13,
+     "n_clusters": 13,
+     "wins": 3,
+     "losses": 10,
+     "ties": 0,
+     "p_value": 0.85595703125,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "label": "exploratory"
+    }
+   ]
+  },
+  "record_age": {
+   "label": "exploratory",
+   "n_drugs": 40,
+   "missing": 1,
+   "terciles": [
+    {
+     "tercile": "low",
+     "range": [
+      3,
+      8
+     ],
+     "mean_a": 0.1783744171259575,
+     "mean_b": 0.20233995455794898,
+     "mean_diff": -0.023965537431991504,
+     "n_drugs": 14,
+     "n_clusters": 14,
+     "wins": 2,
+     "losses": 12,
+     "ties": 0,
+     "p_value": 0.000732421875,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "label": "exploratory"
+    },
+    {
+     "tercile": "middle",
+     "range": [
+      8,
+      13
+     ],
+     "mean_a": 0.18550903478465225,
+     "mean_b": 0.22178500283250152,
+     "mean_diff": -0.036275968047849265,
+     "n_drugs": 13,
+     "n_clusters": 13,
+     "wins": 1,
+     "losses": 12,
+     "ties": 0,
+     "p_value": 0.001220703125,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "label": "exploratory"
+    },
+    {
+     "tercile": "high",
+     "range": [
+      14,
+      20
+     ],
+     "mean_a": 0.20101771499089513,
+     "mean_b": 0.1820796762593255,
+     "mean_diff": 0.018938038731569625,
+     "n_drugs": 13,
+     "n_clusters": 13,
+     "wins": 6,
+     "losses": 7,
+     "ties": 0,
+     "p_value": 0.260498046875,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "label": "exploratory"
+    }
+   ]
+  }
+ }
+}

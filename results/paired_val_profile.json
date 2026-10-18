@@ -1,0 +1,397 @@
+{
+ "split": "val",
+ "sign": "A minus B: a positive difference means the first arm of the pair is higher",
+ "boot": 10000,
+ "seed": 0,
+ "selection_is_the_runs": null,
+ "selection": null,
+ "pairs": [
+  {
+   "a": "a2-val",
+   "b": "a2-shuffle-t1.0",
+   "split": "val",
+   "label": "exploratory",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "cohort": {
+    "drugs": 20,
+    "rows": 58
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.15567760756229113,
+     "b": 0.13146781381505734,
+     "diff": 0.02420979374723377,
+     "wins": 13,
+     "losses": 7,
+     "ties": 0,
+     "p_value": 0.022308349609375,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 2.4265186132548036,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.007336976016956771,
+      0.04590609844067377
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.07918943211214881,
+     "b": 0.07355022159198711,
+     "diff": 0.0056392105201617,
+     "wins": 13,
+     "losses": 7,
+     "ties": 0,
+     "p_value": 0.370849609375,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 0.9373660885491066,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.0070416809989844,
+      0.016865010555606286
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.14403324617810695,
+     "b": 0.13103419088635876,
+     "diff": 0.0129990552917482,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.0045874854123464735,
+      0.022039220832038242
+     ]
+    },
+    "fv_lift": {
+     "a": 0.019567110103438336,
+     "b": -0.007088079742389208,
+     "diff": 0.026655189845827543,
+     "wins": 16,
+     "losses": 4,
+     "ties": 0,
+     "p_value": 0.00634765625,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 3.319657971670912,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.011871532170126462,
+      0.04359888873332799
+     ]
+    },
+    "lift": {
+     "a": 0.00523579571273394,
+     "b": -0.0024377264849782714,
+     "diff": 0.00767352219771221,
+     "wins": 15,
+     "losses": 5,
+     "ties": 0,
+     "p_value": 0.00543212890625,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 3.1491224302327727,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.0034321004160896393,
+      0.01296233522630878
+     ]
+    },
+    "valid_closed": {
+     "a": 0.5557291666666666,
+     "b": 0.5651041666666666,
+     "diff": -0.009374999999999994,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.0798611111111111,
+      0.044270833333333336
+     ]
+    }
+   }
+  },
+  {
+   "a": "rlfull5-s50-t0.3",
+   "b": "r5s50-shuffle-t0.3",
+   "split": "val",
+   "label": "exploratory",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "cohort": {
+    "drugs": 20,
+    "rows": 58
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.19490439119145103,
+     "b": 0.1831391211993937,
+     "diff": 0.011765269992057322,
+     "wins": 13,
+     "losses": 7,
+     "ties": 0,
+     "p_value": 0.034149169921875,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 2.7236303705706297,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.002892153998082253,
+      0.019652441271254185
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.19257255374737292,
+     "b": 0.18130573345450327,
+     "diff": 0.011266820292869666,
+     "wins": 14,
+     "losses": 6,
+     "ties": 0,
+     "p_value": 0.009521484375,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 3.423417504256139,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.004269646376896539,
+      0.017113171773756906
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.19257255374737292,
+     "b": 0.18130573345450327,
+     "diff": 0.011266820292869666,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.004269646376896539,
+      0.017113171773756906
+     ]
+    },
+    "fv_lift": {
+     "a": 0.013204017362252424,
+     "b": 0.0005890609061655422,
+     "diff": 0.012614956456086882,
+     "wins": 13,
+     "losses": 7,
+     "ties": 0,
+     "p_value": 0.021240234375,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 2.975595203036614,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.0037000793105135894,
+      0.02023995116046537
+     ]
+    },
+    "lift": {
+     "a": 0.010358630074727156,
+     "b": -0.0012089270708917604,
+     "diff": 0.011567557145618915,
+     "wins": 13,
+     "losses": 7,
+     "ties": 0,
+     "p_value": 0.018951416015625,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 2.982855401592087,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.0033794075386485343,
+      0.01846043474891178
+     ]
+    },
+    "valid_closed": {
+     "a": 1.0,
+     "b": 1.0,
+     "diff": 0.0,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  {
+   "a": "rlfull5-s50-t0.3",
+   "b": "val8-control_constant_pool",
+   "split": "val",
+   "label": "exploratory",
+   "n_drugs": 20,
+   "n_rows": 58,
+   "cohort": {
+    "drugs": 20,
+    "rows": 58
+   },
+   "partial": false,
+   "metrics": {
+    "fv_tanimoto": {
+     "a": 0.19490439119145103,
+     "b": 0.1865340812492177,
+     "diff": 0.00837030994223333,
+     "wins": 12,
+     "losses": 8,
+     "ties": 0,
+     "p_value": 0.6558837890625,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 0.612743863555555,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.020791347099751403,
+      0.03180807431786731
+     ]
+    },
+    "mean_tanimoto": {
+     "a": 0.19257255374737292,
+     "b": 0.1865340812492177,
+     "diff": 0.006038472498155268,
+     "wins": 11,
+     "losses": 9,
+     "ties": 0,
+     "p_value": 0.744293212890625,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 0.45451070819958755,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.022403842296729808,
+      0.02874083227203709
+     ]
+    },
+    "tanimoto_valid": {
+     "a": 0.19257255374737292,
+     "b": 0.1865340812492177,
+     "diff": 0.006038472498155268,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.022403842296729808,
+      0.02874083227203709
+     ]
+    },
+    "fv_lift": {
+     "a": 0.013204017362252424,
+     "b": 2.0816681711721684e-18,
+     "diff": 0.013204017362252424,
+     "wins": 12,
+     "losses": 8,
+     "ties": 0,
+     "p_value": 0.522186279296875,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 0.8884785018809174,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.018528468537723455,
+      0.03874630490365225
+     ]
+    },
+    "lift": {
+     "a": 0.010358630074727156,
+     "b": -1.3877787807814458e-18,
+     "diff": 0.010358630074727157,
+     "wins": 12,
+     "losses": 8,
+     "ties": 0,
+     "p_value": 0.616912841796875,
+     "p_method": "exact",
+     "p_unit": "cluster",
+     "n_clusters": 16,
+     "studentized": 0.7191396709446605,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      -0.020430143156690492,
+      0.03502195107356086
+     ]
+    },
+    "valid_closed": {
+     "a": 1.0,
+     "b": 1.0,
+     "diff": 0.0,
+     "wins": null,
+     "losses": null,
+     "ties": null,
+     "p_value": null,
+     "p_method": null,
+     "p_unit": null,
+     "n_clusters": null,
+     "studentized": null,
+     "n_drugs": 20,
+     "n_rows": 58,
+     "ci": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  }
+ ]
+}

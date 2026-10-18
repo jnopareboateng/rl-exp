@@ -1,0 +1,1156 @@
+{
+ "splits": [
+  "test_t",
+  "test_r"
+ ],
+ "boot": 2000,
+ "seed": 0,
+ "columns": [
+  "valid_closed",
+  "exact@1",
+  "core@1",
+  "mean_tanimoto",
+  "fv_tanimoto",
+  "fv_samples",
+  "fv_tokens",
+  "fv_lift",
+  "lift",
+  "tanimoto_valid",
+  "core@8",
+  "fv_rate",
+  "mean_reward"
+ ],
+ "notes": {
+  "prompt_tokens": "mean tokens of the ORIGINAL prompt of the rows (arm files keep that count): too many for the blank-profile arms, too few for the retrieval, name-given and identification arms; fv_tokens + prompt_tokens is a cost only for arms that read the original prompt",
+  "constant_bar": "the best constant Train reference scored on the rows of the run named in `from`; the molecule is not copied"
+ },
+ "constant_bar": {
+  "test_t": {
+   "from": "C0",
+   "fv_tanimoto": 0.18385362326128732,
+   "mean_tanimoto": 0.18385362326128732,
+   "mean_reward": 0.1603121739567724,
+   "lift": 6.769652589177784e-19,
+   "exact@1": 0.0,
+   "core@1": 0.0
+  },
+  "test_r": {
+   "from": "C0",
+   "fv_tanimoto": 0.15955440836971035,
+   "mean_tanimoto": 0.15955440836971035,
+   "mean_reward": 0.14573264502182623,
+   "lift": 2.4980018054066023e-17,
+   "exact@1": 0.0,
+   "core@1": 0.0
+  }
+ },
+ "c3": {
+  "test_t": {
+   "fv_tanimoto": 0.19905183395134235,
+   "mean_tanimoto": 0.19905183395134235
+  },
+  "test_r": {
+   "fv_tanimoto": 0.15938199849837603,
+   "mean_tanimoto": 0.15938199849837603
+  }
+ },
+ "gaps": [],
+ "rows": [
+  {
+   "run": "C0",
+   "label": "C0",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_t",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.18385362326128732,
+   "fv_tanimoto": 0.18385362326128732,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": -1.3539305178355568e-18,
+   "lift": 6.769652589177784e-19,
+   "tanimoto_valid": 0.18385362326128732,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.1603121739567724,
+   "lift_ci": [
+    -0.015706569349009936,
+    0.01445415613439552
+   ],
+   "fv_tanimoto_ci": [
+    0.1685301409695703,
+    0.19795523900216105
+   ],
+   "mean_tanimoto_ci": [
+    0.1685301409695703,
+    0.197955239002161
+   ],
+   "fv_lift_ci": [
+    -0.01570656934900994,
+    0.014454156134395522
+   ]
+  },
+  {
+   "run": "C1",
+   "label": "C1",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_t",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.16779452060292727,
+   "fv_tanimoto": 0.16779452060292727,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": 0.014247533372305356,
+   "lift": 0.014247533372305356,
+   "tanimoto_valid": 0.16779452060292727,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.1506767123617564,
+   "lift_ci": [
+    -0.00026602793333628245,
+    0.027614345569890814
+   ],
+   "fv_tanimoto_ci": [
+    0.15107706949509186,
+    0.18378448590814211
+   ],
+   "mean_tanimoto_ci": [
+    0.15107706949509186,
+    0.18378448590814211
+   ],
+   "fv_lift_ci": [
+    -0.00026602793333628115,
+    0.027614345569890814
+   ]
+  },
+  {
+   "run": "C2",
+   "label": "C2",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_t",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.07724893338270812,
+   "fv_tanimoto": 0.07724893338270812,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": 1.3539305178355568e-18,
+   "lift": 2.2001370914827798e-18,
+   "tanimoto_valid": 0.07724893338270812,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09634936002962488,
+   "lift_ci": [
+    -0.010545071520244457,
+    0.010782811605272533
+   ],
+   "fv_tanimoto_ci": [
+    0.06696105872881111,
+    0.08776874958297401
+   ],
+   "mean_tanimoto_ci": [
+    0.06696105872881111,
+    0.08776874958297401
+   ],
+   "fv_lift_ci": [
+    -0.010545071520244453,
+    0.010782811605272533
+   ]
+  },
+  {
+   "run": "C3",
+   "label": "C3",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_t",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.19905183395134235,
+   "fv_tanimoto": 0.19905183395134235,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": 7.785100477554452e-18,
+   "lift": 8.800548365931119e-18,
+   "tanimoto_valid": 0.19905183395134235,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.16943110037080542,
+   "lift_ci": [
+    -0.018143442717880067,
+    0.01725398477047302
+   ],
+   "fv_tanimoto_ci": [
+    0.18135091422658134,
+    0.21588498982497456
+   ],
+   "mean_tanimoto_ci": [
+    0.18135091422658134,
+    0.21588498982497456
+   ],
+   "fv_lift_ci": [
+    -0.018143442717880067,
+    0.01725398477047302
+   ]
+  },
+  {
+   "run": "A0n",
+   "label": "4B untrained, no-think",
+   "decoding": "T=0.6, k=8, no-think",
+   "split": "test_t",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.13602642276422766,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.01941843150646663,
+   "fv_tanimoto": 0.07250377148389306,
+   "fv_samples": 5.482113821138212,
+   "fv_tokens": 760.9743902439025,
+   "fv_lift": 0.005728671924082162,
+   "lift": 0.003107429479147159,
+   "tanimoto_valid": 0.13098580456946102,
+   "core@8": 0.0,
+   "fv_rate": 0.5520325203252032,
+   "mean_reward": 0.018452380042091363,
+   "lift_ci": [
+    0.0006599089068922703,
+    0.006126844700244211
+   ],
+   "fv_tanimoto_ci": [
+    0.05296155428260487,
+    0.09246089317033801
+   ],
+   "mean_tanimoto_ci": [
+    0.012715421108759884,
+    0.02621668825436525
+   ],
+   "fv_lift_ci": [
+    -0.001619956430192277,
+    0.01356753572290071
+   ]
+  },
+  {
+   "run": "A4",
+   "label": "4B + 3 retrieved examples",
+   "decoding": "T=0.6, k=8, no-think",
+   "split": "test_t",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.5301321138211382,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.08661271369660331,
+   "fv_tanimoto": 0.14049416712947924,
+   "fv_samples": 2.395528455284553,
+   "fv_tokens": 359.81260162601626,
+   "fv_lift": 0.012691974091363254,
+   "lift": 0.010728186180475696,
+   "tanimoto_valid": 0.15695898706919603,
+   "core@8": 0.0,
+   "fv_rate": 0.9142276422764228,
+   "mean_reward": 0.07847423390901889,
+   "lift_ci": [
+    0.00546865932534046,
+    0.01679821504801652
+   ],
+   "fv_tanimoto_ci": [
+    0.12543546812181902,
+    0.15464506999724298
+   ],
+   "mean_tanimoto_ci": [
+    0.07266339213632717,
+    0.10049733542441378
+   ],
+   "fv_lift_ci": [
+    0.003059641277192652,
+    0.023257426644779537
+   ]
+  },
+  {
+   "run": "A2",
+   "label": "4B answer-only SFT (epoch 1)",
+   "decoding": "T=1.0, k=8, think mode",
+   "split": "test_t",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.5126016260162602,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.07091151453541696,
+   "fv_tanimoto": 0.13118132280805753,
+   "fv_samples": 2.0020325203252036,
+   "fv_tokens": 92.18536585365854,
+   "fv_lift": -0.0035680996635010748,
+   "lift": 0.0024878605814185953,
+   "tanimoto_valid": 0.13645067726828553,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.06817699002206318,
+   "lift_ci": [
+    -0.0014201225198153145,
+    0.006722106719009973
+   ],
+   "fv_tanimoto_ci": [
+    0.11790121280956412,
+    0.14423725760414327
+   ],
+   "mean_tanimoto_ci": [
+    0.06221617541721815,
+    0.07957415053031346
+   ],
+   "fv_lift_ci": [
+    -0.015583234552624468,
+    0.008148774995866765
+   ]
+  },
+  {
+   "run": "RL-full",
+   "label": "4B RL, standard reward (R5-step-50)",
+   "decoding": "T=0.3, k=8, think mode",
+   "split": "test_t",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.9902439024390244,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.1841712964477148,
+   "fv_tanimoto": 0.1856725007755256,
+   "fv_samples": 1.0048780487804878,
+   "fv_tokens": 34.298373983739836,
+   "fv_lift": 0.008544586494924782,
+   "lift": 0.007886065150030059,
+   "tanimoto_valid": 0.18539450886121014,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.16001497299058012,
+   "lift_ci": [
+    -0.006647874632040945,
+    0.021382525650967082
+   ],
+   "fv_tanimoto_ci": [
+    0.17011508026229963,
+    0.20093197767624776
+   ],
+   "mean_tanimoto_ci": [
+    0.1686084147229021,
+    0.19882851937187052
+   ],
+   "fv_lift_ci": [
+    -0.006695106374630643,
+    0.02311176224951841
+   ]
+  },
+  {
+   "run": "A2-shuffle",
+   "label": "A2 with a shuffle profile",
+   "decoding": "T=1.0, k=8, think mode",
+   "split": "test_t",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.5281504065040651,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.07023895376077077,
+   "fv_tanimoto": 0.13308057193545647,
+   "fv_samples": 1.8930894308943091,
+   "fv_tokens": 84.43130081300812,
+   "fv_lift": 0.0006020649861928503,
+   "lift": 0.0010612376192980835,
+   "tanimoto_valid": 0.1333602383351382,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.0685508925816657,
+   "lift_ci": [
+    -0.0028992525209407586,
+    0.004785813571595808
+   ],
+   "fv_tanimoto_ci": [
+    0.1202143820631911,
+    0.14637113100727528
+   ],
+   "mean_tanimoto_ci": [
+    0.0628271573996241,
+    0.07663609246618201
+   ],
+   "fv_lift_ci": [
+    -0.011133220143803914,
+    0.011714580779392397
+   ]
+  },
+  {
+   "run": "A2-blank",
+   "label": "A2 with a blank profile",
+   "decoding": "T=1.0, k=8, think mode",
+   "split": "test_t",
+   "family": "Diagnostic",
+   "shared_draws": true,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.7446646341463415,
+   "exact@1": 0.0,
+   "core@1": 0.003048780487804878,
+   "mean_tanimoto": 0.11651789288344605,
+   "fv_tanimoto": 0.13698251316561041,
+   "fv_samples": 1.0,
+   "fv_tokens": 28.0,
+   "fv_lift": -4.06179155350667e-18,
+   "lift": 0.00016735062194105646,
+   "tanimoto_valid": 0.15615974634314247,
+   "core@8": 0.024390243902439025,
+   "fv_rate": 1.0,
+   "mean_reward": 0.10805860158372614,
+   "lift_ci": [
+    -0.007801977646544282,
+    0.007417911162601693
+   ],
+   "fv_tanimoto_ci": [
+    0.12342260542131271,
+    0.14966624303925324
+   ],
+   "mean_tanimoto_ci": [
+    0.10837726996721889,
+    0.12396470725680994
+   ],
+   "fv_lift_ci": [
+    -0.013898905437905148,
+    0.013000823120483911
+   ]
+  },
+  {
+   "run": "RL-full-shuffle",
+   "label": "RL-full with a shuffle profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "split": "test_t",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.9890752032520326,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.17722202212956917,
+   "fv_tanimoto": 0.18129694123584464,
+   "fv_samples": 1.0,
+   "fv_tokens": 34.80040650406504,
+   "fv_lift": 0.0053473880881885994,
+   "lift": 0.0033642795903783963,
+   "tanimoto_valid": 0.1787849727118253,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.15578697344034312,
+   "lift_ci": [
+    -0.013661692780443341,
+    0.019167002898094202
+   ],
+   "fv_tanimoto_ci": [
+    0.16347797323640684,
+    0.19751627349570883
+   ],
+   "mean_tanimoto_ci": [
+    0.16058537196315023,
+    0.19271912872987654
+   ],
+   "fv_lift_ci": [
+    -0.011957606920672718,
+    0.021343827947425162
+   ]
+  },
+  {
+   "run": "RL-full-blank",
+   "label": "RL-full with a blank profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "split": "test_t",
+   "family": "Diagnostic",
+   "shared_draws": true,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.1662020240502393,
+   "fv_tanimoto": 0.16313782625982803,
+   "fv_samples": 1.0,
+   "fv_tokens": 26.0,
+   "fv_lift": -6.769652589177784e-19,
+   "lift": -6.769652589177784e-19,
+   "tanimoto_valid": 0.1662020240502393,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.14972121443014355,
+   "lift_ci": [
+    -0.018197576911478722,
+    0.016774092708018648
+   ],
+   "fv_tanimoto_ci": [
+    0.1451739665952929,
+    0.17967640696445936
+   ],
+   "mean_tanimoto_ci": [
+    0.1484482904780649,
+    0.1825669925458672
+   ],
+   "fv_lift_ci": [
+    -0.0184129561561485,
+    0.0169520452222471
+   ]
+  },
+  {
+   "run": "name-4B",
+   "label": "4B name",
+   "decoding": "T=1.0, k=8, no-think",
+   "split": "test_t",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 41,
+   "samples": 800,
+   "prompt_tokens": 815.39918699187,
+   "valid_closed": 0.22042682926829268,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.026229997307508208,
+   "fv_tanimoto": 0.1124975656230281,
+   "fv_samples": 3.583333333333334,
+   "fv_tokens": 274.9552845528455,
+   "fv_lift": 0.003427739016158289,
+   "lift": 0.0008210469768971982,
+   "tanimoto_valid": 0.12279575878227801,
+   "core@8": 0.0,
+   "fv_rate": 0.8658536585365854,
+   "mean_reward": 0.02675933984791956,
+   "lift_ci": [
+    -0.0016785902895236251,
+    0.003488358232150717
+   ],
+   "fv_tanimoto_ci": [
+    0.09454662935387419,
+    0.13020192069537453
+   ],
+   "mean_tanimoto_ci": [
+    0.021190851922149624,
+    0.03166632919468918
+   ],
+   "fv_lift_ci": [
+    -0.007439085325671028,
+    0.01420558024311812
+   ]
+  },
+  {
+   "run": "ident-4B",
+   "label": "4B ident",
+   "decoding": "T=1.0, k=8, no-think",
+   "split": "test_t",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "identification",
+   "drugs": 41,
+   "samples": 800,
+   "name_match@1": 0.0,
+   "pass_k": 8,
+   "name_pass": 0.0,
+   "answered": 0.7607
+  },
+  {
+   "run": "C0",
+   "label": "C0",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_r",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.15955440836971035,
+   "fv_tanimoto": 0.15955440836971035,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": 2.3592239273284576e-17,
+   "lift": 2.4980018054066023e-17,
+   "tanimoto_valid": 0.15955440836971035,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.14573264502182623,
+   "lift_ci": [
+    -0.026016447678353382,
+    0.02977485029883489
+   ],
+   "fv_tanimoto_ci": [
+    0.13440517561396875,
+    0.18833676365858412
+   ],
+   "mean_tanimoto_ci": [
+    0.13440517561396872,
+    0.18833676365858412
+   ],
+   "fv_lift_ci": [
+    -0.026016447678353382,
+    0.02977485029883489
+   ]
+  },
+  {
+   "run": "C1",
+   "label": "C1",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_r",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.16588007457481269,
+   "fv_tanimoto": 0.16588007457481269,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": 0.03774501819631209,
+   "lift": 0.037745018196312104,
+   "tanimoto_valid": 0.16588007457481269,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.1495280447448876,
+   "lift_ci": [
+    0.014878654690912114,
+    0.05823307039788527
+   ],
+   "fv_tanimoto_ci": [
+    0.14309845819401026,
+    0.18727642532116215
+   ],
+   "mean_tanimoto_ci": [
+    0.14309845819401026,
+    0.18727642532116215
+   ],
+   "fv_lift_ci": [
+    0.01487865469091211,
+    0.05823307039788527
+   ]
+  },
+  {
+   "run": "C2",
+   "label": "C2",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_r",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.07796287314404027,
+   "fv_tanimoto": 0.07796287314404028,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": -4.625929269271485e-18,
+   "lift": -3.7007434154171884e-18,
+   "tanimoto_valid": 0.07796287314404027,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09677772388642417,
+   "lift_ci": [
+    -0.014548511190095178,
+    0.015623873093005535
+   ],
+   "fv_tanimoto_ci": [
+    0.06389931232694827,
+    0.09306595046727896
+   ],
+   "mean_tanimoto_ci": [
+    0.06389931232694827,
+    0.09306595046727896
+   ],
+   "fv_lift_ci": [
+    -0.014548511190095178,
+    0.015623873093005532
+   ]
+  },
+  {
+   "run": "C3",
+   "label": "C3",
+   "decoding": "deterministic, copied to eight samples",
+   "split": "test_r",
+   "family": "Control",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.15938199849837603,
+   "fv_tanimoto": 0.15938199849837603,
+   "fv_samples": 1.0,
+   "fv_tokens": 0.0,
+   "fv_lift": -1.0639637319324418e-17,
+   "lift": -1.0639637319324418e-17,
+   "tanimoto_valid": 0.15938199849837603,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.14562919909902564,
+   "lift_ci": [
+    -0.024787595858133876,
+    0.028459226771376578
+   ],
+   "fv_tanimoto_ci": [
+    0.13542065583551335,
+    0.18689258437737347
+   ],
+   "mean_tanimoto_ci": [
+    0.13542065583551333,
+    0.18689258437737347
+   ],
+   "fv_lift_ci": [
+    -0.024787595858133876,
+    0.02845922677137659
+   ]
+  },
+  {
+   "run": "A0n",
+   "label": "4B untrained, no-think",
+   "decoding": "T=0.6, k=8, no-think",
+   "split": "test_r",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.30868055555555546,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.04062559665517618,
+   "fv_tanimoto": 0.0900950956677191,
+   "fv_samples": 4.063888888888889,
+   "fv_tokens": 421.87222222222226,
+   "fv_lift": 0.013305997956524956,
+   "lift": 0.007405652428514683,
+   "tanimoto_valid": 0.13442001272181447,
+   "core@8": 0.0,
+   "fv_rate": 0.7055555555555555,
+   "mean_reward": 0.039809385770883485,
+   "lift_ci": [
+    0.003145853139842523,
+    0.01214830423321489
+   ],
+   "fv_tanimoto_ci": [
+    0.07102664202434511,
+    0.10811957171081125
+   ],
+   "mean_tanimoto_ci": [
+    0.030916049652421947,
+    0.050152159780479
+   ],
+   "fv_lift_ci": [
+    0.0038926674200912142,
+    0.02277227028900165
+   ]
+  },
+  {
+   "run": "A4",
+   "label": "4B + 3 retrieved examples",
+   "decoding": "T=0.6, k=8, no-think",
+   "split": "test_r",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.5673611111111112,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.08690571191467286,
+   "fv_tanimoto": 0.13752545288049156,
+   "fv_samples": 2.152777777777778,
+   "fv_tokens": 290.91388888888895,
+   "fv_lift": 0.0239614681055683,
+   "lift": 0.01822408002588147,
+   "tanimoto_valid": 0.15148209705942378,
+   "core@8": 0.0,
+   "fv_rate": 0.9361111111111111,
+   "mean_reward": 0.08051148270435927,
+   "lift_ci": [
+    0.009517474920337379,
+    0.026566555938178957
+   ],
+   "fv_tanimoto_ci": [
+    0.11600184959680523,
+    0.15648366491381685
+   ],
+   "mean_tanimoto_ci": [
+    0.07476414516605949,
+    0.09963709023896113
+   ],
+   "fv_lift_ci": [
+    0.006190689335605453,
+    0.04143877318193601
+   ]
+  },
+  {
+   "run": "A2",
+   "label": "4B answer-only SFT (epoch 1)",
+   "decoding": "T=1.0, k=8, think mode",
+   "split": "test_r",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.5239583333333334,
+   "exact@1": 0.0,
+   "core@1": 0.0010416666666666667,
+   "mean_tanimoto": 0.07056564425252723,
+   "fv_tanimoto": 0.13305839441477982,
+   "fv_samples": 2.1222222222222222,
+   "fv_tokens": 98.4361111111111,
+   "fv_lift": 0.016617862454685117,
+   "lift": 0.007645785553178312,
+   "tanimoto_valid": 0.13567071598397895,
+   "core@8": 0.008333333333333333,
+   "fv_rate": 0.9833333333333333,
+   "mean_reward": 0.068849803218183,
+   "lift_ci": [
+    0.003280619589051882,
+    0.012358091491283243
+   ],
+   "fv_tanimoto_ci": [
+    0.11970612485618537,
+    0.1499158855070521
+   ],
+   "mean_tanimoto_ci": [
+    0.06265753731200946,
+    0.0795936583858753
+   ],
+   "fv_lift_ci": [
+    0.0040756062020834705,
+    0.030635427526277167
+   ]
+  },
+  {
+   "run": "RL-full",
+   "label": "4B RL, standard reward (R5-step-50)",
+   "decoding": "T=0.3, k=8, think mode",
+   "split": "test_r",
+   "family": "4B arm",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.9833333333333333,
+   "exact@1": 0.0,
+   "core@1": 0.0010416666666666667,
+   "mean_tanimoto": 0.1662541179627168,
+   "fv_tanimoto": 0.16848353306386402,
+   "fv_samples": 1.0222222222222224,
+   "fv_tokens": 34.25555555555555,
+   "fv_lift": 0.013363436289927555,
+   "lift": 0.01275494541535346,
+   "tanimoto_valid": 0.16928210473029376,
+   "core@8": 0.008333333333333333,
+   "fv_rate": 1.0,
+   "mean_reward": 0.14923163744429677,
+   "lift_ci": [
+    -0.008048769755519266,
+    0.036400110738064054
+   ],
+   "fv_tanimoto_ci": [
+    0.14666473338515915,
+    0.19296417717488096
+   ],
+   "mean_tanimoto_ci": [
+    0.1440907257338087,
+    0.19129650336167778
+   ],
+   "fv_lift_ci": [
+    -0.008215861723758518,
+    0.037743458513350064
+   ]
+  },
+  {
+   "run": "A2-shuffle",
+   "label": "A2 with a shuffle profile",
+   "decoding": "T=1.0, k=8, think mode",
+   "split": "test_r",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.5458333333333333,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.066934186741922,
+   "fv_tanimoto": 0.12247507762891313,
+   "fv_samples": 2.011111111111111,
+   "fv_tokens": 93.48888888888888,
+   "fv_lift": 0.003814175899640528,
+   "lift": 0.0018318229451613946,
+   "tanimoto_valid": 0.12467348209325076,
+   "core@8": 0.0,
+   "fv_rate": 0.9916666666666667,
+   "mean_reward": 0.06745217871181987,
+   "lift_ci": [
+    -0.005246146766156988,
+    0.008105318746979954
+   ],
+   "fv_tanimoto_ci": [
+    0.10650036279681005,
+    0.13904308212895514
+   ],
+   "mean_tanimoto_ci": [
+    0.05853654402401521,
+    0.07466808942240598
+   ],
+   "fv_lift_ci": [
+    -0.008032348503983355,
+    0.016082677149685143
+   ]
+  },
+  {
+   "run": "A2-blank",
+   "label": "A2 with a blank profile",
+   "decoding": "T=1.0, k=8, think mode",
+   "split": "test_r",
+   "family": "Diagnostic",
+   "shared_draws": true,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.7440972222222223,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.10208693340369708,
+   "fv_tanimoto": 0.12949856372481847,
+   "fv_samples": 1.0,
+   "fv_tokens": 28.0,
+   "fv_lift": 9.25185853854297e-18,
+   "lift": 6.780712490809803e-05,
+   "tanimoto_valid": 0.13719806464705211,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.09845702115332937,
+   "lift_ci": [
+    -0.011877571776490225,
+    0.01313596195372879
+   ],
+   "fv_tanimoto_ci": [
+    0.11072582361829794,
+    0.15114012439315977
+   ],
+   "mean_tanimoto_ci": [
+    0.09033590141215088,
+    0.11471094119642075
+   ],
+   "fv_lift_ci": [
+    -0.019420075972262644,
+    0.02238782138104274
+   ]
+  },
+  {
+   "run": "RL-full-shuffle",
+   "label": "RL-full with a shuffle profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "split": "test_r",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.9822916666666667,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.15406985894078867,
+   "fv_tanimoto": 0.15560715194951114,
+   "fv_samples": 1.0166666666666666,
+   "fv_tokens": 33.13888888888889,
+   "fv_lift": -0.00031878398800281964,
+   "lift": -0.00010757935169969322,
+   "tanimoto_valid": 0.1558140205526563,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.14155649869780654,
+   "lift_ci": [
+    -0.021485768429077505,
+    0.02275701424845845
+   ],
+   "fv_tanimoto_ci": [
+    0.13373193570673353,
+    0.17998702671402347
+   ],
+   "mean_tanimoto_ci": [
+    0.13266541846478633,
+    0.17706431161855088
+   ],
+   "fv_lift_ci": [
+    -0.022487037994757705,
+    0.024577898531882175
+   ]
+  },
+  {
+   "run": "RL-full-blank",
+   "label": "RL-full with a blank profile",
+   "decoding": "T=0.3, k=8, think mode",
+   "split": "test_r",
+   "family": "Diagnostic",
+   "shared_draws": true,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 1.0,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.15292411041284706,
+   "fv_tanimoto": 0.15102763007094308,
+   "fv_samples": 1.0,
+   "fv_tokens": 26.0,
+   "fv_lift": -8.326672684688674e-18,
+   "lift": -7.401486830834377e-18,
+   "tanimoto_valid": 0.15292411041284706,
+   "core@8": 0.0,
+   "fv_rate": 1.0,
+   "mean_reward": 0.14175446624770824,
+   "lift_ci": [
+    -0.023566958207695915,
+    0.028736584353404006
+   ],
+   "fv_tanimoto_ci": [
+    0.12826157102241703,
+    0.17896957722075366
+   ],
+   "mean_tanimoto_ci": [
+    0.13014271747874104,
+    0.1807028086211376
+   ],
+   "fv_lift_ci": [
+    -0.023551095567440804,
+    0.028905462568769538
+   ]
+  },
+  {
+   "run": "name-4B",
+   "label": "4B name",
+   "decoding": "T=1.0, k=8, no-think",
+   "split": "test_r",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "generation",
+   "drugs": 30,
+   "samples": 640,
+   "prompt_tokens": 602.7388888888889,
+   "valid_closed": 0.28263888888888894,
+   "exact@1": 0.0,
+   "core@1": 0.0,
+   "mean_tanimoto": 0.0341954658491744,
+   "fv_tanimoto": 0.09937945792864311,
+   "fv_samples": 3.658333333333333,
+   "fv_tokens": 286.1694444444445,
+   "fv_lift": 0.007810607019907057,
+   "lift": 0.0027823412767939357,
+   "tanimoto_valid": 0.12064746801201058,
+   "core@8": 0.0,
+   "fv_rate": 0.8416666666666667,
+   "mean_reward": 0.034649223953949086,
+   "lift_ci": [
+    4.690428699450894e-05,
+    0.0056975008796201
+   ],
+   "fv_tanimoto_ci": [
+    0.07807070923445934,
+    0.11983593232128731
+   ],
+   "mean_tanimoto_ci": [
+    0.026129526539013622,
+    0.042924747731297626
+   ],
+   "fv_lift_ci": [
+    -0.0058644166666828165,
+    0.02124085373159818
+   ]
+  },
+  {
+   "run": "ident-4B",
+   "label": "4B ident",
+   "decoding": "T=1.0, k=8, no-think",
+   "split": "test_r",
+   "family": "Diagnostic",
+   "shared_draws": false,
+   "kind": "identification",
+   "drugs": 30,
+   "samples": 640,
+   "name_match@1": 0.0274,
+   "pass_k": 8,
+   "name_pass": 0.0722,
+   "answered": 0.8597
+  }
+ ]
+}

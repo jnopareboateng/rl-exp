@@ -1,0 +1,91 @@
+A: runs/final/RL-full/scored.v3.jsonl
+B: runs/final/C3/scored.v3.jsonl
+95% percentile bootstrap, descriptive: resamples cluster_id components when the rows carry cluster_id, else drugs; 10000 resamples, seed 0
+
+split test_t   drugs 41 of 41   rows 100 of 100   samples 800
+  bootstrap resamples 41 clusters of 41 drugs
+  metric              value  95% CI                  drugs  rows   note
+  exact@1             0.000  [0.000, 0.000]             41   100   deg
+  core@1              0.000  [0.000, 0.000]             41   100   deg
+  stereo_exact@1      0.000  [0.000, 0.000]             41   100   deg
+  lift                0.008  [-0.007, 0.022]            41   100   
+  mean_tanimoto       0.184  [0.168, 0.199]             41   100   
+  tanimoto_valid      0.185  [0.170, 0.200]             41   100   
+  mean_reward         0.160  [0.150, 0.169]             41   100   
+  valid_closed        0.990  [0.974, 1.000]             41   100   
+  truncation          0.006  [0.000, 0.016]             41   100   
+  n_tokens_mean        35.6  [32.9, 39.3]               41   100   
+  n_tokens_p90           45  [39, 48]                   41   100   
+  oracle coverage (needs the answer to select; not deployable):
+    exact@8           0.000  [0.000, 0.000]             41   100   deg
+    core@8            0.000  [0.000, 0.000]             41   100   deg
+  maj@8               0.000  [0.000, 0.000]             41   100   deg
+  deployable with resampling: costs fv_samples generations per answer:
+    fv_reward         0.161  [0.152, 0.171]             41   100   
+    fv_tanimoto       0.186  [0.170, 0.201]             41   100   
+    fv_lift           0.009  [-0.007, 0.024]            41   100   
+    fv_rate           1.000  [1.000, 1.000]             41   100   deg
+    fv_samples        1.005  [1.000, 1.015]             41   100   
+    fv_tokens          34.3  [32.3, 36.5]               41   100   
+  prompt_tokens 815.4 (mean n_prompt_tokens of the prompt rows, from the data files: the original prompt; fv_tokens + prompt_tokens is the token cost of an answer if the prompt is read once)
+
+  paired A - B on 41 common drugs, 100 common rows
+  metric                  A        B       A-B  95% CI (descriptive)      drugs  rows   note
+  exact@1             0.000    0.000    +0.000  [+0.000, +0.000]             41   100   deg
+  core@1              0.000    0.000    +0.000  [+0.000, +0.000]             41   100   deg
+  stereo_exact@1      0.000    0.000    +0.000  [+0.000, +0.000]             41   100   deg
+  lift                0.008    0.000    +0.008  [-0.006, +0.023]             41   100   
+  mean_tanimoto       0.184    0.199    -0.015  [-0.027, -0.002]             41   100   *
+  tanimoto_valid      0.185    0.199    -0.014  [-0.026, -0.001]             41   100   *
+  mean_reward         0.160    0.169    -0.009  [-0.017, -0.002]             41   100   *
+  valid_closed        0.990    1.000    -0.010  [-0.026, +0.000]             41   100   
+  truncation          0.006    0.000    +0.006  [+0.000, +0.016]             41   100   
+  n_tokens_mean        35.6      0.0     +35.6  [+33.0, +39.4]               41   100   *
+  n_tokens_p90           45        0       +45  [+39, +48]                   41   100   *
+  oracle coverage (needs the answer to select; not deployable):
+    exact@8           0.000    0.000    +0.000  [+0.000, +0.000]             41   100   deg
+    core@8            0.000    0.000    +0.000  [+0.000, +0.000]             41   100   deg
+  maj@8               0.000    0.000    +0.000  [+0.000, +0.000]             41   100   deg
+  deployable with resampling: costs fv_samples generations per answer:
+    fv_reward         0.161    0.169    -0.008  [-0.016, +0.000]             41   100   
+    fv_tanimoto       0.186    0.199    -0.013  [-0.026, +0.000]             41   100   
+    fv_lift           0.009    0.000    +0.009  [-0.006, +0.024]             41   100   
+    fv_rate           1.000    1.000    +0.000  [+0.000, +0.000]             41   100   deg
+    fv_samples        1.005    1.000    +0.005  [+0.000, +0.015]             41   100   
+    fv_tokens          34.3      0.0     +34.3  [+32.4, +36.4]               41   100   *
+
+  sign-flip permutation test, the decision statistic. The drug differences are summed within each cluster and the cluster totals flipped as units; ties dropped; wins, losses and ties count drugs.
+  metric            wins  losses  ties  clusters  non-tied  p (2-sided)   method
+  fv_tanimoto         10      31     0        41        41       0.0611   Monte Carlo, 100000 flips, p = (1 + hits) / (flips + 1)
+  mean_tanimoto       10      31     0        41        41       0.0291   Monte Carlo, 100000 flips, p = (1 + hits) / (flips + 1)
+  lift                19      22     0        41        41       0.2985   Monte Carlo, 100000 flips, p = (1 + hits) / (flips + 1)
+  fv_lift             18      23     0        41        41       0.2764   Monte Carlo, 100000 flips, p = (1 + hits) / (flips + 1)
+  core@1               0       0    41        41         0       1.0000   exact, 2^0 sign patterns
+  exact@1              0       0    41        41         0       1.0000   exact, 2^0 sign patterns
+
+  studentized component sensitivity (descriptive): paired mean difference / its bootstrap SE over 10000 resampled clusters
+    fv_tanimoto -1.97   mean_tanimoto -2.32   lift +1.07   fv_lift +1.13   core@1 n/a   exact@1 n/a   (a size in bootstrap standard errors, not a calibrated test: it can disagree with the p-value)
+
+  constant-answer bar (Train reference with the highest mean bit Tanimoto to the other Train references, 0.143), same prompt rows, lift against every drug of the split
+  metric              value  95% CI                  drugs  rows   note
+  exact@1             0.000  [0.000, 0.000]             41   100   deg
+  core@1              0.000  [0.000, 0.000]             41   100   deg
+  lift                0.000  [-0.016, 0.016]            41   100   
+  mean_tanimoto       0.184  [0.169, 0.199]             41   100   
+  mean_reward         0.160  [0.151, 0.169]             41   100   
+  fv_tanimoto         0.184  [0.169, 0.199]             41   100   
+
+drugs = drugs with a value; rows = prompt rows used; skip = rows with fewer than 8 samples (unusable for the @8 metrics); deg = every unit has the same value, so the interval has zero
+  width and understates the uncertainty (a rate of 0 over n drugs is only bounded near 3/n); * = bootstrap interval excludes 0 (descriptive).
+exact@8 and core@8 are oracle coverage: they need the answer to pick the sample, never a deployable result.
+fv_tanimoto is the confirmatory endpoint: the Tanimoto of the first valid finished answer among the first 8 samples of a row (0 if none). Its cost is stated, not matched:
+  read it with fv_samples (draws per answer) and fv_tokens (generated tokens up to the first valid answer; prompt_tokens adds the prompt): an arm that invalidates its weak answers can raise it by paying in draws.
+  every other metric is a diagnostic. tanimoto_valid conditions on a valid finished answer: read it beside valid_closed.
+lift = Tanimoto of the answer to its own drug's reference minus its mean Tanimoto to the other drugs' references of the split (0 for an invalid, unclosed or length-terminated answer); fv_lift is the lift of the first valid answer;
+  they measure the association between the drug and everything the policy does. A constant answer has lift 0 over a complete panel only if completion does not depend on the drug
+  (a drug-dependent finish rate, or a cue such as prompt length, can raise lift without the answer using the profile); fv_lift of a constant is 0 when every row has a valid answer.
+Intervals and p-values are per metric and not adjusted for multiplicity: only fv_tanimoto, the endpoint declared in docs/contracts.md, is confirmatory,
+  and for it the sign-flip p-value, not the bootstrap interval, is the decision statistic.
+Sign-flip test assumptions: the components (cluster_id groups, or single drugs when rows carry no cluster_id) are the exchangeable units and are independent;
+  flipping the sign of each component's summed A - B difference is valid under a null in which those sums are symmetric about zero (a zero mean alone is not enough);
+  the p-value holds only under those assumptions: it is not assumption-free.

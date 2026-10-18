@@ -96,6 +96,11 @@
    "runs": 21,
    "wall_seconds": 1587.691112279999,
    "generation_seconds": 672.1860997500019
+  },
+  "Locked Test evaluation": {
+   "runs": 10,
+   "wall_seconds": 2158.0339357690063,
+   "generation_seconds": 1711.1402110659837
   }
  },
  "runs_without_meta": [
@@ -147,7 +152,7 @@
  },
  "totals_hours": {
   "training": 4.153797718191392,
-  "sampling_wall": 2.970668018241111,
-  "sampling_generation": 2.114333546690556
+  "sampling_wall": 3.5701218892880573,
+  "sampling_generation": 2.5896502719866628
  }
 }

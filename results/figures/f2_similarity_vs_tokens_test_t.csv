@@ -1,0 +1,12 @@
+run,arm,family,decoding,fv_tokens,fv_tanimoto,fv_samples,prompt_tokens,labelled
+C0,Constant answer (C0),control,"deterministic, copied to eight samples",0,0.1838536233,1,815.399187,True
+C1,Nearest-profile copy (C1),control,"deterministic, copied to eight samples",0,0.1677945206,1,815.399187,True
+C2,Constant scaffold (C2),control,"deterministic, copied to eight samples",0,0.07724893338,1,815.399187,True
+C3,Best constant answer (C3),control,"deterministic, copied to eight samples",0,0.199051834,1,815.399187,True
+A0n,4B untrained,untrained,"T=0.6, k=8, no-think",760.9743902,0.07250377148,5.482113821,815.399187,True
+A4,4B with retrieved examples (A4),retrieval,"T=0.6, k=8, no-think",359.8126016,0.1404941671,2.395528455,815.399187,True
+A2,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",92.18536585,0.1311813228,2.00203252,815.399187,True
+RL-full,4B after RL,rl,"T=0.3, k=8, think mode",34.29837398,0.1856725008,1.004878049,815.399187,True
+A2-shuffle,Shuffled-profile run,shuffle,"T=1.0, k=8, think mode",84.43130081,0.1330805719,1.893089431,815.399187,False
+RL-full-shuffle,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",34.8004065,0.1812969412,1,815.399187,False
+name-4B,4B told the drug name,name,"T=1.0, k=8, no-think",274.9552846,0.1124975656,3.583333333,815.399187,False

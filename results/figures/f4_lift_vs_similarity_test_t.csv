@@ -1,0 +1,12 @@
+run,arm,family,decoding,fv_lift,fv_tanimoto,fv_samples,labelled
+C0,Constant answer (C0),control,"deterministic, copied to eight samples",0,0.1838536233,1,True
+C1,Nearest-profile copy (C1),control,"deterministic, copied to eight samples",0.01424753337,0.1677945206,1,True
+C2,Constant scaffold (C2),control,"deterministic, copied to eight samples",0,0.07724893338,1,True
+C3,Best constant answer (C3),control,"deterministic, copied to eight samples",0,0.199051834,1,True
+A0n,4B untrained,untrained,"T=0.6, k=8, no-think",0.005728671924,0.07250377148,5.482113821,True
+A4,4B with retrieved examples (A4),retrieval,"T=0.6, k=8, no-think",0.01269197409,0.1404941671,2.395528455,True
+A2,4B fine-tuned on answers (A2),sft,"T=1.0, k=8, think mode",-0.003568099664,0.1311813228,2.00203252,True
+RL-full,4B after RL,rl,"T=0.3, k=8, think mode",0.008544586495,0.1856725008,1.004878049,True
+A2-shuffle,Shuffled-profile run,shuffle,"T=1.0, k=8, think mode",0.0006020649862,0.1330805719,1.893089431,False
+RL-full-shuffle,Shuffled-profile run,shuffle,"T=0.3, k=8, think mode",0.005347388088,0.1812969412,1,False
+name-4B,4B told the drug name,name,"T=1.0, k=8, no-think",0.003427739016,0.1124975656,3.583333333,False

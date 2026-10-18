@@ -1,0 +1,218 @@
+{
+ "split": "test_t",
+ "n_candidates": 41,
+ "chance": {
+  "hit@1": 0.024390243902439025,
+  "pct_rank": 0.5121951219512195
+ },
+ "confirmatory": false,
+ "sign": "A minus B; for the percentile rank a lower value is better, so a win is a negative difference",
+ "arms": [
+  {
+   "arm": "C0",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 1,
+   "hit@1": 0.024390243902439025,
+   "pct_rank": 0.5121951219512196,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "C1",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 64,
+   "hit@1": 0.044715447154471545,
+   "pct_rank": 0.4270870513583185,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "C2",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 1,
+   "hit@1": 0.024390243902439025,
+   "pct_rank": 0.5121951219512195,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "C3",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 1,
+   "hit@1": 0.024390243902439025,
+   "pct_rank": 0.5121951219512195,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "A0n",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 54,
+   "hit@1": 0.02723577235772358,
+   "pct_rank": 0.6974915724767003,
+   "fv_rate": 0.5520325203252032
+  },
+  {
+   "arm": "A4",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 89,
+   "hit@1": 0.05772357723577236,
+   "pct_rank": 0.5008377949633155,
+   "fv_rate": 0.9142276422764228
+  },
+  {
+   "arm": "A2",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 100,
+   "hit@1": 0.03048780487804878,
+   "pct_rank": 0.5469066032123736,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "RL-full",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 47,
+   "hit@1": 0.0475609756097561,
+   "pct_rank": 0.4746876859012493,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "A2-shuffle",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 100,
+   "hit@1": 0.03739837398373983,
+   "pct_rank": 0.5034304977196113,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "RL-full-shuffle",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 48,
+   "hit@1": 0.05691056910569105,
+   "pct_rank": 0.48448344239539953,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "A2-blank",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 1,
+   "hit@1": 0.024390243902439025,
+   "pct_rank": 0.5121951219512196,
+   "fv_rate": 1.0
+  },
+  {
+   "arm": "RL-full-blank",
+   "n_drugs": 41,
+   "n_rows": 100,
+   "n_distinct": 1,
+   "hit@1": 0.024390243902439025,
+   "pct_rank": 0.5121951219512196,
+   "fv_rate": 1.0
+  }
+ ],
+ "contrasts": [
+  {
+   "a": "RL-full",
+   "b": "RL-full-shuffle",
+   "split": "test_t",
+   "n_drugs": 41,
+   "measures": {
+    "pct_rank": {
+     "a": 0.4746876859012492,
+     "b": 0.48448344239539964,
+     "diff": -0.009795756494150301,
+     "wins": 18,
+     "losses": 19,
+     "ties": 4,
+     "n_clusters": 41,
+     "non_tied": 37,
+     "p_value": 0.5875841241587584,
+     "p_method": "monte_carlo"
+    },
+    "hit@1": {
+     "a": 0.0475609756097561,
+     "b": 0.05691056910569106,
+     "diff": -0.009349593495934958,
+     "wins": 1,
+     "losses": 2,
+     "ties": 38,
+     "n_clusters": 41,
+     "non_tied": 3,
+     "p_value": 0.5,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "A2",
+   "b": "A2-shuffle",
+   "split": "test_t",
+   "n_drugs": 41,
+   "measures": {
+    "pct_rank": {
+     "a": 0.5469066032123736,
+     "b": 0.5034304977196113,
+     "diff": 0.04347610549276226,
+     "wins": 24,
+     "losses": 17,
+     "ties": 0,
+     "n_clusters": 41,
+     "non_tied": 41,
+     "p_value": 0.26545734542654575,
+     "p_method": "monte_carlo"
+    },
+    "hit@1": {
+     "a": 0.03048780487804878,
+     "b": 0.03739837398373983,
+     "diff": -0.006910569105691055,
+     "wins": 2,
+     "losses": 3,
+     "ties": 36,
+     "n_clusters": 41,
+     "non_tied": 5,
+     "p_value": 0.875,
+     "p_method": "exact"
+    }
+   }
+  },
+  {
+   "a": "A2",
+   "b": "RL-full",
+   "split": "test_t",
+   "n_drugs": 41,
+   "measures": {
+    "pct_rank": {
+     "a": 0.5469066032123736,
+     "b": 0.4746876859012492,
+     "diff": 0.07221891731112434,
+     "wins": 15,
+     "losses": 25,
+     "ties": 1,
+     "n_clusters": 41,
+     "non_tied": 40,
+     "p_value": 0.024159758402415975,
+     "p_method": "monte_carlo"
+    },
+    "hit@1": {
+     "a": 0.03048780487804878,
+     "b": 0.0475609756097561,
+     "diff": -0.017073170731707315,
+     "wins": 1,
+     "losses": 2,
+     "ties": 38,
+     "n_clusters": 41,
+     "non_tied": 3,
+     "p_value": 0.75,
+     "p_method": "exact"
+    }
+   }
+  }
+ ]
+}

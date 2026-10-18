@@ -14,8 +14,9 @@
 | A4 Val sampling | 3 runs | 0.17 | vLLM; 0.13 h of it generation |
 | Diagnostics: identification and name-given | 8 runs | 0.34 | vLLM; 0.15 h of it generation |
 | Diagnostics: shuffled and blank profile | 6 runs | 0.15 | vLLM; 0.04 h of it generation |
+| Locked Test evaluation | 10 runs | 0.60 | vLLM; 0.48 h of it generation |
 | RL checkpoints: Val re-sampling | 21 runs | 0.44 | vLLM; 0.19 h of it generation |
-| **Total logged** | | **7.12** | training 4.15 h, sampling 2.97 h |
+| **Total logged** | | **7.72** | training 4.15 h, sampling 3.57 h |
 
 Colab runtime sessions (as of 2026-10-18T02:00:00Z):
 
